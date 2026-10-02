@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v5.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v5.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Đủ 10 Gate**, mỗi Gate chơi được ở cả 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1` |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 10) |
+| README cập nhật | 2026-10-02 (rev 11) |
 
 ---
 
@@ -57,6 +57,7 @@ js/hero.js               Nhân vật Hunter: di chuyển, thể lực, lộn né
 js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hướng + khuôn hành vi (bắn xa, tự nổ, đào đất, dịch chuyển, khiên)
 js/items.js              Vật phẩm rơi và hệ thống thử thách
 js/skills.js             Kỹ năng giải vây: lựu đạn, xung kích
+js/progress.js           Xu & cửa hàng nâng cấp vĩnh viễn, thẻ nâng cấp trong trận, combo, rung điện thoại
 js/hud.js                HUD (DOM), chỉ cập nhật khi giá trị thay đổi
 js/game.js               Runtime một Gate: wave, đạn, va chạm, vụ nổ, dẫn đường (flow field), camera, minimap, vẽ
 js/main.js               Menu, chọn Gate, tải file Gate theo yêu cầu, vòng lặp, nút 2D/3D
@@ -106,8 +107,8 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
 | Hành động | Máy tính | Điện thoại | Tay cầm |
 |---|---|---|---|
 | Di chuyển | W A S D / phím mũi tên | Chạm và kéo ở nửa trái màn hình | Cần trái |
-| Ngắm | Chuột | Chạm và kéo ở nửa phải màn hình | Cần phải |
-| Bắn | Giữ chuột trái | Chế độ **Tự động**: tự khoá quái gần nhất và tự bắn. Chế độ khác: kéo gậy phải quá 30% | RT (hoặc đẩy cần phải mạnh) |
+| Ngắm | Chuột | Nửa phải màn hình: **chạm/giữ tại chỗ** = quay ngay về điểm chạm; **kéo** = gậy ngắm | Cần phải |
+| Bắn | Giữ chuột trái | **Chạm liên tục / giữ** bên phải để bắn vào điểm chạm (mọi chế độ ngắm). Chế độ **Tự động** còn tự khoá và tự bắn. Gậy ngắm: kéo quá 30% là bắn | RT (hoặc đẩy cần phải mạnh) |
 | Lộn né (bất tử 0,3 giây) | Space / chuột phải | Nút **NÉ** | A / B |
 | Chạy nhanh | Giữ Shift | Đẩy gậy trái hết cỡ | LB |
 | Nạp đạn | R | Nút **NẠP** | X |
@@ -183,6 +184,43 @@ Súng nhận từ thử thách được lưu vào **kho vũ khí** và mang theo
 | Tempest MG (súng máy) | Thử thách Gate 07 | 9 | 42 ms | 140 | 2,6 s | ~214, băng rất lớn |
 
 Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 lần). Muốn đạt mức đó phải tích cực phá thùng và làm thử thách. Gate 08–10 thưởng linh kiện hiếm thay vì súng.
+
+## 6a. Nâng cấp nhân vật, thẻ nâng cấp, combo (v5.3)
+
+**Xu & cửa hàng (vĩnh viễn).** Sau mỗi trận (thắng hay thua) nhận xu = điểm ÷ 80 + 40/thử thách + 120 nếu thắng (+15/wave ở Sinh tồn). Mua ở màn *Chọn cửa ải → NÂNG CẤP NHÂN VẬT* (hoặc nút NÂNG CẤP ở màn kết quả). Giá cấp kế = giá gốc × (1 + 0,8 × cấp hiện tại).
+
+| Nâng cấp | Mỗi cấp | Tối đa | Giá gốc |
+|---|---|---|---|
+| Thể lực | +12 máu tối đa | 5 | 120 |
+| Giáp khởi đầu | +12 giáp khi vào trận | 5 | 120 |
+| Đạn xuyên giáp | +6% sát thương mọi súng | 5 | 180 |
+| Tay nhanh | −8% thời gian nạp đạn | 5 | 100 |
+| Túi lựu đạn | +1 lựu đạn mang theo | 2 | 260 |
+| Phản xạ | −10% hồi chiêu lộn né | 3 | 140 |
+| Nam châm | +40% tầm hút vật phẩm | 3 | 80 |
+
+**Thẻ nâng cấp trong trận.** Hết mỗi wave (và sau mỗi boss ở Sinh tồn) game tạm dừng, cho chọn 1 trong 3 thẻ. Hiệu lực đến hết trận. Máu dưới 50% thì dễ ra thẻ Băng gạc.
+
+| Thẻ | Hiệu ứng | Tối đa |
+|---|---|---|
+| Đạn nặng | +15% sát thương | 5 |
+| Cò nhạy | +12% tốc độ bắn | 5 |
+| Băng đạn lớn | +30% băng đạn | 3 |
+| Đạn xuyên | Xuyên thêm 1 quái | 2 |
+| Chí mạng | 12% cơ hội ×2,5 sát thương | 3 |
+| Hút máu | Hạ 1 quái hồi 2 máu | 3 |
+| Xác nổ | Quái chết nổ lan (chặn chuỗi nổ quá 2 tầng) | 2 |
+| Chân nhanh | +10% tốc chạy | 3 |
+| Vệt lửa | Lộn né để lại 3 đốm lửa đốt quái | 1 |
+| Kíp nổ nhanh | Lựu đạn hồi nhanh hơn 35%, +1 quả ngay | 2 |
+| Áo giáp | Giáp tối đa +20, nạp đầy | 3 |
+| Băng gạc | Hồi 45% máu | không giới hạn |
+
+**Combo.** Hạ quái liên tiếp trong 2,6 giây để nối combo; từ ×3 hiện trên màn hình. Điểm mỗi quái × (1 + 5% × (combo − 1)), tối đa ×2. Trúng đòn là mất combo. Mốc ×10, ×20… có khựng hình và rung.
+
+**Cảm giác bắn.** Khựng hình ngắn khi hạ quái tinh nhuệ (0,05 giây), boss chuyển phase (0,12 giây, kèm chữ *BOSS NỔI ĐIÊN*) và hạ boss (0,22 giây). Rung điện thoại khi trúng đòn, nổ gần, boss đổi phase, hạ boss, gục ngã (tắt được trong Cài đặt → *Rung điện thoại*).
+
+**Chế độ Sinh tồn.** Ở màn Chọn cửa ải, bấm **SINH TỒN** (mở cho Gate đã qua ở Chiến dịch). Wave vô hạn: số quái, mật độ, tỉ lệ tinh nhuệ và máu quái (+9%/wave) tăng dần; từ wave 4 trộn tất cả loại quái của Gate. Cứ 5 wave có boss (máu +35% mỗi lần gặp lại), hạ boss rơi máu + giáp + linh kiện rồi đánh tiếp. Không có cơ hội đấu lại boss. Kỷ lục (wave cao nhất, điểm) lưu theo từng Gate và hiện trên thẻ Gate.
 
 ## 6b. Giải vây và tiếp tế
 
@@ -345,8 +383,13 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 
 ### M3: Tiến trình
 
-- [ ] Cây nâng cấp vĩnh viễn (dùng điểm hoặc sao)
-- [ ] Skill chủ động (ví dụ: lựu đạn, khiên)
+- [x] Nâng cấp vĩnh viễn bằng xu + cửa hàng (v5.3)
+- [x] Thẻ nâng cấp sau mỗi wave (v5.3)
+- [x] Chế độ Sinh tồn vô hạn, kỷ lục theo Gate (v5.3)
+- [x] Combo, khựng hình, rung (v5.3)
+- [x] Skill chủ động: lựu đạn, xung kích (v4.2)
+- [ ] Nhân vật mới: Medic, Engineer, Ghost
+- [ ] Thử thách hằng ngày, độ khó Ác mộng
 - [ ] Bảng xếp hạng online (cần backend, ví dụ Supabase)
 
 ### M4: Gate 03 → 10 ✅ (v5.0)
@@ -383,6 +426,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v5.3** · README rev 11 | **Bắn chạm** trên điện thoại (chạm/giữ bên phải = bắn vào điểm chạm, kéo = gậy ngắm) và **nút NGẮM** trên màn hình đổi Tự động / Hỗ trợ / Tay; **xu + cửa hàng nâng cấp vĩnh viễn** (7 mục); **thẻ nâng cấp** chọn 1/3 sau mỗi wave (12 thẻ); **combo** nhân điểm; **khựng hình** và **rung**; báo boss đổi phase; chế độ **Sinh tồn** vô hạn với kỷ lục theo Gate; file mới `js/progress.js` |
 | 2026-10-02 | **v5.2** · README rev 10 | **Cơ hội đấu lại Boss 1 lần mỗi Gate**: gục ở trận boss lần đầu → chọn đấu lại tại chỗ (hồi đầy máu/giáp/đạn/kỹ năng, giữ súng, linh kiện và điểm, dọn quái/đạn/vùng nguy hiểm tạm, bất tử 3 giây, boss hồi sinh đầy máu sau 3 giây) hoặc chấp nhận thua. Màn hình mới `#retry`, hàm `G.retryBoss()`, `App.offerBossRetry()` |
 | 2026-10-02 | **v5.1.2** · README rev 9 | **Tự cập nhật cho app đã cài ra màn hình chính**: thêm `version.json`; game kiểm tra khi app mở lại / vào menu / mỗi 5 phút, tự tải lại (đang chơi thì chờ về menu); service worker bỏ qua cache HTTP và không cache `version.json` |
 | 2026-10-02 | **v5.1.1** · README rev 8 | **Sửa gốc lỗi đen màn hình khi sang Gate mới (3D)**: camera 3D tính bước thời gian âm (đồng hồ Gate mới về 0) → toạ độ NaN. Reset mốc thời gian khi dựng màn, kẹp dt ≥ 0, chặn NaN. Thêm test: chơi Gate dài rồi sang Gate kế |

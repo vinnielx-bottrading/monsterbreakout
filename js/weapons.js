@@ -56,14 +56,14 @@
     DEFS, MODS, MOD_DROP, ORDER,
     make(id) { return { id, ammo: null, reloading: 0 }; },
     stats(p, w) {
-      const d = DEFS[w.id], m = p.mods;
+      const d = DEFS[w.id], m = p.mods, B = p.bonus || {};
       return {
         ...d,
-        dmg: d.dmg * (1 + 0.15 * m.barrel),
-        rate: d.rate / (1 + 0.12 * m.trigger),
-        mag: Math.round(d.mag * (1 + 0.25 * m.mag)),
-        reload: d.reload * (1 - 0.12 * m.mag),
-        pierce: (d.pierce || 0) + m.pierce,
+        dmg: d.dmg * (1 + 0.15 * m.barrel) * (1 + (B.dmg || 0)),
+        rate: d.rate / (1 + 0.12 * m.trigger) / (1 + (B.rate || 0)),
+        mag: Math.round(d.mag * (1 + 0.25 * m.mag) * (1 + (B.mag || 0))),
+        reload: d.reload * (1 - 0.12 * m.mag) * Math.max(0.4, 1 - (B.reload || 0)),
+        pierce: (d.pierce || 0) + m.pierce + (B.pierce || 0),
         extra: m.split,
       };
     },
@@ -127,8 +127,10 @@
       }
       // điểm xuất phát lùi về trong thân để không bắn xuyên tường khi đứng sát vật cản
       const sx = p.x + Math.cos(a0) * 10, sy = p.y + Math.sin(a0) * 10;
+      const crit = (p.bonus && p.bonus.crit) || 0;
       for (const sh of shots) {
         const sp = s.speed * U.rnd(0.94, 1.06);
+        if (crit && Math.random() < crit) sh.dmg *= 2.5;
         G.bullets.push({
           x: sx, y: sy, px: sx, py: sy, vx: Math.cos(sh.a) * sp, vy: Math.sin(sh.a) * sp,
           life: s.life * U.rnd(0.9, 1.1), dmg: sh.dmg, pierce: s.pierce, hits: [], r: s.br, color: s.color, knock: s.knock,

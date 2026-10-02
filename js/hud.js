@@ -24,6 +24,16 @@
       this.el.toasts.innerHTML = '';
       this.bossHide();
       if (MB.U.isTouchDevice()) document.getElementById('challenges').classList.add('collapsed');
+      this.combo(0);
+    },
+    // combo: "×12 COMBO" nảy lên mỗi lần hạ quái
+    combo(n) {
+      const el = this.el.combo || (this.el.combo = $('combo'));
+      if (!el) return;
+      if (n < 3) { el.classList.remove('show'); return; }
+      el.innerHTML = `<b>×${n}</b> COMBO<small>điểm ×${(1 + Math.min(n - 1, 20) * 0.05).toFixed(2)}</small>`;
+      el.classList.remove('pop'); void el.offsetWidth; el.classList.add('show', 'pop');
+      el.classList.toggle('hot', n >= 15);
     },
     objective(t, s) { this.el.objTitle.textContent = t; this.el.objText.textContent = s; },
     banner(t, s, dur) {
@@ -56,10 +66,10 @@
       this.set('st', e.stFill, 'width', p.stamina.toFixed(0) + '%');
       this.set('stc', e.stFill, 'background', p.exhausted ? '#ff8a5c' : '');
       const d = G.def;
-      const waveLabel = G.state === 'boss' || G.state === 'won' ? 'BOSS' : G.state === 'intro' ? 'SẴN SÀNG' : `WAVE ${Math.max(1, G.waveIdx + 1)}/${d.waves.length}`;
+      const waveLabel = G.state === 'boss' || G.state === 'won' ? 'BOSS' : G.state === 'intro' ? 'SẴN SÀNG' : G.mode === 'survival' ? `WAVE ${Math.max(1, G.waveIdx + 1)} ∞` : `WAVE ${Math.max(1, G.waveIdx + 1)}/${d.waves.length}`;
       this.set('wave', e.waveText, 'text', waveLabel);
       let left = '';
-      if (G.state === 'fight') { const w = d.waves[G.waveIdx]; left = `Quái ${w.total - G.spawned + G.countedAlive()}`; }
+      if (G.state === 'fight') { const w = G.getWave(G.waveIdx); left = `Quái ${w.total - G.spawned + G.countedAlive()}`; }
       else if (G.state === 'break') left = `Nghỉ ${Math.ceil(G.stateT)}s`;
       else if (G.state === 'preboss') left = `Boss ${Math.ceil(G.stateT)}s`;
       this.set('en', e.enemyText, 'text', left);
@@ -87,7 +97,7 @@
       }
       if (e.dodgeBtn) this.set('dg', e.dodgeBtn, 'opacity', p.dashCd > 0 || p.stamina < 18 ? '.45' : '1');
       const SK = MB.Skills;
-      this.set('gt', e.gText, 'text', `LỰU ĐẠN ${p.grenades}/${SK.GRENADE.max}` + (p.grenades < SK.GRENADE.max ? ` (+1 sau ${Math.ceil(p.gRegen)}s)` : ''));
+      this.set('gt', e.gText, 'text', `LỰU ĐẠN ${p.grenades}/${p.gMax || SK.GRENADE.max}` + (p.grenades < (p.gMax || SK.GRENADE.max) ? ` (+1 sau ${Math.ceil(p.gRegen)}s)` : ''));
       this.set('gtc', e.gText, 'className', p.grenades > 0 ? 'sk' : 'sk off');
       this.set('gc', e.gCount, 'text', String(p.grenades));
       this.set('gb', e.gBtn, 'className', 'tbtn sk1' + (p.grenades > 0 ? '' : ' off'));

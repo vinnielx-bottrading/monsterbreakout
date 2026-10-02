@@ -32,8 +32,11 @@
     },
 
     /* ================== bắt đầu Gate ================== */
-    start(def) {
+    start(def, opts) {
+      opts = opts || {};
       this.def = def;
+      this.mode = opts.mode === 'survival' ? 'survival' : 'campaign';
+      this.hitstop = 0; this.perkT = 0; this.lastBossPhase = null;
       this.lowFx = this.quality() === 'low';
       this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
       this.enemies = []; this.bullets = []; this.ebullets = []; this.pickups = []; this.particles = [];
@@ -52,6 +55,8 @@
       for (const id of MB.Weapons.ORDER) if (armory.includes(id)) p.weapons.push(MB.Weapons.make(id));
       if (!p.weapons.length) p.weapons.push(MB.Weapons.make('rifle'));
       p.aim = 0;
+      MB.Shop.apply(p);
+      MB.Combo.reset(this); this.comboBest = 0;
 
       this.nav = null; this.navDirty = true; this.navT = 0;
       MB.Skills.init(p);
@@ -201,6 +206,7 @@
     explosion(x, y, r, dmg, o) {
       o = o || {};
       MB.Audio.play('boom'); this.shake(o.shake || 9);
+      if (!o.small && U.dist(x, y, this.player.x, this.player.y) < 320) MB.haptic(25);
       this.burst(x, y, o.color || '#ffb347', o.small ? 14 : 26, 300); this.burst(x, y, '#5a5048', 10, 160);
       this.decal(x, y, o.decal || 'rgba(20,16,12,.7)', r * 0.22);
       const col = o.ring || '255,170,70';
@@ -236,6 +242,7 @@
       if (sc && !e.boss) { e.hp *= sc.hp || 1; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * (sc.dmg || 1)); e.score = Math.round(e.score * (sc.hp || 1)); }
       if (e.elite) { e.hp *= 2.4; e.maxHp = e.hp; e.r *= 1.15; e.speed *= 1.06; e.score *= 3; e.dmg = Math.round(e.dmg * 1.3); }
       if (def.init) def.init(e, this);
+      if (opts.hpMul && opts.hpMul !== 1) { e.hp *= opts.hpMul; e.maxHp *= opts.hpMul; e.score = Math.round(e.score * (1 + (opts.hpMul - 1) * 0.5)); }
       if (!e.fly) this.collide(e);
       this.enemies.push(e);
       if (e.boss) {
@@ -274,8 +281,17 @@
     },
     killEnemy(e) {
       e.dead = true;
-      this.addScore(e.score);
+      const mul = e.boss ? 1 : MB.Combo.kill(this);
+      this.addScore(e.score * mul);
       this.stats.kills++;
+      const P = this.player, B = P.bonus;
+      if (B.leech && !P.dead) P.hp = Math.min(P.maxHp, P.hp + B.leech);
+      if (e.elite) { this.hitstop = Math.max(this.hitstop, 0.05); MB.haptic(15); }
+      if (B.boom && !e.boss && (this.boomDepth || 0) < 2) {
+        this.boomDepth = (this.boomDepth || 0) + 1;
+        this.explosion(e.x, e.y, 55 + 20 * B.boom, 18 + 14 * B.boom, { small: true, obstacles: false, source: e, knock: 160, shake: 3 });
+        this.boomDepth--;
+      }
       const blood = e.def.blood || '#3f6b25';
       this.decal(e.x, e.y, blood, e.r * 0.9);
       this.burst(e.x, e.y, e.def.gore || '#a8e07a', e.boss ? 60 : 16, e.boss ? 260 : 150);
@@ -295,7 +311,8 @@
     },
     bossDown(e) {
       this.addScore(5000);
-      this.shake(18);
+      this.shake(18); this.hitstop = 0.22; MB.haptic([90, 40, 140]);
+      if (this.mode === 'survival') return this.survivalBossDown(e);
       for (let i = 0; i < 6; i++) setTimeout(() => { if (this.running) this.burst(e.x + U.rnd(-60, 60), e.y + U.rnd(-60, 60), '#ffd56a', 30, 300); }, i * 120);
       MB.HUD.bossHide();
       this.state = 'won'; this.stateT = 2.8;
@@ -304,6 +321,35 @@
       // kẻ địch còn lại tan biến
       for (const o of this.enemies) if (!o.dead && o !== e) { o.dead = true; this.burst(o.x, o.y, '#a8e07a', 8); }
       this.ebullets.length = 0;
+    },
+
+    // sinh tồn: hạ boss chưa phải hết — nghỉ, chọn thẻ rồi đánh tiếp
+    survivalBossDown(e) {
+      MB.HUD.bossHide();
+      this.banner('BOSS BỊ HẠ', `Wave ${this.waveIdx + 1} · quái sẽ mạnh hơn nữa`, 2.6);
+      MB.Audio.play('win'); MB.Audio.intensity(0.3);
+      for (const o of this.enemies) if (!o.dead && o !== e) { o.dead = true; this.burst(o.x, o.y, '#a8e07a', 8); }
+      this.ebullets.length = 0;
+      const p = this.player;
+      MB.Items.drop(this, 'med', e.x - 30, e.y); MB.Items.drop(this, 'armor', e.x + 30, e.y);
+      MB.Items.drop(this, 'mod', e.x, e.y + 30, MB.Items.randomMod(p));
+      this.state = 'break'; this.stateT = 6; this.perkT = 1.2;
+    },
+    // thông số wave: chiến dịch dùng đúng bảng của Gate; sinh tồn tăng dần vô hạn
+    getWave(i) {
+      const W = this.def.waves;
+      if (this.mode !== 'survival') return W[i];
+      const k = i + 1, base = W[Math.min(i, W.length - 1)];
+      let mix = base.mix;
+      if (i >= W.length) { mix = {}; for (const w of W) for (const t in w.mix) mix[t] = (mix[t] || 0) + w.mix[t]; }
+      return {
+        mix,
+        total: Math.round(base.total * (0.55 + 0.16 * k)),
+        maxAlive: Math.min(Math.round(base.maxAlive * 1.8), base.maxAlive + Math.floor(k / 2)),
+        interval: [base.interval[0] * Math.max(0.45, 1 - 0.035 * k), base.interval[1] * Math.max(0.45, 1 - 0.035 * k)],
+        elite: Math.min(0.3, (base.elite || 0) + 0.015 * k),
+        hpMul: 1 + 0.09 * i,
+      };
     },
 
     damageObstacle(o, dmg) {
@@ -327,6 +373,7 @@
       if (!dot) {
         if (p.iframes > 0) return;
         p.iframes = 0.55; p.hurtT = 0.2; this.hurtFlash = 0.35;
+        MB.Combo.break(this); MB.haptic(35);
         this.shake(7); MB.Audio.play('hurt');
         this.stats.hitsTaken++;
         MB.Challenges.event(this, 'hurt');
@@ -339,11 +386,11 @@
       if (p.armor > 0) { const ab = Math.min(p.armor, dmg); p.armor -= ab; dmg -= ab; }
       p.hp -= dmg; this.stats.dmgTaken += d;
       if (p.hp <= 0) {
-        p.hp = 0; p.dead = true;
+        p.hp = 0; p.dead = true; MB.haptic(260);
         this.burst(p.x, p.y, '#ff6b6b', 40, 220);
         MB.Audio.play('lose'); MB.Audio.intensity(0);
         // gục ở trận boss lần đầu → được 1 cơ hội đấu lại boss, không phải chơi lại cả Gate
-        this.retryOffer = (this.state === 'boss' || this.state === 'preboss') && !this.bossRetryUsed;
+        this.retryOffer = this.mode === 'campaign' && (this.state === 'boss' || this.state === 'preboss') && !this.bossRetryUsed;
         this.banner('NHIỆM VỤ THẤT BẠI', this.retryOffer ? 'Còn 1 cơ hội đấu lại Boss' : 'Hunter đã gục ngã', 2);
         this.finish(false, 2.2);
       }
@@ -356,7 +403,7 @@
       p.dead = false; p.hp = p.maxHp; if (p.maxArmor) p.armor = p.maxArmor;
       p.burnT = 0; p.slow = 0; p.vx = 0; p.vy = 0; p.iframes = 3; p.reviveT = 3;
       for (const w of p.weapons) { w.ammo = null; w.reloading = 0; }
-      p.grenades = Math.max(p.grenades, MB.Skills.GRENADE ? MB.Skills.GRENADE.max : 3); p.novaCd = 0;
+      p.grenades = Math.max(p.grenades, p.gMax || 3); p.novaCd = 0; MB.Combo.break(this);
       for (const e of this.enemies) e.dead = true;
       this.boss = null; MB.HUD.bossHide();
       this.ebullets.length = 0; this.fx.length = 0;
@@ -372,7 +419,7 @@
     /* ================== wave ================== */
     startWave(i) {
       this.waveIdx = i; this.state = 'fight'; this.spawned = 0; this.spawnT = 0.8;
-      const ob = this.def.objectives[i] || {};
+      const ob = (this.mode === 'survival' ? { title: 'SINH TỒN', text: 'Trụ càng lâu càng tốt. Cứ 5 wave có một boss.' } : this.def.objectives[i]) || {};
       this.banner(`WAVE ${i + 1}`, ob.title || '', 2);
       MB.HUD.objective(ob.title || `WAVE ${i + 1}`, ob.text || '');
       MB.Audio.play('wave');
@@ -383,12 +430,12 @@
       this.stateT -= dt;
       if (this.state === 'intro' && this.stateT <= 0) this.startWave(0);
       else if (this.state === 'fight') {
-        const w = d.waves[this.waveIdx];
+        const w = this.getWave(this.waveIdx);
         this.spawnT -= dt;
         if (this.spawned < w.total && this.countedAlive() < w.maxAlive && this.spawnT <= 0) {
           const pos = this.pickSpawn();
           const elite = Math.random() < (w.elite || 0);
-          this.spawnEnemyAt(U.weighted(w.mix), pos.x, pos.y, { elite });
+          this.spawnEnemyAt(U.weighted(w.mix), pos.x, pos.y, { elite, hpMul: w.hpMul });
           this.spawned++;
           this.spawnT = U.rnd(w.interval[0], w.interval[1]);
         }
@@ -396,7 +443,9 @@
           this.addScore(500);
           const p = this.player;
           MB.Items.drop(this, p.hp < p.maxHp * 0.8 ? 'med' : 'armor', p.x + U.rnd(-60, 60), p.y + U.rnd(-60, 60));
-          if (this.waveIdx < d.waves.length - 1) {
+          this.perkT = 1.0; // mở thẻ nâng cấp sau 1 giây
+          const survBoss = this.mode === 'survival' && (this.waveIdx + 1) % 5 === 0;
+          if (this.mode === 'survival' ? !survBoss : this.waveIdx < d.waves.length - 1) {
             this.state = 'break'; this.stateT = 5;
             this.banner('WAVE CLEARED', 'Nghỉ 5 giây · nhặt thiết bị, phá thùng tiếp tế', 2.4);
             MB.HUD.objective('TẠM NGHỈ', 'Tranh thủ làm thử thách để tăng sức mạnh súng.');
@@ -414,8 +463,8 @@
         let bx = b.x, by = b.y;
         const dd = U.dist(bx, by, p.x, p.y);
         if (dd > 750 && !b.fixed) { bx = p.x + (bx - p.x) / dd * 650; by = p.y + (by - p.y) / dd * 650; }
-        this.spawnEnemyAt(b.type, bx, by, { boss: true });
-        const ob = d.objectives[d.waves.length] || {};
+        this.spawnEnemyAt(b.type, bx, by, { boss: true, hpMul: this.mode === 'survival' ? 1 + 0.35 * Math.floor(this.waveIdx / 5) : 1 });
+        const ob = (this.mode === 'survival' ? { title: 'BOSS', text: 'Hạ boss để tiếp tục sinh tồn.' } : d.objectives[d.waves.length]) || {};
         MB.HUD.objective(ob.title || 'BOSS', ob.text || '');
         MB.Audio.play('boss'); this.shake(14); MB.Audio.intensity(1);
       } else if (this.state === 'won' && this.stateT <= 0) {
@@ -439,6 +488,19 @@
         else { wx = I.mouse.x / this.zoom + this.cam.x; wy = I.mouse.y / this.zoom + this.cam.y; }
         // chuột quá sát nhân vật thì giữ hướng cũ (tránh xoay vòng loạn)
         if (U.dist(wx, wy, p.x, p.y) > 34) want = Math.atan2(wy - p.y, wx - p.x);
+        this.lockE = null;
+      } else if (I.tapPoint()) {
+        // chạm-để-bắn: quay ngay về điểm chạm và bắn (không giới hạn tốc độ xoay)
+        const tp = I.tapPoint();
+        let wx, wy;
+        if (this.r3on) { const w = MB.R3.screenToGround(tp.x, tp.y, this); wx = w.x; wy = w.y; }
+        else { wx = tp.x / this.zoom + this.cam.x; wy = tp.y / this.zoom + this.cam.y; }
+        if (U.dist(wx, wy, p.x, p.y) > 20) {
+          want = Math.atan2(wy - p.y, wx - p.x);
+          if ((st.aimMode || 'auto') === 'assist') want = this.assist(want);
+          p.aim = want; fire = true;
+        }
+        if (I.tapT > 0) I.tapT -= dt;
         this.lockE = null;
       } else {
         const v = I.aimVec(), mode = st.aimMode || 'auto';
@@ -499,9 +561,21 @@
 
     /* ================== update ================== */
     update(dt) {
+      // khựng hình ngắn khi hạ quái lớn (cảm giác "đã tay")
+      if (this.hitstop > 0) { this.hitstop -= dt; MB.Input.poll(); return; }
       this.time += dt;
       const p = this.player;
       MB.Input.poll();
+      MB.Combo.update(this, dt);
+      if (this.perkT > 0 && !this.over && !p.dead) { this.perkT -= dt; if (this.perkT <= 0) { MB.App.offerPerks(); return; } }
+      const bb = this.boss;
+      if (bb && !bb.dead) {
+        if (this.lastBossPhase != null && bb.phase != null && bb.phase !== this.lastBossPhase) {
+          this.hitstop = 0.12; this.shake(14); MB.haptic([40, 30, 60]); MB.Audio.play('boss'); MB.Audio.intensity(1);
+          this.banner('BOSS NỔI ĐIÊN', `Giai đoạn ${bb.phase}`, 1.6);
+        }
+        this.lastBossPhase = bb.phase;
+      } else this.lastBossPhase = null;
 
       if (this.over) {
         this.overT -= dt;
@@ -813,7 +887,7 @@
     summary() {
       const done = this.challenges.filter((c) => c.done).map((c) => c.id);
       return {
-        gateId: this.def.id, win: this.win, score: this.score, time: this.time, kills: this.stats.kills,
+        gateId: this.def.id, win: this.win, score: this.score, mode: this.mode, wave: this.waveIdx + 1, comboBest: this.comboBest || 0, time: this.time, kills: this.stats.kills,
         accuracy: this.stats.shots ? Math.min(100, Math.round(this.stats.bhits / this.stats.shots * 100)) : 0,
         done, totalChallenges: this.challenges.length, mods: MB.Weapons.power(this.player), hitsTaken: this.stats.hitsTaken,
       };
@@ -940,6 +1014,7 @@
       this.drawIndicators(ctx);
       this.drawMinimap(ctx);
       if (MB.Input.mode === 'kb' && !this.paused) this.drawCrosshair(ctx);
+      else this.drawTapMark(ctx);
       this.drawVignette(ctx);
     },
 
@@ -1009,6 +1084,16 @@
       ctx.fillStyle = 'rgba(255,255,255,.7)'; U.circle(ctx, b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.35); ctx.fill();
     },
 
+    // điểm chạm-để-bắn (màn hình)
+    drawTapMark(ctx) {
+      const tp = MB.Input.tapPoint();
+      if (!tp || this.paused) return;
+      ctx.save(); ctx.strokeStyle = 'rgba(255,120,100,.9)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(tp.x, tp.y, 16, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tp.x - 24, tp.y); ctx.lineTo(tp.x - 8, tp.y); ctx.moveTo(tp.x + 8, tp.y); ctx.lineTo(tp.x + 24, tp.y);
+      ctx.moveTo(tp.x, tp.y - 24); ctx.lineTo(tp.x, tp.y - 8); ctx.moveTo(tp.x, tp.y + 8); ctx.lineTo(tp.x, tp.y + 24); ctx.stroke();
+      ctx.restore();
+    },
     drawCrosshair(ctx) {
       const m = MB.Input.mouse;
       const w = MB.Weapons.current(this.player);

@@ -12,7 +12,7 @@
 
     update(G, dt) {
       const p = G.player, I = MB.Input;
-      if (p.grenades < S.GRENADE.max) { p.gRegen -= dt; if (p.gRegen <= 0) { p.grenades++; p.gRegen = S.GRENADE.regen; } }
+      if (p.grenades < (p.gMax || S.GRENADE.max)) { p.gRegen -= dt * (1 + ((p.bonus && p.bonus.gRegen) || 0)); if (p.gRegen <= 0) { p.grenades++; p.gRegen = S.GRENADE.regen; } }
       else p.gRegen = S.GRENADE.regen;
       p.novaCd = Math.max(0, p.novaCd - dt);
       if (!p.dead && !G.over) {

@@ -1038,6 +1038,7 @@
       }
       if (G.def.drawScreen) G.def.drawScreen(G, ctx);
       G.drawMinimap(ctx);
+      if (MB.Input.mode !== 'kb') G.drawTapMark(ctx);
       if (MB.Input.mode === 'kb' && !G.paused) G.drawCrosshair(ctx);
       else if (!p.dead) {
         // laser ngắm cho cảm ứng / tay cầm

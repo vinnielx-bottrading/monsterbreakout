@@ -240,3 +240,49 @@ body[data-input="touch"] .ch-head { font-size: 10px; }
 body[data-input="touch"] .pause-btn { width: 34px; height: 34px; border-radius: 10px; font-size: 11px; right: calc(var(--mmw) + 18px + var(--sar)); top: calc(10px + var(--sat)); }
 body[data-input="touch"] #toasts { bottom: calc(150px + var(--sab)); }
 body[data-input="touch"] .tbtn { text-shadow: 0 1px 3px rgba(0,0,0,.85); box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+
+/* ---------- v5.3: combo, nút ngắm, thẻ nâng cấp, cửa hàng, sinh tồn ---------- */
+#modeToggle { margin-left: auto; } #modeToggle + #viewToggle { margin-left: 0; }
+.coinbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,213,106,.06); }
+.coinbar b, .coins b { color: var(--gold); }
+.card button.sm { padding: 8px 12px; font-size: 12.5px; }
+.card button:disabled { opacity: .45; cursor: default; }
+.rescoins { text-align: center; color: var(--gold); font-weight: 800; margin: 4px 0 2px; }
+
+.combo { position: absolute; right: calc(var(--mmw) + 72px + var(--sar)); top: calc(14px + var(--sat)); text-align: right; opacity: 0; transition: opacity .35s; pointer-events: none;
+  font-weight: 900; letter-spacing: .08em; font-size: 12px; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.7); }
+.combo b { font-size: 26px; color: var(--gold); margin-right: 4px; }
+.combo small { display: block; font-size: 10px; color: var(--muted); letter-spacing: .04em; }
+.combo.show { opacity: 1; } .combo.hot b { color: #ff8a5c; }
+.combo.pop b { display: inline-block; animation: cpop .22s ease-out; }
+@keyframes cpop { from { transform: scale(1.5); } }
+
+.aimchip { position: absolute; pointer-events: auto; top: calc(10px + var(--sat)); right: calc(var(--mmw) + 60px + var(--sar)); touch-action: none;
+  height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(7,16,11,.6); color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.aimchip b { color: var(--accent); margin-left: 3px; }
+.aimchip[data-mode="assist"] b { color: var(--cyan); } .aimchip[data-mode="manual"] b { color: #ff8a5c; }
+body[data-input="touch"] .combo { right: calc(var(--mmw) + 60px + var(--sar)); top: calc(50px + var(--sat)); }
+body[data-input="touch"] .combo b { font-size: 20px; }
+
+.perkcard { text-align: center; }
+.perks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+.card button.perk { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 12px 14px; text-align: center; background: rgba(183,255,122,.05); border-color: rgba(183,255,122,.3); }
+.card button.perk:hover { background: rgba(183,255,122,.14); transform: translateY(-2px); }
+.perk i { font-style: normal; font-size: 30px; line-height: 1; color: var(--accent); }
+.perk b { font-size: 15px; } .perk span { font-size: 12px; color: var(--muted); font-weight: 600; line-height: 1.35; letter-spacing: 0; }
+.perk em { font-style: normal; font-size: 10px; color: var(--gold); }
+.perk kbd { position: absolute; top: 6px; left: 8px; font: 800 10px/1 inherit; color: var(--muted); }
+body[data-input="touch"] .perk kbd { display: none; }
+
+.shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.shop .item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+.shop .item > div { flex: 1; min-width: 0; }
+.shop .ic { font-style: normal; font-size: 22px; width: 30px; text-align: center; color: var(--gold); }
+.shop b { display: block; font-size: 14px; } .shop span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.pips { display: flex; gap: 3px; margin-top: 6px; } .pips i { width: 14px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); } .pips i.on { background: var(--gold); }
+
+@media (max-height: 500px), (max-width: 700px) {
+  .perks { gap: 8px; } .card button.perk { padding: 10px 8px; } .perk i { font-size: 22px; } .perk b { font-size: 13px; } .perk span { font-size: 11px; }
+  .gates .head, .card .head { flex-wrap: wrap; }
+}
+body[data-input="touch"] .kb-only { display: none; }

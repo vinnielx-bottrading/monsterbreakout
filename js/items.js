@@ -34,8 +34,9 @@
         if (p.dead) continue;
         const d = U.dist(it.x, it.y, p.x, p.y);
         const wants = this.wants(p, it);
-        if (wants && d < 110 && it.t > 0.4 && it.z < 12) { // hút nhẹ về phía người chơi
-          const k = (1 - d / 110) * 500 * dt;
+        const mr = 110 * (p.magnet || 1);
+        if (wants && d < mr && it.t > 0.4 && it.z < 12) { // hút nhẹ về phía người chơi
+          const k = (1 - d / mr) * 500 * dt;
           it.x += (p.x - it.x) / (d || 1) * k; it.y += (p.y - it.y) / (d || 1) * k;
         }
         if (wants && d < p.r + 16 && it.t > 0.25 && it.z < 12) { this.collect(G, it); G.pickups.splice(i, 1); }
@@ -44,7 +45,7 @@
     wants(p, it) {
       if (it.kind === 'med') return p.hp < p.maxHp;
       if (it.kind === 'armor') return p.armor < p.maxArmor;
-      if (it.kind === 'grenade') return p.grenades < MB.Skills.GRENADE.max;
+      if (it.kind === 'grenade') return p.grenades < (p.gMax || MB.Skills.GRENADE.max);
       return true;
     },
     collect(G, it) {
@@ -56,7 +57,7 @@
         p.armor = Math.min(p.maxArmor, p.armor + 30);
         G.text(p.x, p.y - 30, '+30 GIÁP', '#7ad7ff'); MB.Audio.play('pickup');
       } else if (it.kind === 'grenade') {
-        p.grenades = Math.min(MB.Skills.GRENADE.max, p.grenades + 1);
+        p.grenades = Math.min(p.gMax || MB.Skills.GRENADE.max, p.grenades + 1);
         G.text(p.x, p.y - 30, '+1 LỰU ĐẠN', '#ffb347'); MB.Audio.play('pickup');
       } else if (it.kind === 'mod') {
         const m = W.MODS[it.id];

@@ -3,11 +3,12 @@
 (function (MB) {
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
-  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'loading'];
+  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'loading'];
   const loaded = {};
 
   const App = MB.App = {
     current: 'menu',
+    mode: 'campaign',
     lastGate: null,
 
     init() {
@@ -38,11 +39,26 @@
       document.querySelectorAll('#viewToggle [data-view]').forEach((b) => b.addEventListener('click', () => {
         MB.Audio.play('ui'); MB.Save.data.settings.view = b.dataset.view; MB.Save.save(); this.renderViewToggle();
       }));
-      document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.show(b.dataset.back); }));
+      document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); if (b.dataset.back === 'gates') this.openGates(); else this.show(b.dataset.back); }));
       on('btnResume', () => this.resume());
       on('btnRestart', () => this.playGate(this.lastGate));
       on('btnView', () => this.switchView());
       on('btnRetryBoss', () => this.retryBoss());
+      on('btnShop', () => this.openShop());
+      on('btnResShop', () => { G.running = false; this.openShop(); });
+      document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.addEventListener('click', () => {
+        MB.Audio.play('ui'); this.mode = b.dataset.mode; this.openGates();
+      }));
+      // nút đổi chế độ ngắm ngay trên màn hình (cảm ứng): TỰ ĐỘNG → HỖ TRỢ → TAY
+      const aimBtn = $('aimBtn');
+      aimBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const st = MB.Save.data.settings, order = ['auto', 'assist', 'manual'];
+        st.aimMode = order[(order.indexOf(st.aimMode || 'auto') + 1) % 3]; MB.Save.save();
+        MB.Audio.play('ui'); this.updateAimBtn();
+        MB.HUD.toast({ auto: 'Ngắm TỰ ĐỘNG: tự khoá và tự bắn quái gần nhất.', assist: 'Ngắm HỖ TRỢ: bạn tự ngắm, game nắn nhẹ về phía quái.', manual: 'Ngắm TAY: tự ngắm hoàn toàn. Chạm bên phải để bắn vào điểm chạm.' }[st.aimMode], '#7ef3ff');
+      }, { passive: false });
+      this.updateAimBtn();
       on('btnGiveUp', () => this.giveUp());
       on('btnQuit', () => this.quit());
       on('btnAgain', () => this.playGate(this.lastGate));
@@ -67,13 +83,16 @@
     /* ---------- chọn Gate ---------- */
     openGates() {
       if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
-      const sv = MB.Save.data;
+      const sv = MB.Save.data, surv = this.mode === 'survival';
+      document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === (surv ? 'survival' : 'campaign')));
+      $('coinText').textContent = (sv.coins || 0).toLocaleString('vi-VN');
       $('gateGrid').innerHTML = MB.Gates.meta.map((m) => {
         const g = sv.gates[m.id] || { best: 0, done: [], cleared: false };
         const ready = !!m.file;
-        const unlocked = ready && m.id <= sv.unlocked;
+        const unlocked = ready && (surv ? !!g.cleared : m.id <= sv.unlocked);
         const stars = [0, 1, 2].map((i) => `<i class="${i < (g.done || []).length ? 'on' : ''}">★</i>`).join('');
-        let status = !ready ? 'Sắp ra mắt' : !unlocked ? `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở` : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
+        let status = !ready ? 'Sắp ra mắt' : !unlocked ? (surv ? 'Qua Gate này ở Chiến dịch để mở' : `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở`) : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
+        if (surv && unlocked) status = g.surv ? `Kỷ lục: Wave ${g.surv.wave} · ${g.surv.score.toLocaleString('vi-VN')}` : 'Chưa có kỷ lục';
         return `<button class="gate${unlocked ? '' : ' locked'}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
           <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}
           <b>${m.name}</b><small>${m.vi}</small>
@@ -135,7 +154,8 @@
         if (!def) throw new Error('Gate chưa đăng ký');
         this.lastGate = id;
         MB.Input.clear();
-        G.start(def);
+        G.start(def, { mode: this.mode });
+        this.updateAimBtn();
         this.show(null);
       } catch (err) {
         console.error(err);
@@ -174,6 +194,48 @@
     resume() { G.paused = false; MB.Input.clear(); this.show(null); },
     quit() { G.running = false; G.paused = false; document.getElementById('game3d').classList.add('hidden'); MB.Audio.stopMusic(); this.openGates(); },
 
+    updateAimBtn() {
+      const m = MB.Save.data.settings.aimMode || 'auto';
+      $('aimBtn').innerHTML = 'NGẮM <b>' + ({ auto: 'TỰ ĐỘNG', assist: 'HỖ TRỢ', manual: 'TAY' }[m]) + '</b>';
+      $('aimBtn').dataset.mode = m;
+    },
+
+    /* ---------- thẻ nâng cấp sau wave ---------- */
+    offerPerks() {
+      const p = G.player, cards = MB.Perks.roll(p);
+      if (!cards.length) return;
+      G.paused = true; MB.Input.clear();
+      $('perkList').innerHTML = cards.map((k, i) => `<button class="perk" data-perk="${k.id}"><i>${k.icon}</i><b>${k.name}</b><span>${k.desc}</span>
+        <em>${(p.perks[k.id] || 0) ? 'Cấp ' + (p.perks[k.id] + 1) : 'Mới'}</em><kbd>${i + 1}</kbd></button>`).join('');
+      const pick = (id) => {
+        removeEventListener('keydown', key, true);
+        MB.Perks.take(p, id); MB.Audio.play('pickup'); MB.haptic(20);
+        G.paused = false; MB.Input.clear(); this.show(null);
+        const k = MB.Perks.PERKS.find((x) => x.id === id);
+        MB.HUD.toast(`${k.icon} ${k.name}: ${k.desc}`, '#d7ff9f');
+      };
+      const key = (e) => { const n = +e.key; if (n >= 1 && n <= cards.length) { e.preventDefault(); e.stopPropagation(); pick(cards[n - 1].id); } };
+      addEventListener('keydown', key, true);
+      $('perkList').querySelectorAll('[data-perk]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.perk)));
+      this.show('perks');
+    },
+
+    /* ---------- cửa hàng ---------- */
+    openShop() {
+      const sv = MB.Save.data;
+      $('shopCoins').textContent = (sv.coins || 0).toLocaleString('vi-VN');
+      $('shopList').innerHTML = MB.Shop.SHOP.map((it) => {
+        const l = MB.Shop.level(it.id), maxed = l >= it.max, c = MB.Shop.cost(it, l);
+        const pips = Array.from({ length: it.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('');
+        return `<div class="item"><i class="ic">${it.icon}</i><div><b>${it.name}</b><span>${it.desc(l)}</span><div class="pips">${pips}</div></div>
+          <button data-buy="${it.id}" class="${maxed ? 'ghost' : 'primary'} sm" ${maxed || (sv.coins || 0) < c ? 'disabled' : ''}>${maxed ? 'TỐI ĐA' : c.toLocaleString('vi-VN') + ' xu'}</button></div>`;
+      }).join('');
+      $('shopList').querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
+        if (MB.Shop.buy(b.dataset.buy)) { MB.Audio.play('pickup'); this.openShop(); }
+      }));
+      this.show('shop');
+    },
+
     /* ---------- cơ hội đấu lại boss ---------- */
     offerBossRetry() {
       G.paused = true; MB.Input.clear();
@@ -194,11 +256,16 @@
 
     /* ---------- kết thúc ---------- */
     onGateEnd(sum) {
-      const sv = MB.Save.data, g = MB.Save.gate(sum.gateId);
+      const sv = MB.Save.data, g = MB.Save.gate(sum.gateId), surv = sum.mode === 'survival';
       g.done = Array.from(new Set([...(g.done || []), ...sum.done]));
-      const newBest = sum.score > g.best;
-      if (newBest) g.best = sum.score;
-      if (sum.win) {
+      let newBest;
+      if (surv) {
+        newBest = !g.surv || sum.wave > g.surv.wave || (sum.wave === g.surv.wave && sum.score > g.surv.score);
+        if (newBest) g.surv = { wave: sum.wave, score: sum.score };
+      } else { newBest = sum.score > g.best; if (newBest) g.best = sum.score; }
+      const coins = MB.Shop.earn(sum);
+      sv.coins = (sv.coins || 0) + coins;
+      if (sum.win && !surv) {
         g.cleared = true;
         if (!g.bestTime || sum.time < g.bestTime) g.bestTime = sum.time;
         sv.unlocked = Math.max(sv.unlocked, sum.gateId + 1);
@@ -206,18 +273,19 @@
       MB.Save.save();
       G.running = false; MB.Audio.stopMusic();
       const mm = Math.floor(sum.time / 60), ss = String(Math.floor(sum.time % 60)).padStart(2, '0');
-      $('resTitle').textContent = sum.win ? (sum.gateId === 10 ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : 'GATE CLEARED') : 'MISSION FAILED';
-      $('resTitle').className = sum.win ? 'win' : 'lose';
+      $('resTitle').textContent = surv ? `SINH TỒN · WAVE ${sum.wave}` : sum.win ? (sum.gateId === 10 ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : 'GATE CLEARED') : 'MISSION FAILED';
+      $('resTitle').className = sum.win || surv ? 'win' : 'lose';
+      $('resCoins').innerHTML = `+${coins.toLocaleString('vi-VN')} xu · tổng ${sv.coins.toLocaleString('vi-VN')} xu` + (sum.comboBest >= 5 ? ` · combo cao nhất ×${sum.comboBest}` : '');
       $('resStars').innerHTML = [0, 1, 2].map((i) => `<i class="${i < sum.done.length ? 'on' : ''}">★</i>`).join('');
       $('resStats').innerHTML = `
-        <div><span>Điểm</span><b>${sum.score.toLocaleString('vi-VN')}${newBest ? ' <em>KỶ LỤC</em>' : ''}</b></div>
+        <div><span>${surv ? 'Wave · điểm' : 'Điểm'}</span><b>${surv ? sum.wave + ' · ' : ''}${sum.score.toLocaleString('vi-VN')}${newBest ? ' <em>KỶ LỤC</em>' : ''}</b></div>
         <div><span>Thời gian</span><b>${mm}:${ss}</b></div>
         <div><span>Hạ gục</span><b>${sum.kills}</b></div>
         <div><span>Chính xác</span><b>${sum.accuracy}%</b></div>
         <div><span>Thử thách</span><b>${sum.done.length}/${sum.totalChallenges}</b></div>
         <div><span>Sức mạnh súng</span><b>PWR ${sum.mods}</b></div>`;
       const next = MB.Gates.meta.find((m) => m.id === sum.gateId + 1);
-      $('btnNext').classList.toggle('hidden', !(sum.win && next && next.file));
+      $('btnNext').classList.toggle('hidden', !(sum.win && !surv && next && next.file));
       this.show('result');
     },
 
@@ -226,7 +294,7 @@
       const st = MB.Save.data.settings;
       const rows = [
         ['sfx', 'Hiệu ứng âm thanh'], ['music', 'Nhạc nền'], ['shake', 'Rung màn hình'],
-        ['dmgNum', 'Hiện số sát thương'],
+        ['dmgNum', 'Hiện số sát thương'], ['vibrate', 'Rung điện thoại'],
       ];
       $('settingsList').innerHTML = rows.map(([k, label]) => `<label class="row"><span>${label}</span><input type="checkbox" data-set="${k}" ${st[k] ? 'checked' : ''}></label>`).join('') +
         `<label class="row"><span>Đồ hoạ</span><select data-set="quality">

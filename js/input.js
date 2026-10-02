@@ -11,13 +11,14 @@
     move: { x: 0, y: 0 },
     mouse: { x: innerWidth / 2, y: innerHeight / 2, down: false },
     L: { id: null, ox: 0, oy: 0, x: 0, y: 0 },
-    R: { id: null, ox: 0, oy: 0, x: 0, y: 0 },
+    R: { id: null, ox: 0, oy: 0, x: 0, y: 0, tap: false, sx: 0, sy: 0 },
+    tapT: 0, tapX: 0, tapY: 0, // chạm-để-bắn: điểm chạm cuối và thời gian bắn còn lại sau khi nhấc tay
     pad: { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false, sprint: false, prev: [] },
 
     take(n) { if (this.edges.has(n)) { this.edges.delete(n); return true; } return false; },
     press(n) { this.edges.add(n); },
     clear() {
-      this.edges.clear(); this.keys = {}; this.mouse.down = false;
+      this.edges.clear(); this.keys = {}; this.mouse.down = false; this.tapT = 0;
       this.release(this.L); this.release(this.R);
     },
     setMode(m) {
@@ -34,8 +35,15 @@
       return Math.hypot(this.move.x, this.move.y) > 0.93;
     },
     // hướng ngắm cho cảm ứng / gamepad: {x,y,mag} hoặc null
+    // chạm (không kéo) bên phải: trả về điểm màn hình cần bắn tới, hoặc null
+    tapPoint() {
+      if (this.mode !== 'touch') return null;
+      if (this.R.id !== null && this.R.tap) return { x: this.R.sx, y: this.R.sy };
+      if (this.tapT > 0) return { x: this.tapX, y: this.tapY };
+      return null;
+    },
     aimVec() {
-      if (this.mode === 'touch' && this.R.id !== null) {
+      if (this.mode === 'touch' && this.R.id !== null && !this.R.tap) {
         const m = Math.hypot(this.R.x, this.R.y);
         return m > 0.12 ? { x: this.R.x, y: this.R.y, mag: m } : null;
       }
@@ -47,7 +55,7 @@
     },
     fire() {
       if (this.mode === 'kb') return this.mouse.down;
-      if (this.mode === 'touch') return this.R.id !== null && Math.hypot(this.R.x, this.R.y) > 0.3;
+      if (this.mode === 'touch') return this.R.id !== null && !this.R.tap && Math.hypot(this.R.x, this.R.y) > 0.3;
       const a = this.aimVec();
       return this.pad.fire || (a && a.mag > 0.55);
     },
@@ -95,7 +103,7 @@
       el.firstElementChild.style.transform = `translate(${s.x * STICK_R}px,${s.y * STICK_R}px)`;
     },
     release(s) {
-      s.id = null; s.x = 0; s.y = 0;
+      s.id = null; s.x = 0; s.y = 0; s.tap = false;
       const el = s === this.L ? this.elL : this.elR;
       if (el) el.style.display = 'none';
     },
@@ -156,7 +164,12 @@
         if (s.id !== null) return;
         s.id = e.pointerId; s.ox = e.clientX; s.oy = e.clientY; s.x = 0; s.y = 0;
         try { surface.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-        this.showStick(s, leftZone ? this.elL : this.elR);
+        if (leftZone) this.showStick(s, this.elL);
+        else {
+          // bên phải: chạm giữ tại chỗ = bắn vào điểm chạm; kéo đi = gậy ngắm
+          s.tap = true; s.sx = e.clientX; s.sy = e.clientY;
+          this.tapX = e.clientX; this.tapY = e.clientY; this.tapT = 0.08;
+        }
       }, { passive: false });
 
       surface.addEventListener('pointermove', (e) => {
@@ -167,6 +180,10 @@
         }
         for (const s of [this.L, this.R]) {
           if (s.id === e.pointerId) {
+            if (s.tap) {
+              if (Math.hypot(e.clientX - s.ox, e.clientY - s.oy) < 22) { s.sx = e.clientX; s.sy = e.clientY; this.tapX = s.sx; this.tapY = s.sy; continue; }
+              s.tap = false; this.tapT = 0; // kéo xa → chuyển thành gậy ngắm
+            }
             this.moveStick(s, e.clientX, e.clientY);
             this.showStick(s, s === this.L ? this.elL : this.elR);
           }
@@ -175,7 +192,7 @@
       const up = (e) => {
         if (e.pointerType === 'mouse') { if (e.button === 0) this.mouse.down = false; return; }
         if (this.L.id === e.pointerId) this.release(this.L);
-        if (this.R.id === e.pointerId) this.release(this.R);
+        if (this.R.id === e.pointerId) { if (this.R.tap) this.tapT = Math.max(this.tapT, 0.06); this.release(this.R); }
       };
       surface.addEventListener('pointerup', up);
       surface.addEventListener('pointercancel', up);

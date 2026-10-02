@@ -18,6 +18,9 @@
         weapons: [], wi: 0,
         mods: { barrel: 0, trigger: 0, mag: 0, pierce: 0, split: 0 },
         ghosts: [], slow: 0, inVirus: false, dead: false, deadT: 0,
+        // nâng cấp: cửa hàng (vĩnh viễn) + thẻ trong trận
+        bonus: { dmg: 0, rate: 0, mag: 0, reload: 0, pierce: 0, crit: 0, leech: 0, boom: 0, fireDash: 0, gRegen: 0 },
+        perks: {}, gMax: 3, magnet: 1,
       };
     },
 
@@ -76,6 +79,7 @@
       if (Math.hypot(dx, dy) < 0.15) { dx = Math.cos(p.aim); dy = Math.sin(p.aim); }
       const l = Math.hypot(dx, dy) || 1;
       p.dash = { t: 0.19, dx: dx / l, dy: dy / l, spd: 700 };
+      if (p.bonus.fireDash && MB.G) for (let k = 0; k < 3; k++) MB.G.addHazard({ kind: 'fire', x: p.x + dx / l * k * 45, y: p.y + dy / l * k * 45, r: 34, life: 2.6, dps: 0, burn: 0, enemyDps: 22 });
       p.iframes = Math.max(p.iframes, 0.3);
       p.dashCd = p.dashCdMax;
       p.stamina -= 18;

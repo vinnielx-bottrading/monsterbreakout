@@ -52,6 +52,7 @@
     </div>
 
     <div id="bossHud" class="boss panel hidden"><div id="bossName" class="bname"></div><div class="bar"><div id="bossFill"></div></div></div>
+    <div id="combo" class="combo"></div>
     <div id="toasts"></div>
     <div id="banner" class="banner hidden"><b id="bannerT"></b><span id="bannerS"></span></div>
   </div>
@@ -62,6 +63,7 @@
     <div id="stickR" class="stick aim"><div class="knob"></div></div>
     <div class="tzone tl">DI CHUYỂN</div>
     <div class="tzone tr">NGẮM &amp; BẮN</div>
+    <button id="aimBtn" class="aimchip" aria-label="Đổi chế độ ngắm">NGẮM <b>TỰ ĐỘNG</b></button>
     <div class="tbtns">
       <button id="dodgeBtn" data-act="dodge" class="tbtn big">NÉ</button>
       <button data-act="reload" class="tbtn">NẠP</button>
@@ -73,7 +75,7 @@
   <!-- ===== Màn hình ===== -->
   <section id="menu" class="screen">
     <div class="card hero-card">
-      <div class="badge">10 GATE · v5.2 · 2D / 3D</div>
+      <div class="badge">10 GATE · v5.3 · 2D / 3D</div>
       <h1>MONSTER<br><span>BREAKOUT</span></h1>
       <p>Đặc nhiệm <b>Hunter</b> vượt qua 10 cửa ải bị virus chiếm đóng. Phá thùng tiếp tế, hoàn thành thử thách để nâng cấp súng và hạ boss mỗi Gate.</p>
       <div class="btns">
@@ -89,8 +91,9 @@
 
   <section id="gates" class="screen hidden">
     <div class="card wide">
-      <div class="head"><h2>CHỌN CỬA ẢI</h2><div class="vt" id="viewToggle"><button data-view="2d">2D</button><button data-view="3d">3D <small>thử nghiệm</small></button></div><button data-back="menu" class="ghost">← Menu</button></div>
+      <div class="head"><h2>CHỌN CỬA ẢI</h2><div class="vt" id="modeToggle"><button data-mode="campaign">CHIẾN DỊCH</button><button data-mode="survival">SINH TỒN</button></div><div class="vt" id="viewToggle"><button data-view="2d">2D</button><button data-view="3d">3D <small>thử nghiệm</small></button></div><button data-back="menu" class="ghost">← Menu</button></div>
       <p id="viewNote" class="hint vnote"></p>
+      <div class="coinbar"><span>Xu: <b id="coinText">0</b></span><button id="btnShop" class="primary sm">NÂNG CẤP NHÂN VẬT</button></div>
       <div id="gateGrid" class="grid"></div>
       <p id="armoryText" class="hint"></p>
     </div>
@@ -119,10 +122,10 @@
           <h3>Điện thoại</h3>
           <table>
             <tr><td>Chạm nửa trái</td><td>Gậy di chuyển (đẩy hết cỡ = chạy nhanh)</td></tr>
-            <tr><td>Chạm nửa phải</td><td>Gậy ngắm, kéo ra là tự bắn</td></tr>
+            <tr><td>Chạm nửa phải</td><td><b>Chạm / giữ tại chỗ</b> = bắn thẳng vào điểm chạm (chạm liên tục để bắn từng loạt) · <b>kéo</b> = gậy ngắm, kéo ra là bắn</td></tr>
             <tr><td>NÉ / NẠP · chạm ô súng</td><td>Lộn né · nạp đạn · đổi súng</td></tr>
             <tr><td>LỰU / XUNG</td><td>Lựu đạn · xung kích giải vây</td></tr>
-            <tr><td>Chế độ ngắm</td><td>Mặc định <b>Tự động</b>: tự khoá quái gần nhất và tự bắn; gạt gậy phải để chọn hướng ưu tiên</td></tr>
+            <tr><td>Nút NGẮM (trên cùng)</td><td>Đổi nhanh <b>Tự động</b> (tự khoá + tự bắn) → <b>Hỗ trợ</b> (tự ngắm, nắn nhẹ) → <b>Tay</b> (hoàn toàn thủ công)</td></tr>
           </table>
           <h3>Tay cầm</h3>
           <table>
@@ -171,6 +174,22 @@
     </div>
   </section>
 
+  <section id="perks" class="screen hidden">
+    <div class="card wide perkcard">
+      <h2>CHỌN NÂNG CẤP</h2>
+      <p class="hint">Hiệu lực đến hết trận này<span class="kb-only"> · phím 1 / 2 / 3</span></p>
+      <div id="perkList" class="perks"></div>
+    </div>
+  </section>
+
+  <section id="shop" class="screen hidden">
+    <div class="card wide scroll">
+      <div class="head"><h2>NÂNG CẤP NHÂN VẬT</h2><span class="coins">Xu: <b id="shopCoins">0</b></span><button data-back="gates" class="ghost">← Chọn Gate</button></div>
+      <p class="hint">Nâng cấp vĩnh viễn, áp dụng cho mọi Gate. Xu nhận được sau mỗi trận — thua cũng có xu, nên bị kẹt thì quay lại Gate cũ "cày" rồi thử lại.</p>
+      <div id="shopList" class="shop"></div>
+    </div>
+  </section>
+
   <section id="retry" class="screen hidden">
     <div class="card">
       <h2 class="lose">HUNTER ĐÃ GỤC NGÃ</h2>
@@ -187,9 +206,11 @@
       <h2 id="resTitle"></h2>
       <div id="resStars" class="stars big"></div>
       <div id="resStats" class="stats"></div>
+      <p id="resCoins" class="rescoins"></p>
       <div class="btns">
         <button id="btnNext" class="primary">GATE TIẾP THEO →</button>
         <button id="btnAgain">CHƠI LẠI</button>
+        <button id="btnResShop">NÂNG CẤP</button>
         <button id="btnMenu">CHỌN GATE</button>
       </div>
     </div>
@@ -209,6 +230,7 @@
 <script src="js/enemies.js"></script>
 <script src="js/items.js"></script>
 <script src="js/skills.js"></script>
+<script src="js/progress.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/game.js"></script>
 <script src="js/gates/index.js"></script>
