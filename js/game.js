@@ -1,0 +1,824 @@
+/* Monster Breakout — runtime của một Gate: wave, va chạm, đạn, hiệu ứng, camera, vẽ */
+'use strict';
+(function (MB) {
+  const U = MB.U, Col = MB.Col;
+  const GROUND_SCALE = 0.5;
+
+  const G = MB.G = {
+    running: false, paused: false, over: false,
+    canvas: null, ctx: null, W: 0, H: 0, dpr: 1, zoom: 1,
+    cam: { x: 0, y: 0 }, shakeAmt: 0, sx: 0, sy: 0,
+    lowFx: false,
+
+    init(canvas) {
+      this.canvas = canvas;
+      this.ctx = canvas.getContext('2d');
+      this.resize();
+    },
+    resize() {
+      const lowQ = this.quality() === 'low';
+      this.W = innerWidth; this.H = innerHeight;
+      this.dpr = Math.min(devicePixelRatio || 1, lowQ ? 1.25 : 2);
+      this.canvas.width = Math.round(this.W * this.dpr);
+      this.canvas.height = Math.round(this.H * this.dpr);
+      this.zoom = U.clamp(Math.sqrt(this.W * this.H) / 900, U.isTouchDevice() ? 0.74 : 0.62, 1.25);
+      this.mmW = Math.round(U.clamp(this.W * 0.16, 110, 180));
+      this.mmDirty = true;
+    },
+    quality() {
+      const q = MB.Save.data.settings.quality;
+      return q === 'auto' ? (U.isTouchDevice() ? 'low' : 'high') : q;
+    },
+
+    /* ================== bắt đầu Gate ================== */
+    start(def) {
+      this.def = def;
+      this.lowFx = this.quality() === 'low';
+      this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
+      this.enemies = []; this.bullets = []; this.ebullets = []; this.pickups = []; this.particles = [];
+      this.decals = []; this.texts = []; this.fx = []; this.obstacles = []; this.hazards = [];
+      this.boss = null; this.score = 0; this.hurtFlash = 0; this.wantFire = false;
+      this.stats = { shots: 0, bhits: 0, kills: 0, mods: 0, dmgTaken: 0, hitsTaken: 0 };
+      this.world = { w: def.world.w, h: def.world.h };
+
+      for (const o of def.obstacles) this.addObstacle({ ...o });
+      for (const c of def.crates || []) this.addObstacle({ kind: 'crate', shape: 'box', x: c.x, y: c.y, w: 56, h: 56, rot: c.rot || 0, hp: 45, maxHp: 45, loot: c.loot || true });
+      for (const h of def.hazards || []) this.hazards.push({ ...h });
+
+      const p = this.player = MB.Hero.create(def.start.x, def.start.y);
+      const armory = MB.Save.data.armory;
+      for (const id of ['rifle', 'shotgun', 'smg']) if (armory.includes(id)) p.weapons.push(MB.Weapons.make(id));
+      if (!p.weapons.length) p.weapons.push(MB.Weapons.make('rifle'));
+      p.aim = 0;
+
+      MB.Challenges.init(this, def.challenges);
+      this.buildGround();
+      this.mmDirty = true;
+
+      this.waveIdx = -1; this.state = 'intro'; this.stateT = 2.6;
+      this.spawned = 0; this.spawnT = 0;
+      this.gs = {};
+      if (def.setup) def.setup(this);
+
+      this.snapCamera();
+      this.running = true;
+      this.banner(def.title, def.subtitle, 2.6);
+      MB.HUD.reset(this);
+      MB.HUD.objective(def.intro.title, def.intro.text);
+      MB.Audio.startMusic(); MB.Audio.intensity(0.1);
+    },
+
+    addObstacle(o) {
+      Col.prep(o);
+      if (o.hp) o.maxHp = o.maxHp || o.hp;
+      this.obstacles.push(o);
+      this.mmDirty = true;
+      return o;
+    },
+
+    buildGround() {
+      const d = this.def;
+      const cv = document.createElement('canvas');
+      cv.width = Math.ceil(d.world.w * GROUND_SCALE); cv.height = Math.ceil(d.world.h * GROUND_SCALE);
+      const g = cv.getContext('2d');
+      g.scale(GROUND_SCALE, GROUND_SCALE);
+      d.buildGround(g, d.world.w, d.world.h, U.seeded(d.seed || 7));
+      this.ground = cv;
+    },
+
+    /* ================== tiện ích cho quái / gate ================== */
+    shake(n) { if (MB.Save.data.settings.shake) this.shakeAmt = Math.min(18, this.shakeAmt + n); },
+    addScore(n) { this.score += Math.round(n); },
+    inView(x, y, m) {
+      const vw = this.W / this.zoom, vh = this.H / this.zoom;
+      return x > this.cam.x - m && x < this.cam.x + vw + m && y > this.cam.y - m && y < this.cam.y + vh + m;
+    },
+    los(x1, y1, x2, y2) { return !Col.raycast(this.obstacles, x1, y1, x2, y2, (o) => !o.noShot); },
+    collide(e) {
+      if (!e.fly) {
+        for (let pass = 0; pass < 2; pass++) {
+          for (const o of this.obstacles) {
+            if (o.dead || o.noMove) continue;
+            if (Col.push(e, e.r, o)) e.bumped = o;
+          }
+        }
+      }
+      e.x = U.clamp(e.x, e.r + 8, this.world.w - e.r - 8);
+      e.y = U.clamp(e.y, e.r + 8, this.world.h - e.r - 8);
+    },
+    particle(p) {
+      const cap = this.lowFx ? 220 : 480;
+      if (this.particles.length > cap) this.particles.shift();
+      p.max = p.life; this.particles.push(p);
+    },
+    burst(x, y, color, n, spd) {
+      n = this.lowFx ? Math.ceil(n * 0.55) : n;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * U.TAU, s = Math.random() * (spd || 140) + 30;
+        this.particle({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.35 + Math.random() * 0.35, color, r: 1 + Math.random() * 2.6, drag: 0.92 });
+      }
+    },
+    sparks(x, y, a, color, n) {
+      for (let i = 0; i < n; i++) {
+        const aa = a + U.rnd(-0.7, 0.7), s = U.rnd(120, 320);
+        this.particle({ x, y, vx: Math.cos(aa) * s, vy: Math.sin(aa) * s, life: U.rnd(0.12, 0.25), color, r: 1.4, type: 'spark', drag: 0.88 });
+      }
+    },
+    decal(x, y, color, size) {
+      if (this.decals.length > 160) this.decals.shift();
+      const blobs = [];
+      for (let i = 0; i < 5; i++) blobs.push([U.rnd(-size, size) * 0.8, U.rnd(-size, size) * 0.8, U.rnd(size * 0.25, size * 0.6)]);
+      this.decals.push({ x, y, color, blobs });
+    },
+    text(x, y, txt, color, size) {
+      if (this.texts.length > 40) this.texts.shift();
+      this.texts.push({ x, y, txt, color, size: size || 14, life: 0.9, vy: -55 });
+    },
+    banner(title, sub, dur) { MB.HUD.banner(title, sub, dur); },
+    fxMuzzle(x, y, a, k) {
+      for (let i = 0; i < 3 * k; i++) this.particle({ x, y, vx: Math.cos(a + U.rnd(-0.4, 0.4)) * U.rnd(80, 220), vy: Math.sin(a + U.rnd(-0.4, 0.4)) * U.rnd(80, 220), life: 0.12, color: '#ffe7a3', r: 1.6, type: 'spark', drag: 0.85 });
+    },
+    addFx(fx) { fx.t = 0; this.fx.push(fx); return fx; },
+    addHazard(h) { this.hazards.push(h); return h; },
+
+    enemyShot(o) {
+      const sp = o.speed || 280;
+      this.ebullets.push({ x: o.x, y: o.y, px: o.x, py: o.y, vx: Math.cos(o.a) * sp, vy: Math.sin(o.a) * sp, r: o.r || 7, dmg: o.dmg || 8, life: o.life || 2.5, kind: o.kind || 'orb', owner: o.owner, pass: !!o.pass, onEnd: o.onEnd, color: o.color });
+    },
+    drawTelegraphLine(ctx, x, y, a, len, k) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,80,80,${0.25 + k * 0.5})`;
+      ctx.lineWidth = 2 + k * 6; ctx.lineCap = 'round';
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); ctx.stroke();
+      ctx.restore();
+    },
+    // vòng cảnh báo trên mặt đất, gọi onDone khi hết thời gian
+    telegraphCircle(x, y, r, dur, onDone, color) {
+      return this.addFx({
+        layer: 'ground', life: dur,
+        draw(ctx, fx) {
+          const k = fx.t / fx.life;
+          ctx.fillStyle = color || 'rgba(255,70,70,.12)'; U.circle(ctx, x, y, r); ctx.fill();
+          ctx.strokeStyle = 'rgba(255,90,90,.7)'; ctx.lineWidth = 2; U.circle(ctx, x, y, r); ctx.stroke();
+          ctx.fillStyle = 'rgba(255,90,90,.28)'; U.circle(ctx, x, y, r * k); ctx.fill();
+        },
+        end: onDone,
+      });
+    },
+    // sóng xung kích lan rộng: trúng nếu người chơi ở trong vành sóng (lộn né để tránh)
+    shockwave(x, y, maxR, dur, dmg, color) {
+      const G = this;
+      MB.Audio.play('slam'); this.shake(12);
+      return this.addFx({
+        layer: 'top', life: dur, hit: false,
+        update(fx) {
+          const R = maxR * (fx.t / fx.life), p = G.player;
+          const d = U.dist(p.x, p.y, x, y);
+          if (!fx.hit && Math.abs(d - R) < 20 + p.r * 0.5) { fx.hit = true; G.hurtPlayer(dmg, { x, y }); }
+        },
+        draw(ctx, fx) {
+          const k = fx.t / fx.life, R = maxR * k;
+          ctx.strokeStyle = color || `rgba(255,190,120,${1 - k})`; ctx.lineWidth = 16 * (1 - k) + 4;
+          U.circle(ctx, x, y, R); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,255,255,${0.5 * (1 - k)})`; ctx.lineWidth = 2; U.circle(ctx, x, y, R); ctx.stroke();
+        },
+      });
+    },
+
+    /* ================== quái ================== */
+    spawnEnemyAt(type, x, y, opts) {
+      opts = opts || {};
+      const def = MB.Enemies.types[type];
+      if (!def) { console.warn('Unknown enemy', type); return null; }
+      const e = {
+        type, def, x, y, vx: 0, vy: 0, kx: 0, ky: 0, r: def.r, hp: def.hp, maxHp: def.hp, speed: def.speed, dmg: def.dmg, score: def.score,
+        fly: !!def.fly, t: U.rnd(0, 100), face: Math.atan2(this.player.y - y, this.player.x - x), flash: 0, atkCd: 0.6,
+        spawnT: opts.boss ? 1.4 : 0.6, extra: !!opts.extra, boss: !!def.boss, elite: !!opts.elite, dead: false, state: null, st: 0,
+      };
+      if (e.elite) { e.hp *= 2.4; e.maxHp = e.hp; e.r *= 1.15; e.speed *= 1.06; e.score *= 3; e.dmg = Math.round(e.dmg * 1.3); }
+      if (def.init) def.init(e, this);
+      if (!e.fly) this.collide(e);
+      this.enemies.push(e);
+      if (e.boss) {
+        this.boss = e;
+        MB.HUD.bossShow(def.name || type);
+      }
+      return e;
+    },
+    countedAlive() { let n = 0; for (const e of this.enemies) if (!e.dead && !e.extra && !e.boss) n++; return n; },
+    extraAlive() { let n = 0; for (const e of this.enemies) if (!e.dead && e.extra) n++; return n; },
+
+    pickSpawn() {
+      const p = this.player, pts = this.def.spawnPoints;
+      const ok = pts.filter((s) => U.dist(s.x, s.y, p.x, p.y) > 480);
+      const offscreen = ok.filter((s) => !this.inView(s.x, s.y, 40));
+      const list = offscreen.length ? offscreen : ok.length ? ok : pts;
+      for (let tries = 0; tries < 10; tries++) {
+        const s = U.pick(list);
+        const pos = { x: s.x + U.rnd(-90, 90), y: s.y + U.rnd(-90, 90), r: 22 };
+        if (!this.obstacles.some((o) => !o.dead && !o.noMove && Col.overlap(o, pos.x, pos.y, 24))) return pos;
+      }
+      return U.pick(list);
+    },
+
+    damageEnemy(e, dmg, ang, knock) {
+      if (e.dead) return;
+      if (e.def.armorFn) dmg = e.def.armorFn(e, dmg, this);
+      e.hp -= dmg; e.flash = 0.08;
+      if (MB.Save.data.settings.dmgNum && !this.lowFx || (MB.Save.data.settings.dmgNum && Math.random() < 0.5)) {
+        this.text(e.x + U.rnd(-8, 8), e.y - e.r - 6, Math.round(dmg), dmg >= 30 ? '#ffd56a' : '#ffffff', dmg >= 30 ? 15 : 12);
+      }
+      if (!e.boss && knock) { const k = knock * (e.def.knockMul == null ? 1 : e.def.knockMul); e.kx += Math.cos(ang) * k; e.ky += Math.sin(ang) * k; }
+      MB.Audio.play('hit');
+      if (e.hp <= 0) this.killEnemy(e);
+    },
+    killEnemy(e) {
+      e.dead = true;
+      this.addScore(e.score);
+      this.stats.kills++;
+      const blood = e.def.blood || '#3f6b25';
+      this.decal(e.x, e.y, blood, e.r * 0.9);
+      this.burst(e.x, e.y, e.def.gore || '#a8e07a', e.boss ? 60 : 16, e.boss ? 260 : 150);
+      MB.Audio.play('kill');
+      if (!e.boss) {
+        if (e.elite) MB.Items.drop(this, 'mod', e.x, e.y, MB.Items.randomMod(this.player));
+        else {
+          const r = Math.random();
+          if (r < 0.055) MB.Items.drop(this, 'med', e.x, e.y);
+          else if (r < 0.085) MB.Items.drop(this, 'armor', e.x, e.y);
+        }
+      }
+      MB.Challenges.event(this, 'kill', e);
+      if (e.def.onDeath) e.def.onDeath(e, this);
+      if (e.boss) this.bossDown(e);
+    },
+    bossDown(e) {
+      this.addScore(5000);
+      this.shake(18);
+      for (let i = 0; i < 6; i++) setTimeout(() => { if (this.running) this.burst(e.x + U.rnd(-60, 60), e.y + U.rnd(-60, 60), '#ffd56a', 30, 300); }, i * 120);
+      MB.HUD.bossHide();
+      this.state = 'won'; this.stateT = 2.8;
+      this.banner('GATE CLEARED', `${e.def.name} đã bị tiêu diệt`, 2.8);
+      MB.Audio.play('win'); MB.Audio.intensity(0.1);
+      // kẻ địch còn lại tan biến
+      for (const o of this.enemies) if (!o.dead && o !== e) { o.dead = true; this.burst(o.x, o.y, '#a8e07a', 8); }
+      this.ebullets.length = 0;
+    },
+
+    damageObstacle(o, dmg) {
+      if (o.dead || !o.hp) return;
+      o.hp -= dmg; o.flash = 0.08;
+      if (o.hp <= 0) {
+        o.dead = true; this.mmDirty = true;
+        MB.Audio.play('break'); this.shake(4);
+        this.burst(o.x, o.y, o.kind === 'crate' ? '#c0915a' : '#c7ff8a', 26, 200);
+        if (o.loot) MB.Items.randomLoot(this, o.x, o.y);
+        if (o.challenge) MB.Challenges.event(this, 'destroyed', o);
+        if (this.def.onObstacleDestroyed) this.def.onObstacleDestroyed(this, o);
+      }
+    },
+
+    hurtPlayer(d, src) {
+      const p = this.player;
+      if (p.dead || this.over || this.state === 'won') return;
+      const dot = src && src.dot;
+      if (!dot) {
+        if (p.iframes > 0) return;
+        p.iframes = 0.55; p.hurtT = 0.2; this.hurtFlash = 0.35;
+        this.shake(7); MB.Audio.play('hurt');
+        this.stats.hitsTaken++;
+        MB.Challenges.event(this, 'hurt');
+        if (src && src.x != null) {
+          const a = Math.atan2(p.y - src.y, p.x - src.x);
+          p.vx += Math.cos(a) * 280; p.vy += Math.sin(a) * 280;
+        }
+      }
+      let dmg = d;
+      if (p.armor > 0) { const ab = Math.min(p.armor, dmg); p.armor -= ab; dmg -= ab; }
+      p.hp -= dmg; this.stats.dmgTaken += d;
+      if (p.hp <= 0) {
+        p.hp = 0; p.dead = true;
+        this.burst(p.x, p.y, '#ff6b6b', 40, 220);
+        MB.Audio.play('lose'); MB.Audio.intensity(0);
+        this.banner('NHIỆM VỤ THẤT BẠI', 'Hunter đã gục ngã', 2);
+        this.finish(false, 2.2);
+      }
+    },
+    finish(win, delay) { if (this.over) return; this.over = true; this.win = win; this.overT = delay; },
+
+    /* ================== wave ================== */
+    startWave(i) {
+      this.waveIdx = i; this.state = 'fight'; this.spawned = 0; this.spawnT = 0.8;
+      const ob = this.def.objectives[i] || {};
+      this.banner(`WAVE ${i + 1}`, ob.title || '', 2);
+      MB.HUD.objective(ob.title || `WAVE ${i + 1}`, ob.text || '');
+      MB.Audio.play('wave');
+      MB.Audio.intensity(0.2 + i * 0.15);
+    },
+    updateWaves(dt) {
+      const d = this.def;
+      this.stateT -= dt;
+      if (this.state === 'intro' && this.stateT <= 0) this.startWave(0);
+      else if (this.state === 'fight') {
+        const w = d.waves[this.waveIdx];
+        this.spawnT -= dt;
+        if (this.spawned < w.total && this.countedAlive() < w.maxAlive && this.spawnT <= 0) {
+          const pos = this.pickSpawn();
+          const elite = Math.random() < (w.elite || 0);
+          this.spawnEnemyAt(U.weighted(w.mix), pos.x, pos.y, { elite });
+          this.spawned++;
+          this.spawnT = U.rnd(w.interval[0], w.interval[1]);
+        }
+        if (this.spawned >= w.total && this.countedAlive() === 0) {
+          this.addScore(500);
+          const p = this.player;
+          MB.Items.drop(this, p.hp < p.maxHp * 0.8 ? 'med' : 'armor', p.x + U.rnd(-60, 60), p.y + U.rnd(-60, 60));
+          if (this.waveIdx < d.waves.length - 1) {
+            this.state = 'break'; this.stateT = 5;
+            this.banner('WAVE CLEARED', 'Nghỉ 5 giây · nhặt thiết bị, phá thùng tiếp tế', 2.4);
+            MB.HUD.objective('TẠM NGHỈ', 'Tranh thủ làm thử thách để tăng sức mạnh súng.');
+          } else {
+            this.state = 'preboss'; this.stateT = 4;
+            this.banner('CẢNH BÁO', `${MB.Enemies.types[d.boss.type].name} đang tới`, 3);
+            MB.HUD.objective('CHUẨN BỊ', 'Boss sắp xuất hiện. Kiểm tra đạn và máu.');
+          }
+        }
+      } else if (this.state === 'break' && this.stateT <= 0) this.startWave(this.waveIdx + 1);
+      else if (this.state === 'preboss' && this.stateT <= 0) {
+        this.state = 'boss';
+        // boss xuất hiện ở hướng đấu trường nhưng không quá xa người chơi
+        const b = d.boss, p = this.player;
+        let bx = b.x, by = b.y;
+        const dd = U.dist(bx, by, p.x, p.y);
+        if (dd > 750) { bx = p.x + (bx - p.x) / dd * 650; by = p.y + (by - p.y) / dd * 650; }
+        this.spawnEnemyAt(b.type, bx, by, { boss: true });
+        const ob = d.objectives[d.waves.length] || {};
+        MB.HUD.objective(ob.title || 'BOSS', ob.text || '');
+        MB.Audio.play('boss'); this.shake(14); MB.Audio.intensity(1);
+      } else if (this.state === 'won' && this.stateT <= 0) {
+        const p = this.player;
+        this.addScore(2000 + Math.round(p.hp) * 10);
+        this.finish(true, 0.3);
+      }
+    },
+
+    /* ================== aim ================== */
+    computeAim(dt) {
+      const I = MB.Input, p = this.player;
+      if (p.dead) { this.wantFire = false; return; }
+      if (I.mode === 'kb') {
+        const wx = I.mouse.x / this.zoom + this.cam.x, wy = I.mouse.y / this.zoom + this.cam.y;
+        p.aim = Math.atan2(wy - p.y, wx - p.x);
+      } else {
+        const v = I.aimVec();
+        if (v) {
+          let a = Math.atan2(v.y, v.x);
+          if (MB.Save.data.settings.aimAssist) a = this.assist(a);
+          p.aim = a;
+        } else if (Math.hypot(I.move.x, I.move.y) > 0.2) {
+          p.aim += U.angDiff(p.aim, Math.atan2(I.move.y, I.move.x)) * Math.min(1, dt * 8);
+        }
+      }
+      this.wantFire = I.fire();
+    },
+    assist(a) {
+      const p = this.player;
+      let best = null, bd = 0.32;
+      for (const e of this.enemies) {
+        if (e.dead || e.spawnT > 0) continue;
+        const d = U.dist(e.x, e.y, p.x, p.y);
+        if (d > 560) continue;
+        const da = Math.abs(U.angDiff(a, Math.atan2(e.y - p.y, e.x - p.x)));
+        const score = da + d / 4000;
+        if (score < bd && this.los(p.x, p.y, e.x, e.y)) { bd = score; best = e; }
+      }
+      if (!best) return a;
+      return a + U.angDiff(a, Math.atan2(best.y - p.y, best.x - p.x)) * 0.75;
+    },
+
+    /* ================== update ================== */
+    update(dt) {
+      this.time += dt;
+      const p = this.player;
+      MB.Input.poll();
+
+      if (this.over) {
+        this.overT -= dt;
+        if (this.overT <= 0 && !this.reported) { this.reported = true; MB.App.onGateEnd(this.summary()); }
+      }
+
+      this.computeAim(dt);
+      MB.Hero.update(p, this, dt);
+
+      // hazards
+      p.inVirus = false;
+      for (let i = this.hazards.length - 1; i >= 0; i--) {
+        const h = this.hazards[i];
+        if (h.life != null) { h.life -= dt; if (h.life <= 0) { this.hazards.splice(i, 1); continue; } }
+        if (p.dead) continue;
+        const inside = U.dist(p.x, p.y, h.x, h.y) < h.r;
+        if (!inside) continue;
+        if (h.kind === 'virus') { p.inVirus = true; this.hurtPlayer(h.dps * dt, { dot: true }); }
+        if (h.kind === 'web') p.slow = 0.25;
+      }
+
+      MB.Weapons.update(p, this, dt);
+      if (!this.over) this.updateWaves(dt);
+      this.updateEnemies(dt);
+      this.updateObstacles(dt);
+      this.updateBullets(dt);
+      this.updateEnemyBullets(dt);
+      this.updateFx(dt);
+      MB.Items.update(this, dt);
+      MB.Challenges.update(this, dt);
+      if (this.def.update) this.def.update(this, dt);
+
+      for (let i = this.particles.length - 1; i >= 0; i--) {
+        const q = this.particles[i];
+        q.x += q.vx * dt; q.y += q.vy * dt;
+        const dr = Math.pow(q.drag || 0.92, dt * 60);
+        q.vx *= dr; q.vy *= dr; q.life -= dt;
+        if (q.rot != null) q.rot += dt * 12;
+        if (q.life <= 0) this.particles.splice(i, 1);
+      }
+      for (let i = this.texts.length - 1; i >= 0; i--) {
+        const t = this.texts[i];
+        t.y += t.vy * dt; t.vy *= 0.94; t.life -= dt;
+        if (t.life <= 0) this.texts.splice(i, 1);
+      }
+      this.hurtFlash = Math.max(0, this.hurtFlash - dt);
+      this.updateCamera(dt);
+      MB.HUD.update(this);
+    },
+
+    updateEnemies(dt) {
+      const p = this.player, list = this.enemies;
+      for (const e of list) {
+        if (e.dead) continue;
+        e.flash -= dt;
+        if (e.spawnT > 0) { e.spawnT -= dt; continue; }
+        if (!p.dead && !this.over) e.def.update(e, this, dt);
+        else MB.Enemies.stop(e, dt, 4);
+        e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
+        const kd = Math.exp(-9 * dt); e.kx *= kd; e.ky *= kd;
+        e.bumped = null;
+        this.collide(e);
+        e.atkCd -= dt;
+        if (!p.dead && !e.def.noContact && e.atkCd <= 0) {
+          const d = U.dist(e.x, e.y, p.x, p.y);
+          if (d < e.r + p.r - 2) {
+            this.hurtPlayer(e.dmg, e);
+            e.atkCd = 0.85;
+            const a = Math.atan2(e.y - p.y, e.x - p.x);
+            e.kx += Math.cos(a) * 160; e.ky += Math.sin(a) * 160;
+          }
+        }
+      }
+      // tách quái không chồng lên nhau
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i]; if (a.dead || a.spawnT > 0) continue;
+        for (let j = i + 1; j < list.length; j++) {
+          const b = list[j]; if (b.dead || b.spawnT > 0 || a.fly !== b.fly) continue;
+          const dx = b.x - a.x, dy = b.y - a.y, R = a.r + b.r;
+          if (Math.abs(dx) > R || Math.abs(dy) > R) continue;
+          const d = Math.hypot(dx, dy) || 0.01;
+          if (d >= R) continue;
+          const ov = (R - d) / 2, nx = dx / d, ny = dy / d;
+          const wa = a.boss ? 0 : b.boss ? 2 : 1, wb = b.boss ? 0 : a.boss ? 2 : 1;
+          a.x -= nx * ov * wa; a.y -= ny * ov * wa; b.x += nx * ov * wb; b.y += ny * ov * wb;
+        }
+      }
+      for (let i = list.length - 1; i >= 0; i--) if (list[i].dead) list.splice(i, 1);
+    },
+
+    updateObstacles(dt) {
+      const p = this.player;
+      for (const o of this.obstacles) {
+        if (o.dead) continue;
+        if (o.flash > 0) o.flash -= dt;
+        if (o.spawner && !p.dead && this.state !== 'won') {
+          const sp = o.spawner;
+          if (U.dist(o.x, o.y, p.x, p.y) < (sp.range || 800)) {
+            sp.t -= dt;
+            if (sp.t <= 0 && this.extraAlive() < (sp.cap || 6)) {
+              sp.t = sp.every;
+              const a = U.rnd(0, U.TAU);
+              this.spawnEnemyAt(sp.type, o.x + Math.cos(a) * (o.br + 26), o.y + Math.sin(a) * (o.br + 26), { extra: true });
+            }
+          }
+        }
+      }
+    },
+
+    updateBullets(dt) {
+      const list = this.bullets;
+      for (let i = list.length - 1; i >= 0; i--) {
+        const b = list[i];
+        b.px = b.x; b.py = b.y;
+        b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+        if (b.life <= 0 || b.x < -50 || b.y < -50 || b.x > this.world.w + 50 || b.y > this.world.h + 50) { list.splice(i, 1); continue; }
+        let removed = false;
+        const ang = Math.atan2(b.vy, b.vx);
+        for (const e of this.enemies) {
+          if (e.dead || b.hits.includes(e)) continue;
+          if (Col.segCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r + b.r)) {
+            b.hits.push(e);
+            this.stats.bhits++;
+            this.damageEnemy(e, b.dmg, ang, b.knock);
+            this.sparks(b.x, b.y, ang + Math.PI, e.def.gore || '#c9f59a', 3);
+            if (b.pierce > 0) { b.pierce--; b.dmg *= 0.8; }
+            else { list.splice(i, 1); removed = true; break; }
+          }
+        }
+        if (removed) continue;
+        const hit = Col.raycast(this.obstacles, b.px, b.py, b.x, b.y, (o) => !o.noShot);
+        if (hit) {
+          const hx = b.px + (b.x - b.px) * hit.t, hy = b.py + (b.y - b.py) * hit.t;
+          this.sparks(hx, hy, ang + Math.PI, hit.o.hp ? '#ffe3a8' : '#d4c7a1', 3);
+          if (hit.o.hp) this.damageObstacle(hit.o, b.dmg);
+          list.splice(i, 1);
+        }
+      }
+    },
+
+    updateEnemyBullets(dt) {
+      const p = this.player, list = this.ebullets;
+      for (let i = list.length - 1; i >= 0; i--) {
+        const b = list[i];
+        b.px = b.x; b.py = b.y;
+        b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+        let end = b.life <= 0 || b.x < -40 || b.y < -40 || b.x > this.world.w + 40 || b.y > this.world.h + 40;
+        if (!end && !b.pass && Col.raycast(this.obstacles, b.px, b.py, b.x, b.y, (o) => !o.noShot)) {
+          end = true; this.burst(b.x, b.y, '#c9d8b0', 4, 80);
+        }
+        if (!end && !p.dead && Col.segCircle(b.px, b.py, b.x, b.y, p.x, p.y, p.r + b.r - 2)) {
+          if (p.iframes <= 0) { this.hurtPlayer(b.dmg, b.owner && !b.owner.dead ? b.owner : { x: b.px, y: b.py }); end = true; }
+        }
+        if (end) { if (b.onEnd) b.onEnd(this, b); list.splice(i, 1); }
+      }
+    },
+
+    updateFx(dt) {
+      for (let i = this.fx.length - 1; i >= 0; i--) {
+        const f = this.fx[i];
+        f.t += dt;
+        if (f.update) f.update(f, dt, this);
+        if (f.t >= f.life) { this.fx.splice(i, 1); if (f.end) f.end(this, f); }
+      }
+    },
+
+    snapCamera() {
+      const vw = this.W / this.zoom, vh = this.H / this.zoom;
+      this.cam.x = U.clamp(this.player.x - vw / 2, 0, Math.max(0, this.world.w - vw));
+      this.cam.y = U.clamp(this.player.y - vh / 2, 0, Math.max(0, this.world.h - vh));
+    },
+    updateCamera(dt) {
+      const p = this.player, I = MB.Input;
+      const vw = this.W / this.zoom, vh = this.H / this.zoom;
+      let lx = 0, ly = 0;
+      if (I.mode === 'kb') {
+        lx = U.clamp((I.mouse.x - this.W / 2) / this.zoom * 0.22, -150, 150);
+        ly = U.clamp((I.mouse.y - this.H / 2) / this.zoom * 0.22, -110, 110);
+      } else if (this.wantFire) { lx = Math.cos(p.aim) * 90; ly = Math.sin(p.aim) * 70; }
+      let tx = p.x + lx - vw / 2, ty = p.y + ly - vh / 2;
+      tx = this.world.w < vw ? (this.world.w - vw) / 2 : U.clamp(tx, 0, this.world.w - vw);
+      ty = this.world.h < vh ? (this.world.h - vh) / 2 : U.clamp(ty, 0, this.world.h - vh);
+      const k = 1 - Math.exp(-7 * dt);
+      this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k;
+      this.shakeAmt *= Math.exp(-9 * dt);
+      this.sx = U.rnd(-1, 1) * this.shakeAmt; this.sy = U.rnd(-1, 1) * this.shakeAmt;
+    },
+
+    summary() {
+      const done = this.challenges.filter((c) => c.done).map((c) => c.id);
+      return {
+        gateId: this.def.id, win: this.win, score: this.score, time: this.time, kills: this.stats.kills,
+        accuracy: this.stats.shots ? Math.min(100, Math.round(this.stats.bhits / this.stats.shots * 100)) : 0,
+        done, totalChallenges: this.challenges.length, mods: MB.Weapons.power(this.player), hitsTaken: this.stats.hitsTaken,
+      };
+    },
+
+    /* ================== vẽ ================== */
+    draw() {
+      const ctx = this.ctx, z = this.zoom, dpr = this.dpr;
+      const vw = this.W / z, vh = this.H / z;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = this.def.bg || '#050b07'; ctx.fillRect(0, 0, this.W, this.H);
+      ctx.setTransform(dpr * z, 0, 0, dpr * z, (-this.cam.x * z + this.sx) * dpr, (-this.cam.y * z + this.sy) * dpr);
+
+      // nền
+      const sx = U.clamp(this.cam.x - 20, 0, this.world.w), sy = U.clamp(this.cam.y - 20, 0, this.world.h);
+      const sw = Math.min(this.world.w - sx, vw + 40), sh = Math.min(this.world.h - sy, vh + 40);
+      if (sw > 0 && sh > 0) ctx.drawImage(this.ground, sx * GROUND_SCALE, sy * GROUND_SCALE, sw * GROUND_SCALE, sh * GROUND_SCALE, sx, sy, sw, sh);
+
+      for (const d of this.decals) {
+        if (!this.inView(d.x, d.y, 40)) continue;
+        ctx.fillStyle = d.color; ctx.globalAlpha = 0.45;
+        for (const b of d.blobs) { U.circle(ctx, d.x + b[0], d.y + b[1], b[2]); ctx.fill(); }
+      }
+      ctx.globalAlpha = 1;
+
+      const t = this.time;
+      for (const h of this.hazards) if (this.inView(h.x, h.y, h.r)) MB.Props.hazard[h.kind](ctx, h, t, this);
+      if (this.def.drawUnder) this.def.drawUnder(this, ctx);
+      MB.Challenges.drawZones(ctx, this);
+      for (const f of this.fx) if (f.layer === 'ground') f.draw(ctx, f, this);
+      MB.Items.draw(ctx, this);
+
+      for (const o of this.obstacles) {
+        if (o.dead || !this.inView(o.x, o.y, o.br + 20)) continue;
+        const fn = MB.Props.draw[o.kind];
+        if (fn) fn(ctx, o, t, this);
+        if (o.target && o.hp < o.maxHp) this.drawHpBar(ctx, o.x, o.y - o.br - 12, 46, o.hp / o.maxHp, '#c7ff8a');
+      }
+
+      // đạn người chơi (vệt sáng)
+      ctx.lineCap = 'round';
+      for (const b of this.bullets) {
+        ctx.strokeStyle = b.color; ctx.lineWidth = b.r * 1.3;
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath(); ctx.moveTo(b.x - b.vx * 0.03, b.y - b.vy * 0.03); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = b.color; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
+      }
+
+      for (const e of this.enemies) if (!e.dead && this.inView(e.x, e.y, e.r + 80)) this.drawEnemy(ctx, e);
+
+      if (MB.Input.mode !== 'kb') MB.Hero.drawAimLine(ctx, this.player, this);
+      MB.Hero.draw(ctx, this.player, this);
+
+      for (const b of this.ebullets) this.drawEnemyBullet(ctx, b);
+      for (const f of this.fx) if (f.layer !== 'ground') f.draw(ctx, f, this);
+
+      for (const q of this.particles) {
+        ctx.globalAlpha = Math.max(0, q.life / q.max);
+        ctx.fillStyle = q.color;
+        if (q.type === 'spark') {
+          ctx.strokeStyle = q.color; ctx.lineWidth = q.r;
+          ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - q.vx * 0.03, q.y - q.vy * 0.03); ctx.stroke();
+        } else if (q.type === 'shell') {
+          ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillRect(-2.5, -1, 5, 2); ctx.restore();
+        } else { U.circle(ctx, q.x, q.y, q.r); ctx.fill(); }
+      }
+      ctx.globalAlpha = 1;
+      if (this.def.drawOver) this.def.drawOver(this, ctx);
+
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const tx of this.texts) {
+        ctx.globalAlpha = Math.min(1, tx.life * 2);
+        ctx.font = `800 ${tx.size}px system-ui,sans-serif`;
+        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(tx.txt, tx.x + 1, tx.y + 1);
+        ctx.fillStyle = tx.color; ctx.fillText(tx.txt, tx.x, tx.y);
+      }
+      ctx.globalAlpha = 1;
+
+      // ---- màn hình (screen-space)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.drawIndicators(ctx);
+      this.drawMinimap(ctx);
+      if (MB.Input.mode === 'kb' && !this.paused) this.drawCrosshair(ctx);
+      this.drawVignette(ctx);
+    },
+
+    drawEnemy(ctx, e) {
+      const def = e.def;
+      if (e.spawnT > 0) {
+        const max = e.boss ? 1.4 : 0.6, k = 1 - e.spawnT / max;
+        ctx.strokeStyle = `rgba(170,255,90,${1 - k})`; ctx.lineWidth = 3;
+        U.circle(ctx, e.x, e.y, e.r * (0.5 + k * 1.5)); ctx.stroke();
+        ctx.globalAlpha = k;
+      }
+      if (!e.fly) { ctx.fillStyle = 'rgba(0,0,0,.25)'; U.ellipse(ctx, e.x + 2, e.y + e.r * 0.5, e.r * 1.05, e.r * 0.6); ctx.fill(); }
+      if (e.elite) {
+        ctx.save(); ctx.globalAlpha *= 0.55 + Math.sin(this.time * 6) * 0.2;
+        ctx.strokeStyle = '#d79bff'; ctx.lineWidth = 3; U.circle(ctx, e.x, e.y, e.r + 7); ctx.stroke();
+        ctx.restore();
+      }
+      def.draw(ctx, e, this);
+      if (e.flash > 0) {
+        ctx.globalAlpha = Math.min(1, e.flash * 9) * 0.55;
+        ctx.fillStyle = '#ffffff'; U.circle(ctx, e.x, e.y, e.r * 0.95); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      if (!e.boss && e.hp < e.maxHp) this.drawHpBar(ctx, e.x, e.y - e.r - 10, e.r * 2, e.hp / e.maxHp, e.elite ? '#d79bff' : '#ff6d68');
+    },
+    drawHpBar(ctx, x, y, w, k, color) {
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 5);
+      ctx.fillStyle = color; ctx.fillRect(x - w / 2, y, w * Math.max(0, k), 3);
+    },
+    drawEnemyBullet(ctx, b) {
+      if (b.kind === 'tongue' && b.owner && !b.owner.dead) {
+        ctx.strokeStyle = '#d24b5a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(b.owner.x, b.owner.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.fillStyle = '#ff8c96'; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
+        return;
+      }
+      if (b.kind === 'rock') {
+        ctx.fillStyle = 'rgba(0,0,0,.3)'; U.ellipse(ctx, b.x + 4, b.y + 8, b.r, b.r * 0.6); ctx.fill();
+        ctx.fillStyle = '#7b6f62'; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
+        ctx.fillStyle = '#9b8e7e'; U.circle(ctx, b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.45); ctx.fill();
+        return;
+      }
+      if (b.kind === 'web') {
+        ctx.strokeStyle = '#f0f0e6'; ctx.lineWidth = 1.5;
+        U.circle(ctx, b.x, b.y, b.r); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(b.x - b.r, b.y); ctx.lineTo(b.x + b.r, b.y); ctx.moveTo(b.x, b.y - b.r); ctx.lineTo(b.x, b.y + b.r); ctx.stroke();
+        return;
+      }
+      const c = b.color || (b.kind === 'spit' ? '#b6ff6a' : '#ffb36b');
+      ctx.fillStyle = c; ctx.globalAlpha = 0.3; U.circle(ctx, b.x, b.y, b.r * 1.8); ctx.fill();
+      ctx.globalAlpha = 1; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; U.circle(ctx, b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.35); ctx.fill();
+    },
+
+    drawCrosshair(ctx) {
+      const m = MB.Input.mouse;
+      const w = MB.Weapons.current(this.player);
+      ctx.strokeStyle = w.reloading ? 'rgba(255,213,106,.9)' : 'rgba(255,255,255,.85)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 10, 0, U.TAU);
+      ctx.moveTo(m.x - 16, m.y); ctx.lineTo(m.x - 6, m.y); ctx.moveTo(m.x + 6, m.y); ctx.lineTo(m.x + 16, m.y);
+      ctx.moveTo(m.x, m.y - 16); ctx.lineTo(m.x, m.y - 6); ctx.moveTo(m.x, m.y + 6); ctx.lineTo(m.x, m.y + 16);
+      ctx.stroke();
+      if (w.reloading) {
+        const s = MB.Weapons.stats(this.player, w);
+        ctx.strokeStyle = '#ffd56a'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(m.x, m.y, 14, -Math.PI / 2, -Math.PI / 2 + U.TAU * (1 - w.reloading / s.reload)); ctx.stroke();
+      }
+    },
+
+    drawVignette(ctx) {
+      const p = this.player;
+      const low = p.hp / p.maxHp < 0.3 && !p.dead;
+      const k = this.hurtFlash / 0.35;
+      if (!low && k <= 0) return;
+      const pulse = low ? 0.35 + Math.sin(this.time * 6) * 0.15 : 0;
+      const a = Math.max(pulse, k * 0.6);
+      const g = ctx.createRadialGradient(this.W / 2, this.H / 2, Math.min(this.W, this.H) * 0.3, this.W / 2, this.H / 2, Math.max(this.W, this.H) * 0.7);
+      g.addColorStop(0, 'rgba(255,0,0,0)'); g.addColorStop(1, `rgba(200,20,20,${a})`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, this.W, this.H);
+    },
+
+    // mũi tên chỉ hướng tới mục tiêu ngoài màn hình
+    drawIndicators(ctx) {
+      const p = this.player, z = this.zoom;
+      const marks = MB.Challenges.markers(this);
+      if (this.boss && !this.boss.dead) marks.push({ x: this.boss.x, y: this.boss.y, color: '#ff5b6e', boss: true });
+      marks.sort((a, b) => U.dist(a.x, a.y, p.x, p.y) - U.dist(b.x, b.y, p.x, p.y));
+      let n = 0;
+      const pad = 34, cx = this.W / 2, cy = this.H / 2;
+      for (const m of marks) {
+        if (n >= 4) break;
+        if (this.inView(m.x, m.y, -30)) continue;
+        n++;
+        const sx = (m.x - this.cam.x) * z, sy = (m.y - this.cam.y) * z;
+        const a = Math.atan2(sy - cy, sx - cx);
+        const ex = U.clamp(sx, pad, this.W - pad), ey = U.clamp(sy, pad + 60, this.H - pad - 40);
+        ctx.save(); ctx.translate(ex, ey); ctx.rotate(a);
+        ctx.fillStyle = m.color; ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -8); ctx.lineTo(-2, 0); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    },
+
+    drawMinimap(ctx) {
+      const w = this.mmW, h = Math.round(w * this.world.h / this.world.w);
+      const x0 = this.W - w - 12 - (this.safeR || 0), y0 = 12 + (this.safeT || 0);
+      const k = w / this.world.w;
+      if (this.mmDirty || !this.mm) {
+        this.mmDirty = false;
+        const c = this.mm || document.createElement('canvas');
+        c.width = w * 2; c.height = h * 2;
+        const g = c.getContext('2d');
+        g.setTransform(2, 0, 0, 2, 0, 0);
+        g.fillStyle = 'rgba(6,14,9,.82)'; g.fillRect(0, 0, w, h);
+        g.fillStyle = this.def.mmColor || 'rgba(110,160,110,.55)';
+        for (const o of this.obstacles) {
+          if (o.dead) continue;
+          if (o.kind === 'chasm') g.fillStyle = 'rgba(0,0,0,.85)';
+          else g.fillStyle = o.hp ? 'rgba(255,213,106,.8)' : (this.def.mmColor || 'rgba(110,160,110,.55)');
+          g.beginPath(); g.arc(o.x * k, o.y * k, Math.max(1.2, o.br * k * 0.8), 0, U.TAU); g.fill();
+        }
+        for (const hz of this.hazards) if (hz.life == null) { g.fillStyle = 'rgba(150,255,90,.35)'; g.beginPath(); g.arc(hz.x * k, hz.y * k, hz.r * k, 0, U.TAU); g.fill(); }
+        this.mm = c;
+      }
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.drawImage(this.mm, x0, y0, w, h);
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
+      // khung nhìn
+      ctx.strokeStyle = 'rgba(255,255,255,.35)';
+      ctx.strokeRect(x0 + this.cam.x * k, y0 + this.cam.y * k, this.W / this.zoom * k, this.H / this.zoom * k);
+      for (const m of MB.Challenges.markers(this)) { ctx.fillStyle = m.color; ctx.fillRect(x0 + m.x * k - 2, y0 + m.y * k - 2, 4, 4); }
+      ctx.fillStyle = '#ff6d68';
+      for (const e of this.enemies) if (!e.dead) { const r = e.boss ? 3.5 : 1.6; ctx.fillRect(x0 + e.x * k - r, y0 + e.y * k - r, r * 2, r * 2); }
+      for (const it of this.pickups) if (it.kind === 'weapon' || it.kind === 'mod') { ctx.fillStyle = '#ffd56a'; ctx.fillRect(x0 + it.x * k - 1.5, y0 + it.y * k - 1.5, 3, 3); }
+      const p = this.player;
+      ctx.fillStyle = '#7ef3ff'; ctx.beginPath(); ctx.arc(x0 + p.x * k, y0 + p.y * k, 3, 0, U.TAU); ctx.fill();
+      ctx.restore();
+      this.mmRect = { x: x0, y: y0, w, h };
+    },
+  };
+})(window.MB);
