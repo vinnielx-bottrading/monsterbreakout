@@ -10,6 +10,15 @@
 
     // Lái hướng: đuổi mục tiêu + né vật cản + dao động (zigzag)
     steer(e, G, tx, ty, spd, dt, wig) {
+      // không thấy đường thẳng tới người chơi → đi theo bản đồ dẫn đường
+      if (!e.fly && !e.burrow && G.nav) {
+        const p = G.player;
+        if (U.dist(tx, ty, p.x, p.y) < 320) {
+          e.losT = (e.losT || 0) - dt;
+          if (e.losT <= 0) { e.losT = 0.3; e.blocked = !!MB.Col.raycast(G.obstacles, e.x, e.y, p.x, p.y, (o) => !o.noMove && U.dist(o.x, o.y, e.x, e.y) > 0); }
+          if (e.blocked) { const st = G.navStep(e); if (st) { tx = st.x; ty = st.y; wig = null; } }
+        }
+      }
       let dx = tx - e.x, dy = ty - e.y;
       const d = Math.hypot(dx, dy) || 1;
       dx /= d; dy /= d;
@@ -170,4 +179,146 @@
       ctx.restore();
     },
   });
+
+  /* ================= KHUÔN HÀNH VI (dùng lại cho quái ở các Gate) ================= */
+  E.AI = {
+    // bắn tầm xa: giữ khoảng cách, hiện vạch đỏ rồi bắn
+    shooter(o) {
+      return {
+        update(e, G, dt) {
+          const p = G.player, d = E.distPlayer(e, G);
+          if (e.cd == null) e.cd = U.rnd(o.cd[0], o.cd[1]);
+          e.cd -= dt;
+          if (e.state !== 'aim') {
+            let tx = p.x, ty = p.y;
+            if (d < o.min) { const a = Math.atan2(e.y - p.y, e.x - p.x); tx = e.x + Math.cos(a) * 120; ty = e.y + Math.sin(a) * 120; }
+            else if (d < o.max) { const a = Math.atan2(e.y - p.y, e.x - p.x) + 0.7 * (e.side || 1); tx = p.x + Math.cos(a) * d; ty = p.y + Math.sin(a) * d; }
+            E.steer(e, G, tx, ty, e.speed, dt, o.wig);
+            if (d < o.max + 80 && e.cd <= 0 && G.los(e.x, e.y, p.x, p.y)) { e.state = 'aim'; e.st = o.aim; e.lock = E.toPlayer(e, G); }
+          } else {
+            E.stop(e, dt, 12);
+            e.lock += U.angDiff(e.lock, E.toPlayer(e, G)) * Math.min(1, dt * 3); e.face = e.lock; e.st -= dt;
+            if (e.st <= 0) { o.shot(e, G, e.lock); e.state = 'move'; e.cd = U.rnd(o.cd[0], o.cd[1]); }
+          }
+        },
+        tele(ctx, e, G) { if (e.state === 'aim' && o.line !== false) G.drawTelegraphLine(ctx, e.x, e.y, e.lock, o.lineLen || 320, 1 - e.st / o.aim); },
+      };
+    },
+    // tự nổ: lao tới, phồng lên rồi nổ (gây sát thương cả quái khác)
+    exploder(o) {
+      return {
+        update(e, G, dt) {
+          const d = E.distPlayer(e, G);
+          if (e.state !== 'fuse') {
+            E.steer(e, G, G.player.x, G.player.y, e.speed, dt, o.wig);
+            if (d < o.trigger) { e.state = 'fuse'; e.st = o.fuse; MB.Audio.play('spit'); }
+          } else {
+            E.stop(e, dt, 6); e.st -= dt; e.swell = 1 - e.st / o.fuse;
+            if (e.st <= 0) E.AI.blow(e, G, o);
+          }
+        },
+        onDeath(e, G) { if (!e.blown && o.deathBlast) E.AI.blow(e, G, o, true); if (o.onDeath) o.onDeath(e, G); },
+        tele(ctx, e, G) {
+          if (e.state !== 'fuse') return;
+          const k = 1 - e.st / o.fuse;
+          ctx.fillStyle = `rgba(255,80,60,${0.1 + k * 0.2})`; U.circle(ctx, e.x, e.y, o.r); ctx.fill();
+          ctx.strokeStyle = `rgba(255,90,70,${0.5 + Math.abs(Math.sin(G.time * 20)) * 0.4})`; ctx.lineWidth = 3; U.circle(ctx, e.x, e.y, o.r); ctx.stroke();
+        },
+      };
+    },
+    blow(e, G, o, fromDeath) {
+      if (e.blown) return;
+      e.blown = true;
+      G.explosion(e.x, e.y, o.r, o.dmgEnemies || 40, { player: fromDeath ? Math.round(o.dmg * 0.6) : o.dmg, source: e, knock: 300, color: o.color, ring: o.ring, decal: o.decal });
+      if (o.pool) G.addHazard(Object.assign({ x: e.x, y: e.y }, o.pool));
+      if (!e.dead) G.killEnemy(e);
+    },
+    // đào đất: lặn xuống (không bắn trúng được), trồi lên cắn
+    burrower(o) {
+      return {
+        init(e) { e.state = 'under'; e.hidden = true; e.burrow = true; e.st = U.rnd(0.5, 1.5); },
+        update(e, G, dt) {
+          const p = G.player, d = E.distPlayer(e, G);
+          e.st -= dt;
+          if (e.state === 'under') {
+            e.hidden = true; e.burrow = true;
+            E.steer(e, G, p.x, p.y, e.speed * (o.underMul || 1.5), dt);
+            if (d < (o.emerge || 90) && e.st <= 0) { e.state = 'rise'; e.st = 0.6; e.rx = e.x; e.ry = e.y; }
+          } else if (e.state === 'rise') {
+            E.stop(e, dt, 20); e.x = e.rx; e.y = e.ry;
+            if (e.st <= 0) {
+              e.state = 'up'; e.hidden = false; e.burrow = false; e.st = o.up || 2.6;
+              G.burst(e.x, e.y, o.dirt || '#6b5a3a', 18, 200); G.shake(3);
+              if (U.dist(e.x, e.y, p.x, p.y) < e.r + p.r + 26) G.hurtPlayer(Math.round(e.dmg * 1.4), e);
+            }
+          } else if (e.state === 'up') {
+            E.steer(e, G, p.x, p.y, e.speed, dt);
+            if (e.st <= 0) { e.state = 'under'; e.st = U.rnd(1.2, 2.2); G.burst(e.x, e.y, o.dirt || '#6b5a3a', 10, 120); }
+          }
+        },
+        tele(ctx, e, G) {
+          if (e.state === 'under') {
+            const k = (G.time * 2 + e.t) % 1;
+            ctx.strokeStyle = `rgba(${o.ripple || '200,230,160'},${0.6 * (1 - k)})`; ctx.lineWidth = 2;
+            U.circle(ctx, e.x, e.y, 8 + k * 22); ctx.stroke();
+            ctx.fillStyle = `rgba(${o.ripple || '200,230,160'},.25)`; U.ellipse(ctx, e.x, e.y, 12, 6); ctx.fill();
+          } else if (e.state === 'rise') {
+            ctx.fillStyle = 'rgba(255,80,60,.22)'; U.circle(ctx, e.x, e.y, e.r + 26); ctx.fill();
+            ctx.strokeStyle = 'rgba(255,90,70,.8)'; ctx.lineWidth = 2; U.circle(ctx, e.x, e.y, e.r + 26); ctx.stroke();
+          }
+        },
+      };
+    },
+    // dịch chuyển: mờ đi rồi hiện ra sau lưng người chơi và chém
+    blinker(o) {
+      return {
+        update(e, G, dt) {
+          const p = G.player, d = E.distPlayer(e, G);
+          e.cd = (e.cd == null ? U.rnd(2, 3.5) : e.cd) - dt;
+          if (e.state === 'fade') {
+            E.stop(e, dt, 20); e.st -= dt; e.invuln = true; e.alpha = Math.max(0.1, e.st / 0.4);
+            if (e.st <= 0) {
+              for (let i = 0; i < 8; i++) {
+                const a = p.aim + Math.PI + U.rnd(-0.8, 0.8), tx = p.x + Math.cos(a) * 100, ty = p.y + Math.sin(a) * 100;
+                if (!G.obstacles.some((ob) => !ob.dead && !ob.noMove && MB.Col.overlap(ob, tx, ty, e.r))) { e.x = tx; e.y = ty; break; }
+              }
+              e.state = 'appear'; e.st = 0.35; e.invuln = false; e.alpha = 1; e.lock = E.toPlayer(e, G); e.face = e.lock;
+              G.burst(e.x, e.y, o.color || '#b98cff', 14, 140); MB.Audio.play('dash');
+            }
+          } else if (e.state === 'appear') {
+            E.stop(e, dt, 20); e.st -= dt;
+            if (e.st <= 0) { e.state = 'lunge'; e.st = 0.25; e.vx = Math.cos(e.lock) * 520; e.vy = Math.sin(e.lock) * 520; }
+          } else if (e.state === 'lunge') {
+            e.st -= dt; if (e.st <= 0) { e.state = 'stalk'; e.cd = U.rnd(2.5, 4); }
+          } else {
+            e.state = 'stalk'; e.alpha = o.ghost || 1;
+            E.steer(e, G, p.x, p.y, e.speed, dt, { f: 4, a: 0.4 });
+            if (e.cd <= 0 && d < 520 && d > 120) { e.state = 'fade'; e.st = 0.4; }
+          }
+        },
+        tele(ctx, e, G) { if (e.state === 'appear') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 140, 1 - e.st / 0.35); },
+      };
+    },
+    // khiên phía trước: đạn bắn trực diện giảm sát thương mạnh
+    shieldFront(mul, arc) {
+      return function (e, dmg, G, ang) {
+        if (ang == null || e.stunT > 0) return dmg;
+        if (Math.abs(U.angDiff(e.face || 0, ang + Math.PI)) < (arc || 1)) {
+          if (Math.random() < 0.15) G.text(e.x, e.y - e.r - 14, 'CHẶN', '#9fd8ff', 12);
+          G.sparks(e.x + Math.cos(e.face) * e.r, e.y + Math.sin(e.face) * e.r, e.face, '#cfe8ff', 2);
+          return dmg * (mul || 0.2);
+        }
+        return dmg * 1.25;
+      };
+    },
+  };
+  // ghép khuôn hành vi vào định nghĩa quái: E.make(base, E.AI.shooter({...}))
+  E.make = (base, ai) => {
+    const d = Object.assign({}, base);
+    if (ai.update) d.update = ai.update;
+    if (ai.tele) d.tele = ai.tele;
+    if (ai.init) { const bi = base.init; d.init = (e, G) => { ai.init(e, G); if (bi) bi(e, G); }; }
+    if (ai.onDeath) { const bd = base.onDeath; d.onDeath = (e, G) => { ai.onDeath(e, G); if (bd) bd(e, G); }; }
+    return d;
+  };
 })(window.MB);

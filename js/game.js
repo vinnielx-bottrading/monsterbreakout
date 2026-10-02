@@ -48,12 +48,13 @@
 
       const p = this.player = MB.Hero.create(def.start.x, def.start.y);
       const armory = MB.Save.data.armory;
-      for (const id of ['rifle', 'shotgun', 'smg']) if (armory.includes(id)) p.weapons.push(MB.Weapons.make(id));
+      for (const id of MB.Weapons.ORDER) if (armory.includes(id)) p.weapons.push(MB.Weapons.make(id));
       if (!p.weapons.length) p.weapons.push(MB.Weapons.make('rifle'));
       p.aim = 0;
 
+      this.nav = null; this.navDirty = true; this.navT = 0;
       MB.Skills.init(p);
-      this.aidT = 0; this.lockE = null; this.grenades = [];
+      this.aidT = 0; this.lockE = null; this.grenades = []; this.actors = [];
       MB.Challenges.init(this, def.challenges);
       this.buildGround();
       this.mmDirty = true;
@@ -104,7 +105,7 @@
     },
     los(x1, y1, x2, y2) { return !Col.raycast(this.obstacles, x1, y1, x2, y2, (o) => !o.noShot); },
     collide(e) {
-      if (!e.fly) {
+      if (!e.fly && !e.burrow) {
         for (let pass = 0; pass < 2; pass++) {
           for (const o of this.obstacles) {
             if (o.dead || o.noMove) continue;
@@ -197,6 +198,31 @@
       });
     },
 
+    // vụ nổ dùng chung (lựu đạn, súng phóng lựu, thùng hoá chất, quái tự nổ, thiên thạch...)
+    explosion(x, y, r, dmg, o) {
+      o = o || {};
+      MB.Audio.play('boom'); this.shake(o.shake || 9);
+      this.burst(x, y, o.color || '#ffb347', o.small ? 14 : 26, 300); this.burst(x, y, '#5a5048', 10, 160);
+      this.decal(x, y, o.decal || 'rgba(20,16,12,.7)', r * 0.22);
+      const col = o.ring || '255,170,70';
+      this.addFx({
+        layer: 'ground', life: 0.42,
+        draw(ctx, fx) {
+          const k = fx.t / fx.life, R = r * (0.4 + k * 0.7);
+          ctx.fillStyle = `rgba(${col},${0.5 * (1 - k)})`; U.circle(ctx, x, y, R); ctx.fill();
+          ctx.strokeStyle = `rgba(255,235,180,${1 - k})`; ctx.lineWidth = 6 * (1 - k) + 1; U.circle(ctx, x, y, R); ctx.stroke();
+        },
+      });
+      if (o.enemies !== false) for (const e of this.enemies) {
+        if (e.dead || e === o.source) continue;
+        const d = U.dist(e.x, e.y, x, y);
+        if (d > r + e.r) continue;
+        this.damageEnemy(e, dmg * (1 - Math.min(1, d / r) * 0.5), Math.atan2(e.y - y, e.x - x), e.boss ? 0 : (o.knock == null ? 380 : o.knock));
+      }
+      if (o.obstacles !== false) for (const ob of this.obstacles) if (!ob.dead && ob.hp && U.dist(ob.x, ob.y, x, y) < r + ob.br) this.damageObstacle(ob, o.objDmg || dmg);
+      if (o.player) { const p = this.player; if (!p.dead && U.dist(p.x, p.y, x, y) < r + p.r) this.hurtPlayer(o.player, { x, y }); }
+    },
+
     /* ================== quái ================== */
     spawnEnemyAt(type, x, y, opts) {
       opts = opts || {};
@@ -207,6 +233,8 @@
         fly: !!def.fly, t: U.rnd(0, 100), face: Math.atan2(this.player.y - y, this.player.x - x), flash: 0, atkCd: 0.6,
         spawnT: opts.boss ? 1.4 : 0.6, extra: !!opts.extra, boss: !!def.boss, elite: !!opts.elite, dead: false, state: null, st: 0,
       };
+      const sc = this.def.scale;
+      if (sc && !e.boss) { e.hp *= sc.hp || 1; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * (sc.dmg || 1)); e.score = Math.round(e.score * (sc.hp || 1)); }
       if (e.elite) { e.hp *= 2.4; e.maxHp = e.hp; e.r *= 1.15; e.speed *= 1.06; e.score *= 3; e.dmg = Math.round(e.dmg * 1.3); }
       if (def.init) def.init(e, this);
       if (!e.fly) this.collide(e);
@@ -233,10 +261,11 @@
       return U.pick(list);
     },
 
-    damageEnemy(e, dmg, ang, knock) {
-      if (e.dead) return;
-      if (e.def.armorFn) dmg = e.def.armorFn(e, dmg, this);
-      e.hp -= dmg; e.flash = 0.08;
+    damageEnemy(e, dmg, ang, knock, quiet) {
+      if (e.dead || e.invuln) return;
+      if (e.def.armorFn) dmg = e.def.armorFn(e, dmg, this, ang);
+      e.hp -= dmg; if (!quiet) e.flash = 0.08;
+      if (quiet) { if (e.hp <= 0) this.killEnemy(e); return; }
       if (MB.Save.data.settings.dmgNum && !this.lowFx || (MB.Save.data.settings.dmgNum && Math.random() < 0.5)) {
         this.text(e.x + U.rnd(-8, 8), e.y - e.r - 6, Math.round(dmg), dmg >= 30 ? '#ffd56a' : '#ffffff', dmg >= 30 ? 15 : 12);
       }
@@ -285,6 +314,7 @@
         o.dead = true; this.mmDirty = true;
         MB.Audio.play('break'); this.shake(4);
         this.burst(o.x, o.y, o.kind === 'crate' ? '#c0915a' : '#c7ff8a', 26, 200);
+        this.navDirty = true;
         if (o.loot) MB.Items.randomLoot(this, o.x, o.y);
         if (o.challenge) MB.Challenges.event(this, 'destroyed', o);
         if (this.def.onObstacleDestroyed) this.def.onObstacleDestroyed(this, o);
@@ -363,7 +393,7 @@
         const b = d.boss, p = this.player;
         let bx = b.x, by = b.y;
         const dd = U.dist(bx, by, p.x, p.y);
-        if (dd > 750) { bx = p.x + (bx - p.x) / dd * 650; by = p.y + (by - p.y) / dd * 650; }
+        if (dd > 750 && !b.fixed) { bx = p.x + (bx - p.x) / dd * 650; by = p.y + (by - p.y) / dd * 650; }
         this.spawnEnemyAt(b.type, bx, by, { boss: true });
         const ob = d.objectives[d.waves.length] || {};
         MB.HUD.objective(ob.title || 'BOSS', ob.text || '');
@@ -414,7 +444,7 @@
       const p = this.player;
       let best = null, bs = 1e9;
       for (const e of this.enemies) {
-        if (e.dead || e.spawnT > 0) continue;
+        if (e.dead || e.spawnT > 0 || e.hidden) continue;
         const d = U.dist(e.x, e.y, p.x, p.y);
         if (d > 540) continue;
         let sc = d;
@@ -435,7 +465,7 @@
       const p = this.player;
       let best = null, bd = 0.42;
       for (const e of this.enemies) {
-        if (e.dead || e.spawnT > 0) continue;
+        if (e.dead || e.spawnT > 0 || e.hidden) continue;
         const d = U.dist(e.x, e.y, p.x, p.y);
         if (d > 560) continue;
         const da = Math.abs(U.angDiff(a, Math.atan2(e.y - p.y, e.x - p.x)));
@@ -462,20 +492,30 @@
       MB.Hero.update(p, this, dt);
 
       // hazards
-      p.inVirus = false;
+      p.inVirus = false; p.zoneMul = 1; p.slip = false;
       for (let i = this.hazards.length - 1; i >= 0; i--) {
         const h = this.hazards[i];
         if (h.life != null) { h.life -= dt; if (h.life <= 0) { this.hazards.splice(i, 1); continue; } }
         if (p.dead) continue;
         const inside = U.dist(p.x, p.y, h.x, h.y) < h.r;
         if (!inside) continue;
-        if (h.kind === 'virus') { p.inVirus = true; this.hurtPlayer(h.dps * dt, { dot: true }); }
+        if (h.kind === 'virus') p.inVirus = true;
+        if (h.dps) this.hurtPlayer(h.dps * dt, { dot: true });
         if (h.kind === 'web') p.slow = 0.25;
+        if (h.slowMul) p.zoneMul = Math.min(p.zoneMul, h.slowMul);
+        if (h.slip) p.slip = true;
+        if (h.burn) p.burnT = Math.max(p.burnT || 0, h.burn);
+      }
+      // bỏng (lửa, dung nham)
+      if (p.burnT > 0 && !p.dead) {
+        p.burnT -= dt; this.hurtPlayer(5 * dt, { dot: true });
+        if (Math.random() < 0.4) this.particle({ x: p.x + U.rnd(-10, 10), y: p.y + U.rnd(-10, 10), vx: 0, vy: -40, life: 0.4, color: '#ff8a3c', r: 2.5 });
       }
 
       MB.Weapons.update(p, this, dt);
       MB.Skills.update(this, dt);
       this.updateAid(dt);
+      this.updateNav(dt);
       if (!this.over) this.updateWaves(dt);
       this.updateEnemies(dt);
       this.updateObstacles(dt);
@@ -504,6 +544,56 @@
       MB.HUD.update(this);
     },
 
+    /* ---- dẫn đường (flow field): quái đi vòng tường/nhà/kênh nước để tới người chơi ---- */
+    buildNav() {
+      const cs = 50, cols = Math.ceil(this.world.w / cs), rows = Math.ceil(this.world.h / cs);
+      const blocked = new Uint8Array(cols * rows);
+      for (const o of this.obstacles) {
+        if (o.dead || o.noMove) continue;
+        const x0 = Math.max(0, Math.floor((o.x - o.br - 20) / cs)), x1 = Math.min(cols - 1, Math.floor((o.x + o.br + 20) / cs));
+        const y0 = Math.max(0, Math.floor((o.y - o.br - 20) / cs)), y1 = Math.min(rows - 1, Math.floor((o.y + o.br + 20) / cs));
+        for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (Col.overlap(o, cx * cs + cs / 2, cy * cs + cs / 2, 14)) blocked[cy * cols + cx] = 1;
+      }
+      this.nav = { cs, cols, rows, blocked, dist: new Int32Array(cols * rows), q: new Int32Array(cols * rows) };
+      this.navDirty = false; this.navT = 0;
+    },
+    updateNav(dt) {
+      if (this.navDirty || !this.nav) this.buildNav();
+      this.navT -= dt;
+      if (this.navT > 0) return;
+      this.navT = 0.35;
+      const N = this.nav, p = this.player, { cols, rows, cs, blocked, dist, q } = N;
+      dist.fill(-1);
+      let sx = U.clamp(Math.floor(p.x / cs), 0, cols - 1), sy = U.clamp(Math.floor(p.y / cs), 0, rows - 1);
+      let head = 0, tail = 0;
+      dist[sy * cols + sx] = 0; q[tail++] = sy * cols + sx;
+      while (head < tail) {
+        const c = q[head++], cx = c % cols, cy = (c / cols) | 0, d = dist[c] + 1;
+        if (cx > 0) { const n = c - 1; if (dist[n] < 0 && !blocked[n]) { dist[n] = d; q[tail++] = n; } }
+        if (cx < cols - 1) { const n = c + 1; if (dist[n] < 0 && !blocked[n]) { dist[n] = d; q[tail++] = n; } }
+        if (cy > 0) { const n = c - cols; if (dist[n] < 0 && !blocked[n]) { dist[n] = d; q[tail++] = n; } }
+        if (cy < rows - 1) { const n = c + cols; if (dist[n] < 0 && !blocked[n]) { dist[n] = d; q[tail++] = n; } }
+      }
+    },
+    // điểm kế tiếp trên đường tới người chơi (null nếu không cần / không có)
+    navStep(e) {
+      const N = this.nav; if (!N) return null;
+      const { cols, rows, cs, dist } = N;
+      const cx = U.clamp(Math.floor(e.x / cs), 0, cols - 1), cy = U.clamp(Math.floor(e.y / cs), 0, rows - 1);
+      let best = -1, bd = dist[cy * cols + cx] >= 0 ? dist[cy * cols + cx] : 1e9;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        const n = ny * cols + nx, d = dist[n];
+        if (d < 0) continue;
+        if (dx && dy && (dist[cy * cols + nx] < 0 || dist[ny * cols + cx] < 0)) continue; // không cắt góc
+        const dd = d + (dx && dy ? 0.4 : 0);
+        if (dd < bd) { bd = dd; best = n; }
+      }
+      if (best < 0) return null;
+      return { x: (best % cols) * cs + cs / 2, y: ((best / cols) | 0) * cs + cs / 2 };
+    },
+
     // thả tiếp tế y tế khi máu thấp
     updateAid(dt) {
       const p = this.player;
@@ -529,6 +619,13 @@
         if (e.dead) continue;
         e.flash -= dt;
         if (e.spawnT > 0) { e.spawnT -= dt; continue; }
+        if (e.burnT > 0) {
+          e.burnT -= dt; this.damageEnemy(e, 9 * dt, 0, 0, true);
+          if (Math.random() < 0.3) this.particle({ x: e.x + U.rnd(-8, 8), y: e.y + U.rnd(-8, 8), vx: 0, vy: -30, life: 0.35, color: '#ff8a3c', r: 2.4 });
+          if (e.dead) continue;
+        }
+        if (!e.fly && !e.boss) for (const h of this.hazards) if (h.enemyDps && U.dist(e.x, e.y, h.x, h.y) < h.r) this.damageEnemy(e, h.enemyDps * dt, 0, 0, true);
+        if (e.dead) continue;
         if (e.stunT > 0) { e.stunT -= dt; MB.Enemies.stop(e, dt, 8); }
         else if (!p.dead && !this.over) e.def.update(e, this, dt);
         else MB.Enemies.stop(e, dt, 4);
@@ -537,10 +634,11 @@
         e.bumped = null;
         this.collide(e);
         e.atkCd -= dt;
-        if (!p.dead && !e.def.noContact && e.atkCd <= 0) {
+        if (!p.dead && !e.def.noContact && !e.hidden && !e.airborne && e.atkCd <= 0) {
           const d = U.dist(e.x, e.y, p.x, p.y);
           if (d < e.r + p.r - 2) {
             this.hurtPlayer(e.dmg, e);
+            if (e.def.onContact) e.def.onContact(e, this);
             e.atkCd = 0.85;
             const a = Math.atan2(e.y - p.y, e.x - p.x);
             e.kx += Math.cos(a) * 160; e.ky += Math.sin(a) * 160;
@@ -589,16 +687,23 @@
         const b = list[i];
         b.px = b.x; b.py = b.y;
         b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-        if (b.life <= 0 || b.x < -50 || b.y < -50 || b.x > this.world.w + 50 || b.y > this.world.h + 50) { list.splice(i, 1); continue; }
+        if (b.flame) { b.r += dt * 26; b.vx *= Math.pow(0.2, dt); b.vy *= Math.pow(0.2, dt); }
+        if (b.life <= 0 || b.x < -50 || b.y < -50 || b.x > this.world.w + 50 || b.y > this.world.h + 50) {
+          if (b.explode && b.life <= 0) this.explosion(b.x, b.y, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true });
+          list.splice(i, 1); continue;
+        }
         let removed = false;
         const ang = Math.atan2(b.vy, b.vx);
         for (const e of this.enemies) {
-          if (e.dead || b.hits.includes(e)) continue;
+          if (e.dead || e.hidden || b.hits.includes(e)) continue;
           if (Col.segCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r + b.r)) {
             b.hits.push(e);
             this.stats.bhits++;
-            this.damageEnemy(e, b.dmg, ang, b.knock);
-            this.sparks(b.x, b.y, ang + Math.PI, e.def.gore || '#c9f59a', 3);
+            if (b.explode) { this.explosion(b.x, b.y, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true }); list.splice(i, 1); removed = true; break; }
+            this.damageEnemy(e, b.dmg, ang, b.knock, b.flame);
+            if (b.burn) e.burnT = 2.2;
+            if (b.chain) this.chainZap(e, b.chain, b.dmg);
+            if (!b.flame) this.sparks(b.x, b.y, ang + Math.PI, e.def.gore || '#c9f59a', 3);
             if (b.pierce > 0) { b.pierce--; b.dmg *= 0.8; }
             else { list.splice(i, 1); removed = true; break; }
           }
@@ -607,10 +712,29 @@
         const hit = Col.raycast(this.obstacles, b.px, b.py, b.x, b.y, (o) => !o.noShot);
         if (hit) {
           const hx = b.px + (b.x - b.px) * hit.t, hy = b.py + (b.y - b.py) * hit.t;
-          this.sparks(hx, hy, ang + Math.PI, hit.o.hp ? '#ffe3a8' : '#d4c7a1', 3);
+          if (b.explode) { this.explosion(hx, hy, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true }); list.splice(i, 1); continue; }
+          if (!b.flame) this.sparks(hx, hy, ang + Math.PI, hit.o.hp ? '#ffe3a8' : '#d4c7a1', 3);
           if (hit.o.hp) this.damageObstacle(hit.o, b.dmg);
+          if (hit.o.onShot) hit.o.onShot(this, hit.o, b);
           list.splice(i, 1);
         }
+      }
+    },
+
+    // tia sét lan sang quái gần (súng plasma)
+    chainZap(src, ch, dmg) {
+      let from = src; const hit = [src];
+      for (let n = 0; n < ch.n; n++) {
+        let best = null, bd = ch.r;
+        for (const e of this.enemies) { if (e.dead || e.hidden || hit.includes(e)) continue; const d = U.dist(e.x, e.y, from.x, from.y); if (d < bd) { bd = d; best = e; } }
+        if (!best) break;
+        const x1 = from.x, y1 = from.y, x2 = best.x, y2 = best.y;
+        this.addFx({ layer: 'top', life: 0.18, draw(ctx, fx) {
+          ctx.strokeStyle = `rgba(200,160,255,${1 - fx.t / fx.life})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x1, y1);
+          for (let k = 1; k < 6; k++) ctx.lineTo(U.lerp(x1, x2, k / 6) + U.rnd(-10, 10), U.lerp(y1, y2, k / 6) + U.rnd(-10, 10));
+          ctx.lineTo(x2, y2); ctx.stroke(); } });
+        this.damageEnemy(best, dmg * ch.dmg, Math.atan2(y2 - y1, x2 - x1), 20);
+        hit.push(best); from = best;
       }
     },
 
@@ -625,7 +749,7 @@
           end = true; this.burst(b.x, b.y, '#c9d8b0', 4, 80);
         }
         if (!end && !p.dead && Col.segCircle(b.px, b.py, b.x, b.y, p.x, p.y, p.r + b.r - 2)) {
-          if (p.iframes <= 0) { this.hurtPlayer(b.dmg, b.owner && !b.owner.dead ? b.owner : { x: b.px, y: b.py }); end = true; }
+          if (p.iframes <= 0) { this.hurtPlayer(b.dmg, b.owner && !b.owner.dead ? b.owner : { x: b.px, y: b.py }); end = true; if (b.onHit) b.onHit(this, b); }
         }
         if (end) { if (b.onEnd) b.onEnd(this, b); list.splice(i, 1); }
       }
@@ -693,7 +817,7 @@
       ctx.globalAlpha = 1;
 
       const t = this.time;
-      for (const h of this.hazards) if (this.inView(h.x, h.y, h.r)) MB.Props.hazard[h.kind](ctx, h, t, this);
+      for (const h of this.hazards) if (this.inView(h.x, h.y, h.r)) (MB.Props.hazard[h.kind] || MB.Props.hazardGeneric)(ctx, h, t, this);
       if (this.def.drawUnder) this.def.drawUnder(this, ctx);
       MB.Challenges.drawZones(ctx, this);
       for (const f of this.fx) if (f.layer === 'ground') f.draw(ctx, f, this);
@@ -709,6 +833,11 @@
       // đạn người chơi (vệt sáng)
       ctx.lineCap = 'round';
       for (const b of this.bullets) {
+        if (b.flame) {
+          const k = Math.max(0, b.life / b.max0);
+          ctx.globalAlpha = 0.25 + k * 0.5; ctx.fillStyle = k > 0.5 ? '#ffd27a' : '#ff7a2c';
+          U.circle(ctx, b.x, b.y, b.r); ctx.fill(); ctx.globalAlpha = 1; continue;
+        }
         ctx.strokeStyle = b.color; ctx.lineWidth = b.r * 1.3;
         ctx.globalAlpha = 0.35;
         ctx.beginPath(); ctx.moveTo(b.x - b.vx * 0.03, b.y - b.vy * 0.03); ctx.lineTo(b.x, b.y); ctx.stroke();
@@ -728,6 +857,7 @@
 
       for (const b of this.ebullets) this.drawEnemyBullet(ctx, b);
       MB.Skills.draw2D(ctx, this);
+      for (const a of this.actors) { const fn = MB.Props.actor[a.kind]; if (fn && this.inView(a.x, a.y, (a.r || 40) + 60)) fn(ctx, a, this); }
       for (const f of this.fx) if (f.layer !== 'ground') f.draw(ctx, f, this);
 
       for (const q of this.particles) {
@@ -754,6 +884,7 @@
 
       // ---- màn hình (screen-space)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (this.def.drawScreen) this.def.drawScreen(this, ctx);
       this.drawIndicators(ctx);
       this.drawMinimap(ctx);
       if (MB.Input.mode === 'kb' && !this.paused) this.drawCrosshair(ctx);
@@ -762,6 +893,8 @@
 
     drawEnemy(ctx, e) {
       const def = e.def;
+      if (e.hidden) { if (def.tele) def.tele(ctx, e, this); return; }
+      if (e.alpha != null && e.alpha < 1) ctx.globalAlpha = e.alpha;
       if (e.spawnT > 0) {
         const max = e.boss ? 1.4 : 0.6, k = 1 - e.spawnT / max;
         ctx.strokeStyle = `rgba(170,255,90,${1 - k})`; ctx.lineWidth = 3;
@@ -803,6 +936,14 @@
         ctx.fillStyle = '#7b6f62'; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
         ctx.fillStyle = '#9b8e7e'; U.circle(ctx, b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.45); ctx.fill();
         return;
+      }
+      if (b.kind === 'car') {
+        const a = this.time * 6;
+        ctx.save(); ctx.translate(b.x, b.y - 20); ctx.rotate(a);
+        ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(-28, -10, 56, 30);
+        ctx.fillStyle = '#6a4a3a'; U.rr(ctx, -30, -15, 60, 30, 8); ctx.fill();
+        ctx.fillStyle = 'rgba(40,60,80,.8)'; ctx.fillRect(-8, -12, 22, 24);
+        ctx.restore(); return;
       }
       if (b.kind === 'web') {
         ctx.strokeStyle = '#f0f0e6'; ctx.lineWidth = 1.5;
@@ -882,10 +1023,13 @@
         for (const o of this.obstacles) {
           if (o.dead) continue;
           if (o.kind === 'chasm') g.fillStyle = 'rgba(0,0,0,.85)';
+          else if (o.kind === 'deep') g.fillStyle = 'rgba(30,80,140,.9)';
           else g.fillStyle = o.hp ? 'rgba(255,213,106,.8)' : (this.def.mmColor || 'rgba(110,160,110,.55)');
-          g.beginPath(); g.arc(o.x * k, o.y * k, Math.max(1.2, o.br * k * 0.8), 0, U.TAU); g.fill();
+          if (o.shape === 'box') { g.save(); g.translate(o.x * k, o.y * k); g.rotate(o.rot || 0); g.fillRect(-o.hw * k, -o.hh * k, Math.max(1.5, o.w * k), Math.max(1.5, o.h * k)); g.restore(); }
+          else { g.beginPath(); g.arc(o.x * k, o.y * k, Math.max(1.2, o.br * k * 0.8), 0, U.TAU); g.fill(); }
         }
-        for (const hz of this.hazards) if (hz.life == null) { g.fillStyle = 'rgba(150,255,90,.35)'; g.beginPath(); g.arc(hz.x * k, hz.y * k, hz.r * k, 0, U.TAU); g.fill(); }
+        const HC = { lava: 'rgba(255,120,40,.6)', mud: 'rgba(120,90,50,.55)', ice: 'rgba(230,245,255,.5)', water: 'rgba(60,140,200,.5)', oil: 'rgba(0,0,0,.6)', acid: 'rgba(150,255,90,.4)' };
+        for (const hz of this.hazards) if (hz.life == null) { g.fillStyle = HC[hz.kind] || 'rgba(150,255,90,.35)'; g.beginPath(); g.arc(hz.x * k, hz.y * k, hz.r * k, 0, U.TAU); g.fill(); }
         this.mm = c;
       }
       ctx.save();

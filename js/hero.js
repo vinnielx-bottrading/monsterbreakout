@@ -39,6 +39,7 @@
 
       let mul = sprinting ? p.sprintMul : 1;
       if (p.inVirus) mul *= 0.8;
+      if (p.zoneMul < 1) mul *= p.zoneMul;
       if (p.slow > 0) { mul *= 0.55; p.slow -= dt; }
       if (G.wantFire) mul *= 0.88;
 
@@ -48,7 +49,7 @@
         if (Math.random() < 0.7) p.ghosts.push({ x: p.x, y: p.y, a: p.aim, life: 0.22 });
         if (p.dash.t <= 0) { p.dash = null; p.vx *= 0.35; p.vy *= 0.35; }
       } else {
-        const k = 1 - Math.exp(-p.accel * dt);
+        const k = 1 - Math.exp(-(p.slip ? 2.2 : p.accel) * dt);
         p.vx += (mx * p.speed * mul - p.vx) * k;
         p.vy += (my * p.speed * mul - p.vy) * k;
       }

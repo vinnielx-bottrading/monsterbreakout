@@ -127,7 +127,7 @@
           if (c === 'KeyQ') this.press('swap');
           if (c === 'KeyG') this.press('grenade');
           if (c === 'KeyF' || c === 'KeyE') this.press('nova');
-          if (c === 'Digit1' || c === 'Digit2' || c === 'Digit3') this.press('slot' + c.slice(5));
+          if (/^Digit[1-8]$/.test(c)) this.press('slot' + c.slice(5));
           if ((c === 'Escape' || c === 'KeyP') && MB.App) MB.App.togglePause();
         }
         this.keys[c] = true;

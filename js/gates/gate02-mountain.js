@@ -57,6 +57,16 @@
     ctx.restore();
   });
 
+  MB.Props.registerActor('boulder', (ctx, b) => {
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; U.ellipse(ctx, b.x + 6, b.y + 12, b.r, b.r * 0.6); ctx.fill();
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.spin);
+    ctx.fillStyle = '#7a6d5e'; U.circle(ctx, 0, 0, b.r); ctx.fill();
+    ctx.fillStyle = '#958672'; U.circle(ctx, -b.r * 0.3, -b.r * 0.3, b.r * 0.45); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-b.r * 0.8, 0); ctx.lineTo(b.r * 0.8, 0); ctx.moveTo(0, -b.r * 0.6); ctx.lineTo(0, b.r * 0.6); ctx.stroke();
+    ctx.restore();
+  });
+
   /* ---------- Bat ---------- */
   Ens.register('bat', {
     name: 'Bat', r: 12, hp: 26, speed: 160, dmg: 7, score: 120, fly: true, blood: '#4a2c3a', gore: '#e0a0c0',
@@ -242,7 +252,45 @@
   [[800, 1750, 46], [1200, 380, 44], [2050, 300, 46], [2650, 1650, 44], [300, 600, 42], [2800, 1450, 40]].forEach((a) => D(...a));
 
   MB.registerGate({
-    id: 2, seed: 202,
+    id: 2, seed: 202, view3d: true,
+    models3d: {
+      bat: (K) => ({ build: () => K.buildFlyer({ body: 0x7a4f8f, wing: 0x4a2f5a, eye: 0xff6b8a }), anim: K.animFlyer, base: 12 }),
+      brute: (K) => ({ build: () => K.buildGolem({ scale: 0.62, stone: 0x7a604a, glow: 0xffb36b, crystal: 0xb07cff }), anim: K.animGolem, base: 26 }),
+      behemoth: (K) => ({ build: () => K.buildGolem({ scale: 1.35, stone: 0x62584e, glow: 0xff8c50, crystal: 0xbe78ff }), anim: K.animGolem, base: 64 }),
+    },
+    props3d: {
+      chasm: (o, K) => {
+        const T = K.T, g = new T.Group();
+        const rim = K.mesh(K.box(o.w + 16, 4, o.h + 16), K.std(0x5a4a3a, { flat: true }), 0, 1, 0, false); rim.receiveShadow = true; g.add(rim);
+        const pit = new T.Mesh(K.box(o.w, 2, o.h), new T.MeshBasicMaterial({ color: 0x050302 })); pit.position.y = 3.2; g.add(pit);
+        g.rotation.y = -o.rot; return g;
+      },
+      cliff: (o, K) => {
+        const T = K.T, g = new T.Group();
+        const c = K.mesh(K.box(o.w, 70, o.h), K.std(0x6a6157, { flat: true, rough: 0.95 }), 0, 35, 0); g.add(c);
+        const top = K.mesh(K.box(o.w * 0.9, 10, o.h * 0.8), K.std(0x857a6c, { flat: true }), 0, 72, 0); g.add(top);
+        g.rotation.y = -o.rot; return g;
+      },
+      deadtree: (o, K) => {
+        const T = K.T, g = new T.Group(), wood = K.std(0x4a3a2c, { rough: 0.9 });
+        g.add(K.mesh(K.cyl(o.r * 0.14, o.r * 0.22, 60, 7), wood, 0, 30, 0));
+        for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 + o.x; K.limbBetween(g, [0, 40 + i * 4, 0], [Math.cos(a) * o.r * 0.8, 62 + i * 3, Math.sin(a) * o.r * 0.8], 2.4, 1, wood); }
+        return g;
+      },
+      crystal: (o, K) => {
+        const T = K.T, g = new T.Group(), mt = K.std(0x7b3fb8, { own: true, emissive: 0x9a50ff, ei: 0.55, rough: 0.2, metal: 0.2 });
+        for (const [x, z, h, rx] of [[0, 0, 48, 0], [-10, 6, 32, -0.4], [9, -5, 36, 0.35], [4, 10, 26, 0.5], [-6, -9, 28, -0.3]]) { const c = K.mesh(K.G3('cry', () => new T.ConeGeometry(7, 1, 5)), mt, x, h / 2, z); c.scale.y = h; c.rotation.set(rx, 0, rx * 0.6); g.add(c); }
+        const gl = K.glowSprite(0xb070ff, o.r * 3, 0.5); gl.position.y = 26; g.add(gl);
+        g.userData.flashMat = mt; return g;
+      },
+    },
+    actors3d: {
+      boulder: (a, K) => {
+        const T = K.T, g = new T.Group();
+        const r = K.mesh(K.G3('bould', () => new T.DodecahedronGeometry(36, 1)), K.std(0x7a6d5e, { flat: true }), 0, 0, 0); g.add(r);
+        g.userData.anim = (b, m) => { r.rotation.x = b.spin; }; return g;
+      },
+    },
     title: 'GATE 02 — MOUNTAIN', subtitle: 'Vách Núi Đá Lăn',
     world: { w: WW, h: WH }, bg: '#120e0a', mmColor: 'rgba(170,150,120,.6)',
     start: { x: 240, y: 1100 },
@@ -275,7 +323,7 @@
       { id: 'streak', type: 'streak', name: 'Bất Khả Xâm Phạm', desc: '15 hạ gục liên tiếp không trúng đòn', count: 15, reward: { mod: 'barrel' } },
     ],
 
-    setup(G) { G.gs.boulderT = 7; G.gs.boulders = []; },
+    setup(G) { G.gs.boulderT = 7; G.gs.boulders = G.actors; },
     update(G, dt) {
       const gs = G.gs, p = G.player;
       if (G.state !== 'intro' && G.state !== 'won' && !G.over) gs.boulderT -= dt;
@@ -295,30 +343,18 @@
               ctx.beginPath(); ctx.moveTo(lane - 20, yy - (down ? 14 : -14)); ctx.lineTo(lane + 20, yy - (down ? 14 : -14)); ctx.lineTo(lane, yy + (down ? 14 : -14)); ctx.closePath(); ctx.fill();
             }
           },
-          end(GG) { GG.gs.boulders.push({ x: lane, y: down ? -50 : WH + 50, vy: down ? 470 : -470, r: 36, rot: 0 }); GG.shake(5); MB.Audio.play('slam'); },
+          end(GG) { GG.actors.push({ kind: 'boulder', x: lane, y: down ? -50 : WH + 50, vy: down ? 470 : -470, r: 36, spin: 0, h: 36 }); GG.shake(5); MB.Audio.play('slam'); },
         });
       }
       for (let i = gs.boulders.length - 1; i >= 0; i--) {
         const b = gs.boulders[i];
-        b.y += b.vy * dt; b.rot += b.vy * dt / b.r;
+        b.y += b.vy * dt; b.spin += b.vy * dt / b.r;
         if (Math.random() < 0.5) G.particle({ x: b.x + U.rnd(-30, 30), y: b.y - Math.sign(b.vy) * 30, vx: U.rnd(-40, 40), vy: 0, life: 0.5, color: 'rgba(160,140,110,.5)', r: 5 });
         if (!p.dead && U.dist(b.x, b.y, p.x, p.y) < b.r + p.r) G.hurtPlayer(25, { x: b.x, y: b.y - Math.sign(b.vy) * 40 });
         for (const e of G.enemies) if (!e.dead && !e.fly && !e.boss && U.dist(b.x, b.y, e.x, e.y) < b.r + e.r) { G.damageEnemy(e, 300, Math.sign(b.vy) * Math.PI / 2, 0); }
         if (b.y < -80 || b.y > WH + 80) gs.boulders.splice(i, 1);
       }
     },
-    drawOver(G, ctx) {
-      for (const b of G.gs.boulders) {
-        ctx.fillStyle = 'rgba(0,0,0,.3)'; U.ellipse(ctx, b.x + 6, b.y + 12, b.r, b.r * 0.6); ctx.fill();
-        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
-        ctx.fillStyle = '#7a6d5e'; U.circle(ctx, 0, 0, b.r); ctx.fill();
-        ctx.fillStyle = '#958672'; U.circle(ctx, -b.r * 0.3, -b.r * 0.3, b.r * 0.45); ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(-b.r * 0.8, 0); ctx.lineTo(b.r * 0.8, 0); ctx.moveTo(0, -b.r * 0.6); ctx.lineTo(0, b.r * 0.6); ctx.stroke();
-        ctx.restore();
-      }
-    },
-
     buildGround(g, w, h, rand) {
       g.fillStyle = '#3a3027'; g.fillRect(0, 0, w, h);
       for (let i = 0; i < 300; i++) {

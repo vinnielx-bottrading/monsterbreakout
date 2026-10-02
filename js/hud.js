@@ -69,7 +69,10 @@
       const sig = p.weapons.map((w) => w.id).join(',') + '|' + p.wi;
       if (this.last.slots !== sig) {
         this.last.slots = sig;
-        e.weaponSlots.innerHTML = p.weapons.map((w, i) => `<span class="slot${i === p.wi ? ' on' : ''}">${i + 1}·${W.DEFS[w.id].short}</span>`).join('');
+        const compact = p.weapons.length > 4 && (MB.Input.mode === 'touch' || innerWidth < 900);
+        e.weaponSlots.innerHTML = compact
+          ? `<span class="slot on">${p.wi + 1}·${W.DEFS[p.weapons[p.wi].id].short}</span><span class="slot">${p.weapons.length} súng</span>`
+          : p.weapons.map((w, i) => `<span class="slot${i === p.wi ? ' on' : ''}">${i + 1}·${W.DEFS[w.id].short}</span>`).join('');
       }
       const w = W.current(p), s = W.stats(p, w);
       this.set('ammo', e.ammoText, 'text', w.reloading ? '···' : String(w.ammo == null ? s.mag : w.ammo));

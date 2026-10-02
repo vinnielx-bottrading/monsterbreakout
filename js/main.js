@@ -123,6 +123,7 @@
       this.show('loading');
       try {
         $('loadingText').textContent = 'Đang tải cửa ải…';
+        for (const rid of meta.requires || []) { const rm = MB.Gates.meta.find((m) => m.id === rid); if (rm && rm.file) await this.loadScript(rm.file); }
         await this.loadScript(meta.file);
         await this.prepare3D(meta);
         const def = MB.Gates.defs[id];
@@ -167,7 +168,7 @@
       MB.Save.save();
       G.running = false; MB.Audio.stopMusic();
       const mm = Math.floor(sum.time / 60), ss = String(Math.floor(sum.time % 60)).padStart(2, '0');
-      $('resTitle').textContent = sum.win ? 'GATE CLEARED' : 'MISSION FAILED';
+      $('resTitle').textContent = sum.win ? (sum.gateId === 10 ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : 'GATE CLEARED') : 'MISSION FAILED';
       $('resTitle').className = sum.win ? 'win' : 'lose';
       $('resStars').innerHTML = [0, 1, 2].map((i) => `<i class="${i < sum.done.length ? 'on' : ''}">★</i>`).join('');
       $('resStats').innerHTML = `

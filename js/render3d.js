@@ -55,7 +55,7 @@
   }
   function ownMats(group) {
     const list = [];
-    group.traverse((o) => { if (o.isMesh && o.material && o.material.userData.own) list.push(o.material); });
+    group.traverse((o) => { if (o.isMesh && o.material && o.material.userData.own && o.material.emissive) list.push(o.material); });
     return list;
   }
   function disposeOwn(obj) {
@@ -113,6 +113,26 @@
       g.add(mesh(box(24, 6.5, 5.5), dark, 12, 0, 0), barrel(2.4, 14, 30, 1), barrel(2.4, 14, 30, -1.6), mesh(cap(3.4, 6), wood, 20, -1.5, 0), mesh(box(9, 6, 5), wood, -3, -1.5, 0));
       g.children[3].rotation.z = Math.PI / 2;
       g.userData.tip = 38;
+    } else if (id === 'sniper') {
+      g.add(mesh(box(30, 5, 5), dark, 13, 0, 0), barrel(1.5, 18, 36, 0.5), mesh(cyl(2.2, 2.2, 12, 10), mid, 14, 5, 0), mesh(box(8, 5, 4), dark, -5, -1, 0));
+      g.children[2].rotation.z = Math.PI / 2; g.add(mesh(sph(1.6, 8), glowMat(0x9fe8ff, 1.2), 20, 5, 0));
+      g.userData.tip = 46;
+    } else if (id === 'flame') {
+      g.add(mesh(box(26, 7, 6), std(0x2a2420), 13, 0, 0), barrel(2.6, 8, 31, 0), mesh(cap(3.5, 5), std(0xc0471f, { rough: 0.4, metal: 0.3 }), 14, -6, 0), mesh(sph(1.6, 8), glowMat(0xff9a3c, 2), 36, 0, 0));
+      g.children[2].rotation.z = Math.PI / 2;
+      g.userData.tip = 37;
+    } else if (id === 'launcher') {
+      g.add(mesh(cyl(4.5, 4.5, 30, 14), std(0x2d3a2a, { rough: 0.5 }), 18, 0, 0), mesh(box(3, 9.4, 9.4), std(0xffd56a), 10, 0, 0), mesh(box(8, 6, 5), dark, -2, -2, 0));
+      g.children[0].rotation.z = Math.PI / 2;
+      g.userData.tip = 36;
+    } else if (id === 'plasma') {
+      g.add(mesh(box(26, 7, 6), std(0x22202c, { rough: 0.4, metal: 0.4 }), 12, 0, 0), mesh(cap(2.2, 10), glowMat(0xc79bff, 1.6), 14, 4.2, 0), barrel(2, 8, 30, 0));
+      g.children[1].rotation.z = Math.PI / 2;
+      g.userData.tip = 36;
+    } else if (id === 'minigun') {
+      g.add(mesh(box(20, 10, 9), dark, 8, 0, 0)); for (const [y, z] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) g.add(barrel(1.2, 22, 28, y)), g.children[g.children.length - 1].position.z = z;
+      g.add(mesh(box(8, 5, 5), std(0xffd56a), 6, -6, 0));
+      g.userData.tip = 40;
     } else if (id === 'smg') {
       g.add(mesh(box(19, 6, 5), dark, 9.5, 0, 0), barrel(1.6, 8, 22, 0.5), mesh(box(4, 11, 4), mid, 6, -7.5, 0), mesh(box(7, 1.6, 5.4), glowMat(0x4fd6ff, 1.4), 12, 3.2, 0));
       g.userData.tip = 26;
@@ -208,9 +228,10 @@
   }
 
   /* ================= MODEL: ZOMBIE ================= */
-  function buildZombie() {
+  function buildZombie(o) {
+    o = o || {};
     const g = new T.Group();
-    const skin = skinMat(0x8b9b78), cloth = std(0x46525c, { rough: 0.95 }), shirt = std(0x7a735a, { own: true, rough: 0.95 });
+    const skin = skinMat(o.skin || 0x8b9b78), cloth = std(o.cloth || 0x46525c, { rough: 0.95 }), shirt = std(o.shirt || 0x7a735a, { own: true, rough: 0.95 });
     const legs = [];
     for (const z of [-4.6, 4.6]) {
       const hip = joint(g, 0, 19, z, 3.5, 3, 10, cloth);
@@ -224,13 +245,13 @@
     // vết thương hở + xương sườn
     torso.add(mesh(sph(3.2, 10), std(0x5a1414, { emissive: 0x3a0505, rough: 0.4 }), 6, 10, 3));
     for (let i = 0; i < 3; i++) { const r = mesh(cyl(0.5, 0.5, 6, 6), std(0xe0d4bc), 6.6, 8 + i * 2, 3); r.rotation.x = Math.PI / 2; torso.add(r); }
-    const pm = glowMat(0xaaff5a, 1.4);
-    torso.add(mesh(sph(2.2, 8), pm, -6, 13, 5), mesh(sph(1.7, 8), pm, -5, 17, -6), mesh(sph(1.5, 8), pm, -3, 7, -8));
+    const pm = glowMat(o.pustule || 0xaaff5a, 1.4);
+    if (o.pustule !== false) torso.add(mesh(sph(2.2, 8), pm, -6, 13, 5), mesh(sph(1.7, 8), pm, -5, 17, -6), mesh(sph(1.5, 8), pm, -3, 7, -8));
     const arms = [];
     for (const z of [-8.8, 8.8]) {
       torso.add(mesh(sph(3.3, 10), skin, 0, 16, z));
       const sh = joint(torso, 0, 16, z, 2.8, 2.3, 10, skin);
-      sh.rotation.z = 1.35; sh.rotation.x = z > 0 ? -0.15 : 0.15;
+      sh.rotation.z = o.arms == null ? 1.35 : o.arms; sh.rotation.x = z > 0 ? -0.15 : 0.15;
       const el = joint(sh.userData.end, 0, 0, 0, 2.3, 1.8, 9, skin, skin); el.rotation.z = 0.2;
       const hand = el.userData.end;
       hand.add(mesh(sph(2.4, 10), skin, 0, -1, 0));
@@ -245,21 +266,24 @@
     head.add(mesh(sph(2.6, 10), std(0x2a0808, { rough: 0.3 }), 4.6, -2.4, 0));
     for (const z of [-2.3, 2.3]) {
       head.add(mesh(sph(1.9, 10), std(0x1a1a14, { rough: 0.3 }), 5, 1.2, z));
-      head.add(mesh(sph(1.1, 8), glowMat(0xe9ff9a, 2.4), 5.9, 1.2, z));
+      head.add(mesh(sph(1.1, 8), glowMat(o.eye || 0xe9ff9a, 2.4), 5.9, 1.2, z));
     }
-    const hair = std(0x2b2620);
-    for (let i = 0; i < 5; i++) head.add(mesh(sph(1.6, 6), hair, -2 + i * 1.2, 5.6 - Math.abs(i - 2) * 0.4, (i % 2 ? 1 : -1) * 1.5));
-    g.userData = { legs, torso, arms, head, h: 46 };
+    const hair = std(o.hair || 0x2b2620);
+    if (o.hair !== false) for (let i = 0; i < 5; i++) head.add(mesh(sph(1.6, 6), hair, -2 + i * 1.2, 5.6 - Math.abs(i - 2) * 0.4, (i % 2 ? 1 : -1) * 1.5));
+    g.userData = { legs, torso, arms, head, h: 46, arms0: o.arms == null ? 1.35 : o.arms, hunch: o.hunch == null ? -0.32 : o.hunch, gait: o.gait || 5.5 };
+    torso.rotation.z = g.userData.hunch;
+    if (o.extra) o.extra(KIT, torso, head, g);
+    if (o.scale) g.scale.set(o.scale[0], o.scale[1], o.scale[2]);
     return g;
   }
   function animZombie(e, m, G) {
-    const d = m.userData, t = G.time, ph = t * 5.5 + e.t;
+    const d = m.userData, t = G.time, ph = t * d.gait + e.t;
     const moving = Math.hypot(e.vx, e.vy) > 10, sw = moving ? Math.sin(ph) * 0.5 : 0;
     d.legs[0].hip.rotation.z = sw; d.legs[1].hip.rotation.z = -sw;
     d.legs[0].knee.rotation.z = -Math.max(0, -sw) * 1.3; d.legs[1].knee.rotation.z = -Math.max(0, sw) * 1.3;
-    d.torso.rotation.z = -0.32 + Math.sin(ph * 0.5) * 0.05;
+    d.torso.rotation.z = d.hunch + Math.sin(ph * 0.5) * 0.05;
     d.torso.rotation.x = Math.sin(ph * 0.5) * 0.08;
-    d.arms[0].sh.rotation.z = 1.35 + Math.sin(ph) * 0.15; d.arms[1].sh.rotation.z = 1.35 - Math.sin(ph) * 0.15;
+    d.arms[0].sh.rotation.z = d.arms0 + Math.sin(ph) * 0.15; d.arms[1].sh.rotation.z = d.arms0 - Math.sin(ph) * 0.15;
     d.head.rotation.x = Math.sin(t * 1.7 + e.t) * 0.2;
     d.head.rotation.z = -0.1 + Math.sin(t * 2.3 + e.t) * 0.08;
   }
@@ -312,16 +336,17 @@
   }
 
   /* ================= MODEL: LICKER ================= */
-  function buildLicker() {
+  function buildLicker(o) {
+    o = o || {};
     const g = new T.Group();
-    const muscle = skinMat(0xa8383a, { rough: 0.45 }), sinew = std(0x6a1d1f, { rough: 0.5 }), bone = std(0xe8d8c0, { rough: 0.6 });
+    const muscle = skinMat(o.muscle || 0xa8383a, { rough: 0.45 }), sinew = std(o.sinew || 0x6a1d1f, { rough: 0.5 }), bone = std(o.bone || 0xe8d8c0, { rough: 0.6 });
     const up = new T.Group(); g.add(up);
     const body = mesh(bumpy('lbody', new T.CapsuleGeometry(6.5, 18, 6, 16), 0.35, 1.1), muscle, -1, 13, 0); body.rotation.z = Math.PI / 2; body.scale.set(0.85, 1, 1.15); up.add(body);
     for (let i = -9; i <= 7; i += 4) { const r = mesh(G3('lrib', () => new T.TorusGeometry(6.4, 0.7, 6, 18)), sinew, i, 13, 0); r.rotation.y = Math.PI / 2; r.scale.set(1.15, 0.85, 1); up.add(r); }
     for (let i = -10; i <= 8; i += 3) up.add(mesh(sph(1.3, 6), bone, i, 18.8, 0));
     const head = new T.Group(); head.position.set(14, 14, 0); up.add(head);
     const skull = mesh(sph(5.4, 18), muscle, 0, 0, 0); skull.scale.set(1.3, 0.85, 1); head.add(skull);
-    const brain = mesh(bumpy('brain', new T.IcosahedronGeometry(4.3, 3), 0.55, 2.4), std(0xf0a3a8, { rough: 0.35 }), -0.5, 3.6, 0); brain.scale.set(1.2, 0.8, 1); head.add(brain);
+    const brain = mesh(bumpy('brain', new T.IcosahedronGeometry(4.3, 3), 0.55, 2.4), std(o.brain || 0xf0a3a8, { rough: 0.35, emissive: o.brainGlow || 0x000000, ei: 0.5 }), -0.5, 3.6, 0); brain.scale.set(1.2, 0.8, 1); head.add(brain);
     const jaw = new T.Mesh(G3('ljaw', () => new T.SphereGeometry(4, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)), sinew); jaw.position.set(3.5, -1.5, 0); jaw.scale.set(1.4, 0.8, 0.85); head.add(jaw);
     const tooth = std(0xf4ecd8, { rough: 0.3 });
     for (let i = 0; i < 6; i++) { const c = mesh(G3('tooth', () => new T.ConeGeometry(0.5, 2, 5)), tooth, 6 + (i % 3) * 0.9, -1, (i < 3 ? -1 : 1) * (1.4 + (i % 3) * 0.6)); c.rotation.z = Math.PI; head.add(c); }
@@ -335,6 +360,7 @@
       limbs.push({ sh, el, side, front });
     }
     g.userData = { up, limbs, tongue, head, h: 26 };
+    if (o.extra) o.extra(KIT, up, head, g);
     return g;
   }
   function animLicker(e, m, G) {
@@ -358,22 +384,113 @@
     return g;
   }
 
+  /* ================= KHUÔN MODEL DÙNG CHUNG CHO CÁC GATE ================= */
+  // khối thịt phồng (bloater, sludge): thân cầu sần + mụn phát sáng + chân ngắn
+  function buildBlob(o) {
+    o = o || {};
+    const g = new T.Group(), skin = skinMat(o.color || 0x7d8f4a, { rough: 0.5 });
+    const body = mesh(bumpy('blob' + (o.seed || 0), new T.SphereGeometry(12, 26, 20), 0.9, 0.7), skin, 0, 14, 0); body.scale.set(1.1, 1, 1.1); g.add(body);
+    const pm = glowMat(o.glow || 0xc8ff5a, 1.3);
+    const rnd = U.seeded(o.seed || 5);
+    for (let i = 0; i < (o.pustules || 9); i++) { const a = rnd() * U.TAU, b = rnd() * 1.2 - 0.2; g.add(mesh(sph(1.6 + rnd() * 2, 8), pm, Math.cos(a) * 11 * Math.cos(b), 14 + Math.sin(b) * 11, Math.sin(a) * 11 * Math.cos(b))); }
+    const legs = [];
+    for (const z of [-5, 5]) { const l = joint(g, 0, 6, z, 3, 2.4, 6, skin); legs.push(l); }
+    if (o.face !== false) { g.add(mesh(sph(2.4, 10), std(0x2a0a0a), 11, 16, 0)); for (const z of [-3, 3]) g.add(mesh(sph(1.2, 8), glowMat(o.eye || 0xffe060, 2), 10.5, 19, z)); }
+    g.userData = { body, legs, h: 28, base: body.scale.clone() };
+    return g;
+  }
+  function animBlob(e, m, G) {
+    const d = m.userData, t = G.time;
+    const sw = e.swell || 0, pul = 1 + Math.sin(t * (6 + sw * 20) + e.t) * (0.04 + sw * 0.08) + sw * 0.35;
+    d.body.scale.set(d.base.x * pul, d.base.y * pul, d.base.z * pul);
+    const mv = Math.hypot(e.vx, e.vy) > 8 ? Math.sin(t * 9 + e.t) * 0.5 : 0;
+    d.legs[0].rotation.z = mv; d.legs[1].rotation.z = -mv;
+  }
+  // sinh vật bay (dơi, drone, bóng ma băng)
+  function buildFlyer(o) {
+    o = o || {};
+    const g = new T.Group(), bodyM = skinMat(o.body || 0x6b4a7a, { rough: 0.5, metal: o.metal || 0 }), wingM = std(o.wing || 0x4a2f5a, { rough: 0.7 });
+    const body = mesh(o.drone ? box(14, 6, 14) : sph(6, 14), bodyM, 0, 0, 0); if (!o.drone) body.scale.set(1.3, 0.9, 1); g.add(body);
+    const wings = [];
+    for (const side of [-1, 1]) {
+      const w = new T.Group(); w.position.set(0, 0, side * 4); g.add(w);
+      if (o.drone) { const arm = mesh(box(3, 2, 12), wingM, 0, 1, side * 5); w.add(arm); const rot = mesh(cyl(7, 7, 0.8, 16), std(0x9aa9ad, { own: true, transparent: true, opacity: 0.45 }), 0, 3, side * 11, false); w.add(rot); w.userData.rot = rot; }
+      else { const m = new T.Mesh(G3('wing', () => { const sh = new T.Shape(); sh.moveTo(0, 0); sh.lineTo(-6, 16); sh.lineTo(2, 12); sh.lineTo(6, 18); sh.lineTo(8, 4); sh.lineTo(0, 0); const ge = new T.ShapeGeometry(sh); ge.rotateX(-Math.PI / 2); return ge; }), wingM); m.material.side = T.DoubleSide; m.scale.set(1, 1, side); w.add(m); }
+      wings.push(w);
+    }
+    for (const z of [-2, 2]) g.add(mesh(sph(1.3, 8), glowMat(o.eye || 0xff6b8a, 2.2), 7, 1.5, z));
+    if (o.extra) o.extra(KIT, g);
+    g.userData = { wings, body, h: 12, drone: !!o.drone };
+    return g;
+  }
+  function animFlyer(e, m, G) {
+    const d = m.userData, t = G.time;
+    if (d.drone) { d.wings.forEach((w) => { if (w.userData.rot) w.userData.rot.rotation.y = t * 30; }); d.body.rotation.x = Math.sin(t * 3 + e.t) * 0.1; return; }
+    const f = Math.sin(t * 26 + e.t) * 0.7;
+    d.wings[0].rotation.x = f; d.wings[1].rotation.x = -f;
+  }
+  // người khổng lồ đá / băng / dung nham
+  function buildGolem(o) {
+    o = o || {};
+    const g = new T.Group(), s = o.scale || 1;
+    const core = new T.Group(); core.scale.setScalar(s); g.add(core);
+    const stone = std(o.stone || 0x6b6156, { flat: true, rough: 0.9, own: true }), glow = glowMat(o.glow || 0xff8a4c, 1.5);
+    const torso = mesh(bumpy('gtorso', new T.IcosahedronGeometry(16, 1), 1.6, 0.35), stone, -2, 30, 0); torso.scale.set(1, 0.95, 1.25); core.add(torso);
+    const head = mesh(bumpy('ghead', new T.IcosahedronGeometry(7, 1), 0.8, 0.6), stone, 14, 38, 0); core.add(head);
+    for (const z of [-3, 3]) core.add(mesh(sph(1.6, 8), glow, 20, 39, z));
+    for (let i = 0; i < 4; i++) core.add(mesh(box(1.2, 10, 1.2), glow, -4 + i * 4, 30 + (i % 2) * 6, 13.5 * (i % 2 ? 1 : -1)));
+    if (o.crystal) for (let i = 0; i < 5; i++) { const c = mesh(G3('gcr', () => new T.ConeGeometry(2.6, 12, 5)), glowMat(o.crystal, 1.1), -12 + i * 2, 42 + (i % 2) * 3, -8 + i * 4); c.rotation.set(0.3, 0, 0.5 - i * 0.1); core.add(c); }
+    const arms = [];
+    for (const z of [-19, 19]) {
+      const sh = joint(core, 0, 38, z, 6, 5, 16, stone, stone); sh.rotation.z = 0.35;
+      const fist = mesh(bumpy('gfist', new T.IcosahedronGeometry(7.5, 1), 0.9, 0.6), stone, 0, -18, 0); sh.userData.end.add(fist);
+      arms.push(sh);
+    }
+    const legs = [];
+    for (const z of [-8, 8]) { const l = joint(core, -2, 18, z, 6, 5.5, 16, stone); legs.push(l); }
+    if (o.extra) o.extra(KIT, core, g);
+    g.userData = { core, arms, legs, head, h: 50 * s };
+    return g;
+  }
+  function animGolem(e, m, G) {
+    const d = m.userData, t = G.time, mv = Math.hypot(e.vx, e.vy) > 10;
+    const sw = mv ? Math.sin(t * 4 + e.t) * 0.35 : 0;
+    d.legs[0].rotation.z = sw; d.legs[1].rotation.z = -sw;
+    const lift = e.state === 'slamPrep' || e.state === 'windup' ? 1 - (e.st || 0) / 0.8 : 0;
+    d.arms[0].rotation.z = 0.35 - sw * 0.6 + lift * 2.4; d.arms[1].rotation.z = 0.35 + sw * 0.6 + lift * 2.4;
+    d.core.position.y = mv ? Math.abs(Math.sin(t * 4)) * 1.2 : 0;
+  }
+  const KIT = { get T() { return T; }, U, std, glowMat, skinMat, mesh, box, sph, cyl, cap, limb, joint, limbBetween, bumpy, glowSprite, G3, ownMats, radialTex,
+    buildZombie, animZombie, buildSpiderLike, animSpiderLike, buildLicker, animLicker, buildBlob, animBlob, buildFlyer, animFlyer, buildGolem, animGolem };
+
   const MODELS = {
-    zombie: { build: buildZombie, anim: animZombie, base: 19 },
+    zombie: { build: () => buildZombie(), anim: animZombie, base: 19 },
     spider: { build: () => buildSpiderLike({ body: 0x6b3b2b, head: 0x8a5040, leg: 0x4e3226, eye: 0xff5040, mark: 0xaaff5a }), anim: animSpiderLike, base: 14 },
-    licker: { build: buildLicker, anim: animLicker, base: 18 },
+    licker: { build: () => buildLicker(), anim: animLicker, base: 18 },
     spiderQueen: { build: () => buildSpiderLike({ scale: 3.9, legW: 1.25, body: 0x4a2020, head: 0x6b3030, leg: 0x4a2424, eye: 0xffdf8c, mark: 0x6fcf2a, sacs: true, spikes: true }), anim: animSpiderLike, base: 54 },
   };
 
   /* ================= VẬT CẢN ================= */
   let crateTex = null;
+  const PROPS3D = {}, ACTORS3D = {}, HAZ3D = {
+    virus: { inner: 'rgba(210,255,130,0.9)', outer: 'rgba(70,200,50,0)', add: true, opacity: 0.6, bub: 0xd8ffa0 },
+    acid: { inner: 'rgba(200,255,90,0.9)', outer: 'rgba(90,200,30,0)', add: true, opacity: 0.6, bub: 0xd8ffa0 },
+    mud: { inner: 'rgba(70,52,30,0.95)', outer: 'rgba(60,45,25,0)', add: false, opacity: 0.9, bub: 0x6b5a3a, y: 0.8 },
+    lava: { inner: 'rgba(255,220,120,1)', outer: 'rgba(255,80,20,0.15)', add: true, opacity: 0.95, bub: 0xffc060 },
+    ice: { inner: 'rgba(230,248,255,0.85)', outer: 'rgba(170,215,255,0.2)', add: false, opacity: 0.75 },
+    water: { inner: 'rgba(60,150,200,0.75)', outer: 'rgba(40,110,170,0.15)', add: false, opacity: 0.8 },
+    fire: { inner: 'rgba(255,200,90,1)', outer: 'rgba(255,90,20,0)', add: true, opacity: 0.85, bub: 0xffa040 },
+    oil: { inner: 'rgba(15,12,10,0.95)', outer: 'rgba(15,12,10,0)', add: false, opacity: 0.85 },
+    gas: { inner: 'rgba(190,230,90,0.55)', outer: 'rgba(150,200,60,0)', add: true, opacity: 0.5, bub: 0xd8ff8a },
+  };
   function buildProp(o) {
+    if (PROPS3D[o.kind]) { const pg = PROPS3D[o.kind](o, KIT); pg.position.set(o.x, 0, o.y); return pg; }
     const g = new T.Group();
     const rnd = U.seeded(Math.floor(o.x * 7 + o.y * 13));
     if (o.kind === 'tree') {
       g.add(mesh(cyl(o.r * 0.18, o.r * 0.26, 46, 7), std(0x4a3322), 0, 23, 0));
       const cm = std(o.c1 ? new T.Color(o.c1).getHex() : 0x2f5634, { own: true, flat: true, transparent: true });
-      const cm2 = std(0x3f7244, { own: true, flat: true, transparent: true });
+      const cm2 = std(o.c2 ? new T.Color(o.c2).getHex() : 0x3f7244, { own: true, flat: true, transparent: true });
       const ico = (r) => G3('ico' + Math.round(r), () => new T.IcosahedronGeometry(Math.round(r), 0));
       const a = mesh(ico(o.r * 0.95), cm, 0, 58, 0); a.scale.y = 0.75; a.rotation.y = rnd() * 6; g.add(a);
       const b = mesh(ico(o.r * 0.62), cm2, -o.r * 0.25, 78, -o.r * 0.15); b.rotation.y = rnd() * 6; g.add(b);
@@ -531,17 +648,16 @@
       this.live = {};
       this.frame = 0;
 
-      // vùng virus (tĩnh)
-      this.hazGroup = new T.Group(); scene.add(this.hazGroup);
-      const vtex = radialTex('rgba(210,255,130,0.9)', 'rgba(70,200,50,0)');
-      for (const h of G.hazards) {
-        if (h.kind !== 'virus') continue;
-        const pool = new T.Mesh(G3('circ', () => new T.CircleGeometry(1, 40)), new T.MeshBasicMaterial({ map: vtex, transparent: true, opacity: 0.6, depthWrite: false, blending: T.AdditiveBlending }));
-        pool.rotation.x = -Math.PI / 2; pool.scale.set(h.r * 1.1, h.r * 1.1, 1); pool.position.set(h.x, 1, h.y); this.hazGroup.add(pool);
-        const bub = [];
-        for (let i = 0; i < 7; i++) { const b = mesh(sph(3, 6), glowMat(0xd8ffa0, 1.6), h.x, 2, h.y, false); this.hazGroup.add(b); bub.push(b); }
-        h.__b3 = bub;
+      // nạp model / vật cản / vùng nguy hiểm riêng của các Gate đã tải
+      for (const id in MB.Gates.defs) {
+        const gd = MB.Gates.defs[id];
+        if (gd.__r3done) continue; gd.__r3done = true;
+        if (gd.models3d) for (const k in gd.models3d) MODELS[k] = gd.models3d[k](KIT);
+        if (gd.props3d) Object.assign(PROPS3D, gd.props3d);
+        if (gd.actors3d) Object.assign(ACTORS3D, gd.actors3d);
+        if (gd.hazards3d) Object.assign(HAZ3D, gd.hazards3d);
       }
+      this.hazTex = this.hazTex || {};
       // trạm tín hiệu (thử thách giữ vùng)
       for (const c of G.challenges) {
         if (c.type !== 'hold') continue;
@@ -587,6 +703,38 @@
       for (const o of live) {
         if (o.__m3.__f !== f) { this.root.remove(o.__m3); disposeOwn(o.__m3); o.__m3 = null; live.delete(o); }
       }
+    },
+
+    buildHazard(h) {
+      const st = HAZ3D[h.kind];
+      const g = new T.Group(); g.position.set(h.x, 0, h.y);
+      if (h.kind === 'web') {
+        if (!this.webTex) {
+          const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
+          c.strokeStyle = 'rgba(240,240,230,.9)'; c.lineWidth = 2; c.translate(64, 64);
+          for (let i = 0; i < 8; i++) { const a = i / 8 * U.TAU; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 62, Math.sin(a) * 62); c.stroke(); }
+          for (let k2 = 1; k2 <= 3; k2++) { c.beginPath(); c.arc(0, 0, 62 * k2 / 3.2, 0, U.TAU); c.stroke(); }
+          this.webTex = new T.CanvasTexture(cv);
+        }
+        const mm = new T.Mesh(G3('circ', () => new T.CircleGeometry(1, 40)), new T.MeshBasicMaterial({ map: this.webTex, transparent: true, depthWrite: false }));
+        mm.material.userData.own = true; mm.rotation.x = -Math.PI / 2; mm.scale.set(h.r, h.r, 1); mm.position.y = 2;
+        g.add(mm); g.userData = { pool: mm, op: 0.85, r0: h.r }; return g;
+      }
+      const sty = st || { inner: h.color || 'rgba(255,120,60,.6)', outer: 'rgba(255,120,60,0)', add: false, opacity: 0.6 };
+      const key = h.kind + (st ? '' : h.color);
+      if (!this.hazTex[key]) this.hazTex[key] = radialTex(sty.inner, sty.outer);
+      const mat = new T.MeshBasicMaterial({ map: this.hazTex[key], transparent: true, opacity: sty.opacity, depthWrite: false, blending: sty.add ? T.AdditiveBlending : T.NormalBlending });
+      mat.userData.own = true;
+      const pool = new T.Mesh(G3('circ', () => new T.CircleGeometry(1, 40)), mat);
+      pool.rotation.x = -Math.PI / 2; pool.scale.set(h.r * 1.1, h.r * 1.1, 1); pool.position.y = sty.y || 1 + (h.layer || 0) * 0.3;
+      g.add(pool);
+      const u = { pool, op: sty.opacity, r0: h.r, flick: !!sty.flick || h.kind === 'fire' };
+      if (sty.bub && h.r > 30 && !this.low && !h.noBub) {
+        u.bub = [];
+        for (let i = 0; i < 6; i++) { const b = mesh(sph(3, 6), glowMat(sty.bub, 1.6), 0, 2, 0, false); g.add(b); u.bub.push(b); }
+      }
+      g.userData = u;
+      return g;
     },
 
     onDecal(dc) {
@@ -654,35 +802,39 @@
       // vật cản
       this.sync('obs', G.obstacles, buildProp, (o, m) => {
         const u = m.userData;
-        if (u.flashMat) { u.flashMat.emissive.setHex(o.flash > 0 ? 0x664422 : 0x000000); if (o.maxHp && u.flashMat.color) u.flashMat.color.setScalar(0.6 + 0.4 * o.hp / o.maxHp); }
+        if (u.flashMat) {
+          if (!u.baseCol) { u.baseCol = u.flashMat.color.clone(); u.baseEm = u.flashMat.emissive.clone(); }
+          if (o.flash > 0) u.flashMat.emissive.setHex(0x664422); else u.flashMat.emissive.copy(u.baseEm);
+          if (o.maxHp) u.flashMat.color.copy(u.baseCol).multiplyScalar(0.6 + 0.4 * o.hp / o.maxHp);
+        }
         if (u.core) { const s = 1 + Math.sin(t * 3 + o.x) * 0.12; u.core.scale.setScalar(s); }
         if (u.canopy) {
           // tán cây phía trước nhân vật thì làm mờ để không che
-          const near = Math.abs(o.x - p.x) < o.r + 40 && o.y > p.y - 10 && o.y - p.y < o.r + 150;
+          const hw = o.hw || o.r, hh = o.hh || o.r;
+          const near = Math.abs(o.x - p.x) < hw + 40 && p.y < o.y + hh * 0.3 + 10 && p.y > o.y - hh - (o.tall || 150);
           const op = near ? 0.35 : 1;
           for (const cm of u.canopy) { cm.opacity += (op - cm.opacity) * 0.2; cm.depthWrite = cm.opacity > 0.95; }
         }
       });
 
-      // vùng virus: bong bóng
-      for (const h of G.hazards) if (h.__b3) h.__b3.forEach((b, i) => {
-        const kk = (t * 0.6 + i * 0.37) % 1, a = t * 0.5 + i * 0.9 + h.x * 0.01;
-        b.position.set(h.x + Math.cos(a) * h.r * 0.5, 2 + kk * 26, h.y + Math.sin(a * 1.3) * h.r * 0.4);
-        b.scale.setScalar(0.6 + kk * 1.2); b.visible = kk < 0.9;
+      // vùng nguy hiểm (hồ virus, bùn, dung nham, băng, mạng nhện...)
+      this.sync('haz', G.hazards, (h) => this.buildHazard(h), (h, m) => {
+        const u = m.userData;
+        if (h.life != null && u.pool) u.pool.material.opacity = (u.op || 0.8) * Math.min(1, h.life / 1.2);
+        if (h.r !== u.r0 && u.pool) { u.pool.scale.set(h.r * 1.1, h.r * 1.1, 1); u.r0 = h.r; }
+        if (u.bub) u.bub.forEach((b, i) => {
+          const kk = (t * 0.6 + i * 0.37) % 1, a = t * 0.5 + i * 0.9 + h.x * 0.01;
+          b.position.set(Math.cos(a) * h.r * 0.5, 2 + kk * 22, Math.sin(a * 1.3) * h.r * 0.4);
+          b.scale.setScalar(0.6 + kk * 1.2); b.visible = kk < 0.9;
+        });
+        if (u.flick) u.pool.material.opacity = (u.op || 0.8) * (0.75 + Math.random() * 0.25) * (h.life != null ? Math.min(1, h.life / 1.2) : 1);
       });
-      // mạng nhện (hazard tạm)
-      this.sync('web', G.hazards.filter((h) => h.kind === 'web'), (h) => {
-        if (!this.webTex) {
-          const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
-          c.strokeStyle = 'rgba(240,240,230,.9)'; c.lineWidth = 2; c.translate(64, 64);
-          for (let i = 0; i < 8; i++) { const a = i / 8 * U.TAU; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 62, Math.sin(a) * 62); c.stroke(); }
-          for (let k2 = 1; k2 <= 3; k2++) { c.beginPath(); c.arc(0, 0, 62 * k2 / 3.2, 0, U.TAU); c.stroke(); }
-          this.webTex = new T.CanvasTexture(cv);
-        }
-        const mm = new T.Mesh(G3('circ', () => new T.CircleGeometry(1, 40)), new T.MeshBasicMaterial({ map: this.webTex, transparent: true, depthWrite: false }));
-        mm.material.userData.own = true; mm.rotation.x = -Math.PI / 2; mm.scale.set(h.r, h.r, 1); mm.position.set(h.x, 2, h.y);
-        return mm;
-      }, (h, m) => { m.material.opacity = Math.min(1, h.life / 1.2) * 0.85; });
+      // vật thể động riêng của Gate (đá lăn, thiên thạch, xe...)
+      this.sync('actor', G.actors, (a) => {
+        const fn = ACTORS3D[a.kind];
+        if (fn) return fn(a, KIT);
+        const gg = new T.Group(); gg.add(mesh(sph(a.r || 20, 14), std(a.color3 || 0x888888), 0, 0, 0)); return gg;
+      }, (a, m) => { m.position.set(a.x, a.h || 0, a.y); m.rotation.y = -(a.rot || 0); if (m.userData.anim) m.userData.anim(a, m, G); m.visible = a.hidden !== true; });
       for (const c of G.challenges) if (c.__lamp) {
         const on = c.done ? 0x9dff8a : (Math.floor(t * 3) % 2 ? 0x7ef3ff : 0x1d4048);
         c.__lamp.material.emissive.setHex(on); c.__lamp.material.emissiveIntensity = c.active ? 2.4 : 1.4;
@@ -710,8 +862,10 @@
         m.position.set(e.x, 0, e.y);
         u.g.rotation.y = -(e.face || 0);
         if (e.spawnT > 0) { const mx = e.boss ? 1.4 : 0.6, kk = 1 - e.spawnT / mx; u.g.position.y = -(1 - kk) * u.h; }
-        else u.g.position.y = e.fly ? 26 + Math.sin(G.time * 6 + e.t) * 4 : 0;
+        else u.g.position.y = e.fly && !e.def.noHover ? 26 + Math.sin(G.time * 6 + e.t) * 4 : 0;
         if (u.md) u.md.anim(e, u.g, G);
+        m.visible = !e.hidden;
+        if (e.alpha != null && e.alpha < 1 !== !!u.faded) { u.faded = e.alpha < 1; for (const mt of u.mats) { mt.transparent = u.faded; mt.opacity = u.faded ? 0.35 : 1; } }
         const fl = e.flash > 0, st = e.stunT > 0;
         for (const mt of u.mats) { mt.emissive.setHex(fl ? 0xffffff : st ? 0x2a7cff : 0x000000); mt.emissiveIntensity = fl ? 0.7 : st ? 0.45 : 1; }
         if (u.ring) u.ring.material.opacity = 0.45 + Math.sin(G.time * 6) * 0.25;
@@ -733,15 +887,23 @@
 
       // đạn người chơi
       this.sync('bul', G.bullets, (b) => {
-        const mm = new T.Mesh(box(16, 3, 3), new T.MeshBasicMaterial({ color: colorOf(b.color) }));
+        let mm;
+        if (b.flame) { mm = new T.Mesh(sph(1, 8), new T.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false })); }
+        else if (b.explode || b.chain) { mm = new T.Mesh(sph(1, 10), new T.MeshBasicMaterial({ color: colorOf(b.color) })); mm.add(glowSprite(colorOf(b.color), 5, 0.8)); }
+        else mm = new T.Mesh(box(16, 3, 3), new T.MeshBasicMaterial({ color: colorOf(b.color) }));
         mm.material.userData.own = true; return mm;
-      }, (b, m) => { m.position.set(b.x, 30, b.y); m.rotation.y = -Math.atan2(b.vy, b.vx); });
+      }, (b, m) => {
+        m.position.set(b.x, 30, b.y); m.rotation.y = -Math.atan2(b.vy, b.vx);
+        if (b.flame) { m.scale.setScalar(b.r); const k = Math.max(0, b.life / b.max0); m.material.color.setHex(k > 0.5 ? 0xffd27a : 0xff6a20); m.material.opacity = 0.3 + k * 0.6; }
+        else if (b.explode || b.chain) m.scale.setScalar(b.r);
+      });
       // đạn quái
       const up = new T.Vector3(0, 1, 0), dir = new T.Vector3();
       this.sync('ebul', G.ebullets, (b) => {
         let mm;
         if (b.kind === 'tongue') mm = new T.Mesh(cyl(2.2, 2.2, 1, 6), std(0xd24b5a, { own: true, emissive: 0x5a1010 }));
         else if (b.kind === 'rock') mm = mesh(G3('dodec', () => new T.DodecahedronGeometry(1, 0)), std(0x7b6f62, { flat: true }));
+        else if (b.kind === 'car') { mm = new T.Group(); mm.add(mesh(box(2.2, 0.8, 1.1), std(0x6a4a3a, { metal: 0.4, rough: 0.5 }))); mm.add(mesh(box(1, 0.6, 1), std(0x2a3a4a), 0, 0.6, 0)); }
         else if (b.kind === 'web') { mm = new T.Mesh(sph(1, 8), new T.MeshBasicMaterial({ color: 0xf0f0e6, wireframe: true })); mm.material.userData.own = true; }
         else { const c = colorOf(b.color || (b.kind === 'spit' ? '#b6ff6a' : '#ffb36b')); mm = new T.Mesh(sph(1, 10), new T.MeshBasicMaterial({ color: c })); mm.material.userData.own = true; const gl = glowSprite(c, 5, 0.7); mm.add(gl); }
         return mm;
@@ -751,9 +913,9 @@
           m.position.set((ox + b.x) / 2, 16, (oy + b.y) / 2);
           dir.set((b.x - ox) / L, 0, (b.y - oy) / L); m.quaternion.setFromUnitVectors(up, dir); m.scale.set(1, L, 1);
         } else {
-          m.position.set(b.x, b.kind === 'rock' ? b.r : 20, b.y);
+          m.position.set(b.x, b.kind === 'rock' ? b.r : b.kind === 'car' ? 30 + Math.sin(Math.min(1, (1.1 - b.life) / 1.1) * Math.PI) * 140 : 20, b.y);
           m.scale.setScalar(b.r);
-          if (b.kind === 'rock' || b.kind === 'web') m.rotation.y += 0.1;
+          if (b.kind === 'rock' || b.kind === 'web' || b.kind === 'car') { m.rotation.y += 0.1; if (b.kind === 'car') m.rotation.z += 0.12; }
         }
       });
 
@@ -857,6 +1019,7 @@
         ctx.save(); ctx.translate(ex, ey); ctx.rotate(a); ctx.fillStyle = m.color; ctx.globalAlpha = 0.85;
         ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -8); ctx.lineTo(-2, 0); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill(); ctx.restore();
       }
+      if (G.def.drawScreen) G.def.drawScreen(G, ctx);
       G.drawMinimap(ctx);
       if (MB.Input.mode === 'kb' && !G.paused) G.drawCrosshair(ctx);
       else if (!p.dead) {

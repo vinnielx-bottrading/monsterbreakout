@@ -49,6 +49,8 @@
 
     explode(G, x, y) {
       const C = S.GRENADE;
+      G.explosion(x, y, C.radius, C.dmg, { knock: C.knock, objDmg: 120, shake: 11 });
+      return;
       MB.Audio.play('boom'); G.shake(11);
       G.burst(x, y, '#ffb347', 30, 320); G.burst(x, y, '#5a5048', 18, 180);
       G.decal(x, y, 'rgba(20,16,12,.85)', 46);

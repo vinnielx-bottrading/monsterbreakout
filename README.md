@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v4.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
-| Gate chơi được | Gate 01 Jungle (2D + **3D thử nghiệm**), Gate 02 Mountain (2D) |
+| Phiên bản | **v5.0** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Gate chơi được | **Đủ 10 Gate**, mỗi Gate chơi được ở cả 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1` |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 5) |
+| README cập nhật | 2026-10-02 (rev 6) |
 
 ---
 
@@ -46,29 +46,37 @@ vercel.json              Cấu hình header cho Vercel
 css/style.css            Giao diện, bố cục responsive cho điện thoại
 assets/icons/            Icon app (svg, 192, 512)
 js/core.js               Tiện ích, va chạm (tròn / hộp xoay), lưu game, registry
-js/props.js              Vẽ vật cản (cây, đá, khúc gỗ, thùng) và vùng nguy hiểm
+js/props.js              Vẽ vật cản, vùng nguy hiểm dùng chung (virus, bùn, axit, khí độc, dung nham, lửa, băng, nước, dầu) và bộ công cụ vẽ nền MB.GK
 js/input.js              Bàn phím + chuột, twin-stick cảm ứng, gamepad
 js/audio.js              Âm thanh tổng hợp bằng WebAudio (không cần file mp3)
 js/weapons.js            Súng, linh kiện nâng cấp (mod), bắn đạn
 js/hero.js               Nhân vật Hunter: di chuyển, thể lực, lộn né, vẽ
-js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hướng
+js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hướng + khuôn hành vi (bắn xa, tự nổ, đào đất, dịch chuyển, khiên)
 js/items.js              Vật phẩm rơi và hệ thống thử thách
 js/skills.js             Kỹ năng giải vây: lựu đạn, xung kích
 js/hud.js                HUD (DOM), chỉ cập nhật khi giá trị thay đổi
-js/game.js               Runtime một Gate: wave, đạn, va chạm, camera, minimap, vẽ
+js/game.js               Runtime một Gate: wave, đạn, va chạm, vụ nổ, dẫn đường (flow field), camera, minimap, vẽ
 js/main.js               Menu, chọn Gate, tải file Gate theo yêu cầu, vòng lặp, nút 2D/3D
-js/render3d.js           Bộ vẽ 3D (chỉ tải khi chọn 3D): model nhân vật, quái, vật cản, camera, ánh sáng
+js/render3d.js           Bộ vẽ 3D (chỉ tải khi chọn 3D): camera, ánh sáng, Hunter, quái dùng chung, bộ khuôn model (KIT) cho các Gate
 js/vendor/three.module.min.js  Thư viện Three.js r170 (~690 KB, ~170 KB khi nén gzip), chỉ tải khi chơi 3D
 js/gates/index.js        Danh sách 10 Gate (tên, màu, file)
-js/gates/gate01-jungle.js    Bản đồ, boss Spider Queen, thử thách Gate 01
-js/gates/gate02-mountain.js  Bản đồ, quái Bat/Brute, boss Stone Behemoth, đá lăn Gate 02
+js/gates/gate01-jungle.js      Rừng: Spider Queen
+js/gates/gate02-mountain.js    Núi: Bat, Brute, Stone Behemoth, đá lăn
+js/gates/gate03-swamp.js       Đầm lầy: Bloater, Lurker, Toad King, khí độc
+js/gates/gate04-snow.js        Tuyết: Frost Zombie, Ice Wraith, Cryo Wyrm, bão tuyết
+js/gates/gate05-volcano.js     Núi lửa: Magma Imp, Ember Spitter, Cinder Golem, Magma Titan, thiên thạch
+js/gates/gate06-ocean.js       Đảo: Crab, Drowned, Kraken + xúc tu, thuỷ triều
+js/gates/gate07-industrial.js  Nhà máy: Drone, Sludge, Assembler Mech, băng chuyền, laser, thùng nổ
+js/gates/gate08-city.js        Thành phố: Runner, Riot, Abomination, ô tô nổ, bầy đàn
+js/gates/gate09-lab.js         Phòng thí nghiệm: Clone, Phase Stalker, Sentry, Specimen Omega, laser quay, bệ dịch chuyển
+js/gates/gate10-apocalypse.js  Tận thế: tất cả quái, The Origin (4 phase), virus lan, sét đỏ
 ```
 
-**Vì sao tách file:** phần engine dùng chung (khoảng 110 KB) được tải một lần. Mỗi Gate là một file riêng 15–25 KB, chỉ được tải khi người chơi chọn Gate đó. Nhờ vậy khi có đủ 10 Gate, lần tải đầu vẫn nhẹ, và mỗi Gate có thể được sửa độc lập.
+**Vì sao tách file:** phần engine dùng chung (khoảng 130 KB) được tải một lần. Mỗi Gate là một file riêng 15–30 KB, chỉ tải khi người chơi chọn Gate đó (Gate 10 tải thêm các Gate trước để dùng lại quái). Bộ vẽ 3D và Three.js chỉ tải khi chơi 3D.
 
-## 3b. Chế độ 3D (thử nghiệm, v4.1)
+## 3b. Chế độ 3D
 
-Chọn ở màn hình **Chọn cửa ải** (nút **2D / 3D**) hoặc trong **Cài đặt → Góc nhìn**. Mặc định là 3D; Gate chưa có bản 3D tự chạy 2D.
+Chọn ở màn hình **Chọn cửa ải** (nút **2D / 3D**) hoặc trong **Cài đặt → Góc nhìn**. Mặc định là 3D. Cả 10 Gate đều có bản 3D.
 
 **Cách hoạt động:** logic game (va chạm, AI, đạn, wave, thử thách) dùng chung cho cả 2D và 3D. `render3d.js` chỉ đọc trạng thái game mỗi khung hình và dựng cảnh 3D tương ứng. Nhờ vậy cách chơi, điều khiển, điểm số, lưu tiến trình giống hệt nhau giữa hai chế độ.
 
@@ -86,7 +94,9 @@ Chọn ở màn hình **Chọn cửa ải** (nút **2D / 3D**) hoặc trong **C�
 
 Mỗi khung hình, phần JS dựng cảnh 3D tốn khoảng 0,1 ms (đo bằng trình duyệt headless); phần còn lại là GPU.
 
-**Thêm 3D cho Gate khác:** thêm `view3d: true` vào định nghĩa Gate, `has3d: true` trong `js/gates/index.js`, rồi viết model cho quái/boss/vật cản mới trong `render3d.js` (`MODELS` và `buildProp`). Quái hoặc vật cản chưa có model sẽ hiện dạng khối đơn giản.
+**Model 3D của từng Gate nằm ngay trong file Gate**: `models3d` (quái/boss), `props3d` (vật cản), `actors3d` (vật thể động như đá lăn, thiên thạch, tia laser), `hazards3d` (màu vùng nguy hiểm). Các hàm nhận bộ công cụ `K` (KIT) gồm khối hình (`box`, `sph`, `cyl`, `cap`), chi có khớp (`joint`, `limbBetween`), làm sần bề mặt (`bumpy`) và các khuôn model sẵn: `buildZombie` (người: có tham số màu, dáng gù, tỉ lệ, phụ kiện), `buildSpiderLike`, `buildLicker`, `buildBlob`, `buildFlyer` (dơi/drone/bóng ma), `buildGolem`. Quái hoặc vật cản chưa có model sẽ hiện dạng khối đơn giản.
+
+Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nham, băng… là các mặt phẳng có màu/độ trong suốt riêng.
 
 ## 4. Điều khiển
 
@@ -98,7 +108,7 @@ Mỗi khung hình, phần JS dựng cảnh 3D tốn khoảng 0,1 ms (đo bằng 
 | Lộn né (bất tử 0,3 giây) | Space / chuột phải | Nút **NÉ** | A / B |
 | Chạy nhanh | Giữ Shift | Đẩy gậy trái hết cỡ | LB |
 | Nạp đạn | R | Nút **NẠP** | X |
-| Đổi súng | Q / 1 2 3 / cuộn chuột | Nút **ĐỔI** | Y |
+| Đổi súng | Q / phím 1–8 / cuộn chuột | Nút **ĐỔI** | Y |
 | Lựu đạn | G / chuột giữa | Nút **LỰU** (ném vào quái đang khoá) | RB |
 | Xung kích | F hoặc E | Nút **XUNG** | B |
 | Tạm dừng | Esc / P | Nút ❚❚ | Start |
@@ -157,8 +167,13 @@ Súng nhận từ thử thách được lưu vào **kho vũ khí** và mang theo
 | Rifle AR-7 | Có sẵn | 20 | 110 ms | 30 | 1,1 s | ~182 |
 | Shotgun SG-12 | Thử thách Gate 01 | 11 × 7 viên | 640 ms | 6 | 1,4 s | ~120 (gần: rất cao) |
 | SMG Viper | Thử thách Gate 02 | 10 | 62 ms | 44 | 1,15 s | ~161 (bắn toé) |
+| Rail Lancer | Thử thách Gate 03 | 110, xuyên 3 mục tiêu | 850 ms | 5 | 1,6 s | ~129 (rất mạnh khi quái xếp hàng) |
+| Pyro F-9 (súng lửa) | Thử thách Gate 04 | 6 × 2 tia, xuyên 2, **gây bỏng** 9/s trong 2,2 s | 45 ms | 90 | 1,8 s | ~270 + bỏng, tầm ngắn |
+| Boomer GL (phóng lựu) | Thử thách Gate 05 | nổ bán kính 95, 70 sát thương | 620 ms | 6 | 1,7 s | ~113 diện rộng |
+| Arc Plasma | Thử thách Gate 06 | 34, xuyên 1, **sét lan** sang 2 quái gần (50%) | 170 ms | 26 | 1,3 s | ~200 + sét lan |
+| Tempest MG (súng máy) | Thử thách Gate 07 | 9 | 42 ms | 140 | 2,6 s | ~214, băng rất lớn |
 
-Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 lần). Muốn đạt mức đó phải tích cực phá thùng và làm thử thách, khác với bản v3 tăng tự động 3,5 lần chỉ sau 3 wave.
+Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 lần). Muốn đạt mức đó phải tích cực phá thùng và làm thử thách. Gate 08–10 thưởng linh kiện hiếm thay vì súng.
 
 ## 6b. Giải vây và tiếp tế
 
@@ -191,8 +206,26 @@ Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 l�
 | Licker | 85 | 100 (135 khi ở xa) | 12 | 220 | Ở cách 60–270 thì dừng, hiện **vạch đỏ** 0,55 s rồi phóng lưỡi |
 | Bat *(G02)* | 26 | 160, bay | 7 | 120 | Lượn vòng quanh người chơi rồi bổ nhào; bay qua cả vật cản và vực |
 | Brute *(G02)* | 260 | 50 | 18 | 420 | Hiện vạch đỏ 0,85 s rồi húc (470). Đâm vào vật cản thì bị choáng 1,5 s và nhận **×2** sát thương |
+| Bloater *(G03)* | 70 | 52 | 22 (nổ) | 180 | Lao tới, phồng lên 0,75 s (vòng đỏ) rồi tự nổ bán kính 110, để lại vũng axit; bị bắn chết cũng nổ nhỏ |
+| Lurker *(G03)* | 95 | 92 (×1,6 khi lặn) | 14 | 240 | Lặn dưới bùn (chỉ thấy gợn sóng, không bắn trúng), trồi lên cắn ở vòng đỏ, nổi 2,4 s rồi lặn lại |
+| Frost Zombie *(G04)* | 85 | 56 | 12 | 150 | Chạm vào làm người chơi **đóng băng chậm** 1,4 s |
+| Ice Wraith *(G04)* | 55 | 115, bay | 8 | 200 | Giữ khoảng cách 160–340, vạch đỏ rồi bắn 3 mũi băng (làm chậm) |
+| Magma Imp *(G05)* | 55 | 150 | 10 | 160 | Rất nhanh, để lại vệt lửa phía sau; chạm vào gây bỏng |
+| Ember Spitter *(G05)* | 80 | 60 | 14 (nổ) | 200 | Ném cầu lửa vòng cung vào vòng đỏ dưới chân người chơi, để lại lửa |
+| Cinder Golem *(G05)* | 300 | 45 | 16 | 420 | Lại gần 170 thì vòng đỏ 0,8 s rồi đập đất tạo sóng chấn |
+| Crab Mutant *(G06)* | 120 | 72, bò ngang | 14 | 260 | Càng chặn **85%** sát thương bắn trực diện; bắn sườn/sau nhận thêm 25% |
+| Drowned *(G06)* | 80 | 70 | 13 | 190 | Lặn dưới nước (gợn sóng xanh) rồi trồi lên tóm |
+| Drone *(G07)* | 50 | 130, bay | 12 | 190 | Vạch đỏ rồi bắn tia laser rất nhanh |
+| Sludge / Sludgeling *(G07)* | 110 / 30 | 55 / 120 | 14 / 7 | 220 / 60 | Sludge chết tách thành 2 Sludgeling và để vũng dầu trơn |
+| Runner *(G08)* | 35 | 175 | 8 | 80 | Rất nhanh, đi theo bầy; sự kiện "Bầy đàn" thả 10 con một lúc |
+| Riot *(G08)* | 160 | 62 | 16 | 280 | Khiên chống bạo động chặn **90%** đạn trực diện |
+| Clone Soldier *(G09)* | 90 | 95 | 8 × 3 | 240 | Chạy vòng, vạch đỏ rồi bắn loạt 3 viên |
+| Phase Stalker *(G09)* | 75 | 110 | 16 | 280 | Gần như tàng hình, mờ đi rồi hiện ra sau lưng người chơi và lao chém |
+| Sentry *(G09)* | 260 | đứng yên | 9 × 2 | 300 | Tháp súng canh gác các phòng, quay theo người chơi khi thấy |
 
-Quái tinh nhuệ xuất hiện từ wave 2 (Gate 02 từ wave 1) với tỉ lệ 5–13%.
+Quái tinh nhuệ (viền tím) xuất hiện với tỉ lệ 5–22% tuỳ Gate/wave. Từ Gate 03, máu quái nhân hệ số của Gate (×1,1 → ×1,85) và sát thương (×1,05 → ×1,35).
+
+**Dẫn đường:** khi không có đường thẳng tới người chơi (bị tường, nhà, kênh nước chặn), quái đi theo bản đồ dẫn đường (flow field, ô 50 đơn vị, tính lại mỗi 0,35 s) để vòng qua cửa, cầu, hẻm. Quái bay và quái đang lặn đi thẳng.
 
 ### Boss
 
@@ -200,6 +233,14 @@ Quái tinh nhuệ xuất hiện từ wave 2 (Gate 02 từ wave 1) với tỉ l�
 |---|---|---|---|
 | **Spider Queen** (G01) | 4.200 | 1: trên 60% · 2: 25–60% · 3: dưới 25% | Bắn quạt 5/7 viên độc; gọi nhện con (tối đa 8 con cùng lúc); từ P2: lao tới có vạch báo trước, bắn mạng nhện làm chậm; P3: bắn xoáy 3 tia. Đâm vào vật cản thì choáng 1,3 s, nhận +50% sát thương |
 | **Stone Behemoth** (G02) | 6.000 | 1: trên 55% · 2: 25–55% · 3: dưới 25% | Đập đất tạo vòng sóng chấn (vòng đỏ báo trước, lộn né để xuyên qua); ném tảng đá vỡ thành 6 mảnh; từ P2: húc, gọi 3 dơi; P3: sóng chấn kép. Đâm vào vật cản thì choáng 1,6 s, nhận +60% sát thương |
+| **Toad King** (G03) | 6.500 | 60% / 25% | Nhảy đè xuống vòng đỏ (trên không chỉ nhận 20% sát thương), tiếp đất tạo sóng chấn + bùn; lúc vừa tiếp đất nhận ×1,4. Phóng lưỡi **kéo** người chơi lại gần, khạc 3 cục axit. P2 gọi Bloater, P3 khí độc phun quanh nó |
+| **Cryo Wyrm** (G04) | 7.600 | 60% / 25% | Rắn băng 10 đốt, chỉ **đầu** nhận sát thương, thân chạm vào gây sát thương. Lặn dưới tuyết (miễn nhiễm), trồi lên ở vòng đỏ dưới chân người chơi rồi choáng 1,2 s (×1,5). Phun hơi băng hình nón, P2 bắn vòng cầu băng, P3 trồi lên 2 lần liên tiếp + gọi Ice Wraith |
+| **Magma Titan** (G05) | 9.000 | 60% / 25% | Vỏ đá giảm 50% sát thương. Phun lửa quét ngang, gọi thiên thạch, đập đất sóng chấn; sau mỗi đòn lớn **lõi mở** (×1,6). P2 gọi Magma Imp, P3 để lại lửa khi đi |
+| **Kraken** (G06) | 8.000 | 60% / 25% | Nằm giữa đầm, chỉ trồi đầu khi **4 xúc tu** bị phá hết (5,5 s, nhận ×1,6). Xúc tu đập theo dải đỏ. Phun nước vòng cung, phun **mực che màn hình**. P2 gọi Drowned, P3 xoáy nước kéo người chơi vào |
+| **Assembler Mech** (G07) | 9.500 | 60% / 25% | Giáp giảm 40%. Mưa tên lửa vào các vòng đỏ, **tia laser quét vòng** (vạch đỏ báo trước, lộn né để qua); sau khi quét bị **quá nhiệt** 2,8 s (×2). P2 thả 3 Drone, P3 tên lửa kép |
+| **Abomination** (G08) | 11.000 | 60% / 25% | Húc theo vạch đỏ, đâm vào **toà nhà** thì choáng 1,5 s (×1,6). Ném xác xe vào vòng đỏ, nôn axit hình nón. P2 đẻ 4 Runner, P3 húc 2 lần liên tiếp |
+| **Specimen Omega** (G09) | 11.500 | 60% / 25% | Dịch chuyển rồi bắn vòng đạn, **lưới laser** cả vùng (dải đỏ báo 1 s, đứng vào khe trống). P2 tạo 3 bản sao nhấp nháy (chết thì nổ), P3 hút người chơi rồi nổ xung kích |
+| **The Origin** (G10) | 16.000 | 75% / 50% / 25% | Bắn xoắn ốc liên tục. P1: lá chắn miễn nhiễm, phải phá **4 nút năng lượng**. P2: gọi xúc tu quanh người chơi. P3: dịch chuyển + lưới laser. P4: sóng chấn, mưa sét đỏ, gọi quái tinh nhuệ |
 
 Boss xuất hiện theo hướng đấu trường, cách người chơi tối đa khoảng 650 đơn vị.
 
@@ -207,26 +248,30 @@ Boss xuất hiện theo hướng đấu trường, cách người chơi tối đ
 
 | Gate | Trạng thái | Cơ chế riêng | Quái | Boss | Thử thách → Thưởng |
 |---|---|---|---|---|---|
-| 01 Jungle | ✅ Chơi được | Hồ virus (10–12 HP/s, làm chậm), cây, đá, khúc gỗ | Zombie, Spider, Licker | Spider Queen | Phá 3 ổ virus (ổ sinh nhện) → **Shotgun** · Giữ trạm tín hiệu 12 s → **Lõi Xuyên Phá** · 12 hạ gục liên tiếp không trúng đòn → **Cò Siêu Tốc** |
-| 02 Mountain | ✅ Chơi được | Vực sâu (chặn đi bộ, đạn bay qua), 3 làn đá lăn (vạch đỏ báo 1,5 s; 25 sát thương, nghiền quái), vách đá | + Bat, Brute | Stone Behemoth | Phá 4 tinh thể virus → **SMG** · Giữ trạm radio 14 s → **Bộ Chia Tia** · 15 hạ gục không trúng đòn → **Nòng Tăng Lực** |
-| 03 Swamp | Chưa làm | Bùn lún làm chậm | Sinh vật đầm lầy | ? | |
-| 04 Snow | Chưa làm | Bão tuyết giảm tầm nhìn, băng trơn | Zombie băng | ? | |
-| 05 Volcano | Chưa làm | Dung nham, đá nóng | Sinh vật lửa | ? | |
-| 06 Ocean | Chưa làm | Đảo, tàu | Quái biển | ? | |
-| 07 Industrial | Chưa làm | Hoá chất, máy móc | Máy móc lai sinh vật | ? | |
-| 08 City | Chưa làm | Đô thị đổ nát | Zombie đông đàn, Licker | ? | |
-| 09 Laboratory | Chưa làm | Phòng thí nghiệm | Clone, biến đổi gen | ? | |
-| 10 Apocalypse | Chưa làm | Tổng hợp | Tất cả | The Origin | |
+| 01 Jungle | ✅ | Hồ virus (10–12 HP/s, làm chậm), cây, đá, khúc gỗ | Zombie, Spider, Licker | Spider Queen | Phá 3 ổ virus (ổ sinh nhện) → **Shotgun** · Giữ trạm tín hiệu 12 s → **Lõi Xuyên Phá** · 12 hạ gục liên tiếp không trúng đòn → **Cò Siêu Tốc** |
+| 02 Mountain | ✅ | Vực sâu (chặn đi bộ, đạn bay qua), 3 làn đá lăn (vạch đỏ báo 1,5 s; 25 sát thương, nghiền quái), vách đá | + Bat, Brute | Stone Behemoth | Phá 4 tinh thể virus → **SMG** · Giữ trạm radio 14 s → **Bộ Chia Tia** · 15 hạ gục không trúng đòn → **Nòng Tăng Lực** |
+| 03 Swamp | ✅ | Bùn lún (đi chậm ×0,55), hồ axit, khí độc phun lên quanh người chơi (vòng đỏ 1,1 s), cầu ván | + Bloater, Lurker | Toad King | Phá 4 túi bào tử → **Rail Lancer** · Trạm lọc nước 14 s → Băng Đạn · 15 hạ gục → Lõi Xuyên Phá |
+| 04 Snow | ✅ | Băng trơn trượt, hồ băng lớn, **bão tuyết** mỗi 20–26 s (10 s, tầm nhìn thu hẹp, đi chậm) | + Frost Zombie, Ice Wraith | Cryo Wyrm | Phá 4 cột băng → **Pyro F-9** · Lò sưởi 14 s → Nòng Tăng Lực · 15 hạ gục → Cò Siêu Tốc |
+| 05 Volcano | ✅ | 2 sông dung nham (22 HP/s + bỏng, đốt cả quái) có cầu đá, thiên thạch rơi, đợt **phun trào** mỗi 35–45 s | + Magma Imp, Ember Spitter, Cinder Golem | Magma Titan | Phá 4 miệng phun → **Boomer GL** · Trạm làm mát 14 s → Bộ Chia Tia · 16 hạ gục → Nòng Tăng Lực |
+| 06 Ocean | ✅ | Kênh nước sâu (chỉ qua bằng 4 cầu ván, đạn bay qua được), nước nông làm chậm, **thuỷ triều** dâng 10 s | + Crab, Drowned | Kraken | Phá 4 phao sonar → **Arc Plasma** · Hải đăng 14 s → Lõi Xuyên Phá · 16 hạ gục → Băng Đạn |
+| 07 Industrial | ✅ | 3 băng chuyền đẩy người/quái, 14 **thùng hoá chất nổ** (bắn để diệt đám đông), 3 hàng rào laser bật/tắt 3 s, vũng dầu trơn | + Drone, Sludge | Assembler Mech | Phá 4 máy phát → **Tempest MG** · Bảng điều khiển 15 s → Bộ Chia Tia · 18 hạ gục → Cò Siêu Tốc |
+| 08 City | ✅ | Phố giữa các khối nhà, **ô tô nổ được**, đám cháy, sự kiện **bầy đàn** Runner mỗi 32–40 s | + Runner, Riot | Abomination | Phá 4 ổ zombie → Bộ Chia Tia · Trạm cứu hộ 16 s → Lõi Xuyên Phá · 20 hạ gục → Cò Siêu Tốc |
+| 09 Laboratory | ✅ | 3 tia laser **quay vòng**, 2 cặp **bệ dịch chuyển**, 4 tháp súng, rò rỉ khí độc | + Clone, Phase Stalker, Sentry | Specimen Omega | Phá 4 máy chủ → Nòng Tăng Lực · Phòng điều khiển 16 s → Bộ Chia Tia · 22 hạ gục → Băng Đạn |
+| 10 Apocalypse | ✅ | Virus **lan rộng** theo thời gian, sét đỏ đánh xuống, **4 wave** quái của mọi Gate | Tất cả | The Origin | Phá 4 khe nứt → Bộ Chia Tia · Thiết bị phong ấn 18 s → Lõi Xuyên Phá · 25 hạ gục → Nòng Tăng Lực |
 
-### Cách thêm một Gate mới
+### Cấu trúc một file Gate
 
-1. Copy `js/gates/gate02-mountain.js` thành `gate03-swamp.js`.
-2. Sửa `id`, `world`, `start`, `obstacles`, `crates`, `hazards`, `spawnPoints`, `waves`, `boss`, `objectives`, `challenges`, `buildGround`.
-3. Quái hoặc boss mới thì đăng ký ngay trong file đó bằng `MB.Enemies.register('ten', { r, hp, speed, dmg, score, init, update, draw })`. Vật cản mới dùng `MB.Props.register('kind', drawFn)`.
-4. Cơ chế riêng của Gate viết trong `setup(G)`, `update(G, dt)`, `drawUnder` / `drawOver(G, ctx)`.
-5. Điền `file: 'js/gates/gate03-swamp.js'` vào `js/gates/index.js`.
-6. Thêm đường dẫn file vào mảng `CORE` trong `sw.js` và tăng `VERSION`.
-7. Cập nhật README: bảng Gate, quái, boss và lịch sử thay đổi.
+Mỗi file Gate tự chứa mọi thứ của cửa ải đó:
+
+1. **Vẽ 2D vật cản riêng**: `MB.Props.register('kind', drawFn)`; vật thể động: `MB.Props.registerActor`.
+2. **Quái / boss**: `MB.Enemies.register('ten', {...})`, hoặc ghép khuôn hành vi có sẵn: `Ens.make(base, Ens.AI.shooter({...}))` (bắn xa), `exploder` (tự nổ), `burrower` (đào đất), `blinker` (dịch chuyển), `armorFn: Ens.AI.shieldFront(...)` (khiên).
+3. **Định nghĩa Gate** `MB.registerGate({...})`: `world`, `scale` (hệ số máu/sát thương), `start`, `obstacles`, `crates`, `hazards`, `spawnPoints`, `waves`, `boss` (`fixed: true` để boss không dời chỗ), `objectives`, `challenges`, `buildGround` (vẽ nền bằng `MB.GK`).
+4. **Cơ chế riêng**: `setup(G)`, `update(G, dt)`, `drawUnder(G, ctx)` (2D), `drawScreen(G, ctx)` (lớp phủ màn hình cho cả 2D và 3D: bão tuyết, mực, tro bụi), `onObstacleDestroyed(G, o)` (thùng nổ, ô tô nổ).
+5. **3D**: `view3d: true` + `models3d`, `props3d`, `actors3d`, `hazards3d` (xem mục 3b).
+6. `requires: [...]` trong `js/gates/index.js` nếu Gate dùng quái của Gate khác.
+7. Thêm đường dẫn file vào `CORE` trong `sw.js`, tăng `VERSION`, cập nhật README.
+
+Công cụ dùng chung trong runtime: `G.explosion(x, y, r, dmg, {player, knock, ...})`, `G.telegraphCircle(...)`, `G.shockwave(...)`, `G.enemyShot({..., onHit, onEnd})`, `G.addHazard({kind, dps, slowMul, slip, burn, enemyDps, life})`.
 
 Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm `spawner` sinh quái), `hold` (đứng trong vùng), `streak` (chuỗi hạ gục không trúng đòn).
 
@@ -254,14 +299,16 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 
 | ID | Mức độ | Mô tả | Trạng thái |
 |---|---|---|---|
-| K-01 | Trung bình | Cân bằng mới chỉ được kiểm tra bằng bot tự động ngắm. Bot qua Gate 01 trong khoảng 2 phút nên đã tăng HP boss; cần người thật chơi thử | Cần test |
+| K-01 | Cao | Cân bằng Gate 03–10 mới kiểm tra bằng bot (ngắm tự động nhưng **không biết né** vạch đỏ). Bot qua được các wave đầu nhưng thường chết ở boss hoặc wave 2–3 của Gate 05/07/10. Cần người thật chơi thử để chỉnh `scale`, máu boss và mật độ quái | Cần test |
 | K-02 | Trung bình | Chưa thử trên iPhone và Android thật, chỉ mới giả lập bằng Chromium (iPhone 13 ngang/dọc) | Cần test |
 | K-03 | Thấp | Chế độ dọc (portrait) vẫn chơi được nhưng chật; game hiện gợi ý xoay ngang | Mở |
 | K-04 | Thấp | Nhân vật và quái vẽ bằng code (vector); chưa có sprite hay spritesheet | Roadmap |
 | K-05 | Thấp | Nhạc nền mới là drone đơn giản | Roadmap |
-| K-06 | Thấp | Chỉ có 3 súng; Grenade, Sniper, Flamethrower và vũ khí cận chiến chưa có | Roadmap |
+| K-06 | Thấp | Đã có 8 súng; vũ khí cận chiến chưa có | Roadmap |
 | K-07 | Trung bình | 3D chưa đo FPS trên GPU thật (môi trường test chỉ có GPU giả lập bằng CPU). Cần thử trên điện thoại tầm trung | Cần test |
-| K-08 | Thấp | 3D chỉ có ở Gate 01. Gate 02 cần model cho Bat, Brute, Stone Behemoth, vực, vách đá, tinh thể, đá lăn | Roadmap |
+| K-08 | Thấp | Một số model 3D dùng chung khuôn (VD: Brute/Cinder Golem/Magma Titan cùng khuôn golem khác màu) | Có thể làm riêng sau |
+| K-12 | Trung bình | Gate 10 tải cả 10 file Gate (~230 KB) trước khi chơi | Chấp nhận được |
+| K-13 | Thấp | Gate 05 có ~80 vòng dung nham; máy yếu nên chọn đồ hoạ Thấp | Theo dõi |
 | K-09 | Thấp | 3D không chạy khi mở file trực tiếp (file://); game tự về 2D | Đã xử lý |
 | K-10 | Thấp | Model 3D vẫn dựng bằng code (hình khối toán học), chưa phải model chuyên nghiệp có xương và hoạt ảnh. Muốn chân thật hơn nữa cần nạp file glTF (.glb) từ thư viện như Quaternius (CC0) hoặc Mixamo | Roadmap |
 | K-11 | Thấp | Chế độ màn ngang kiểu Contra chưa làm (xem mục 12, M5) | Roadmap |
@@ -280,7 +327,8 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 
 ### M2: Nội dung chiến đấu
 
-- [ ] Grenade Launcher, Sniper, Flamethrower, vũ khí cận chiến
+- [x] Grenade Launcher, Sniper, Flamethrower, Plasma, Minigun (v5.0)
+- [ ] Vũ khí cận chiến
 - [ ] Sprite/animation vẽ tay cho Hunter (nếu muốn chuyển từ vector sang pixel art)
 - [ ] Mini boss giữa wave
 - [ ] Nhạc nền theo từng Gate
@@ -291,9 +339,11 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 - [ ] Skill chủ động (ví dụ: lựu đạn, khiên)
 - [ ] Bảng xếp hạng online (cần backend, ví dụ Supabase)
 
-### M4: Gate 03 → 10
+### M4: Gate 03 → 10 ✅ (v5.0)
 
-- [ ] Mỗi Gate có 1 cơ chế địa hình mới, 1–2 quái mới, 1 boss riêng và 3 thử thách
+- [x] Mỗi Gate có cơ chế địa hình riêng, 2–3 quái mới, 1 boss nhiều phase và 3 thử thách
+- [x] Bản 3D cho cả 10 Gate
+- [ ] Chỉnh cân bằng sau khi có người chơi thật
 
 ### M5: Chế độ màn ngang kiểu Contra (đề xuất)
 
@@ -303,7 +353,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 
 ## 13. Checklist kiểm thử trước mỗi bản phát hành
 
-- [ ] Console không có lỗi khi chơi hết Gate 01 và Gate 02
+- [ ] Console không có lỗi khi chơi hết cả 10 Gate (2D và 3D). Có thể chạy nhanh bằng `?unlock=all`
 - [ ] Chết ở mỗi wave rồi bấm "Chơi lại"
 - [ ] Hoàn thành từng loại thử thách, nhặt súng mới, kiểm tra súng có trong kho ở Gate sau
 - [ ] Lộn né xuyên qua sóng chấn của Behemoth
@@ -323,6 +373,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v5.0** · README rev 6 | **Hoàn thành Gate 03–10** (Swamp, Snow, Volcano, Ocean, Industrial, City, Laboratory, Apocalypse) với 20 loại quái mới và 8 boss mới; **3D cho cả 10 Gate** (Gate 02 có model mới); 5 súng mới (Rail Lancer, Pyro F-9, Boomer GL, Arc Plasma, Tempest MG), phím 1–8; khuôn hành vi quái dùng lại được; hệ thống vụ nổ dùng chung; vùng nguy hiểm mới (bùn, axit, khí độc, dung nham, lửa, băng, nước, dầu); trạng thái bỏng và đóng băng; vật thể động (actors); lớp phủ màn hình (bão tuyết, mực, tro); **dẫn đường flow field** để quái vòng qua tường/kênh; minimap vẽ đúng hình hộp và màu vùng nguy hiểm |
 | 2026-10-02 | **v4.2** · README rev 5 | Ngắm mượt (giới hạn tốc độ xoay, cài đặt Chậm/Vừa/Nhanh, vùng chết quanh nhân vật); chế độ ngắm Tự động/Hỗ trợ/Thủ công cho điện thoại; **lựu đạn** và **xung kích** giải vây; quái bị choáng; **thùng y tế thả dù** khi máu thấp; rơi máu nhiều hơn khi yếu; lựu đạn rơi từ thùng và quái tinh nhuệ; dựng lại model 3D hữu cơ (chi nhiều khớp, đầu, hàm, móng, bề mặt sần) cho Hunter, Zombie, Spider, Licker, Spider Queen; nút LỰU/XUNG trên điện thoại; tay cầm: RB lựu đạn, B xung kích |
 | 2026-10-02 | **v4.1** · README rev 4 | Chế độ **3D thử nghiệm** cho Gate 01 bằng Three.js (camera phối cảnh, bóng đổ, model low-poly cho Hunter, 3 loại quái, Spider Queen và môi trường); nút chọn 2D/3D; tự giảm chất lượng khi máy chậm; tách vạch cảnh báo của quái ra hàm `tele()` dùng chung cho 2D và 3D; minimap cắt đúng khung |
 | 2026-10-01 | **v4.0** · README rev 3 | Viết lại thành dự án nhiều file. Nhân vật Hunter mới; hệ thống thiết bị và thử thách thay cho nâng cấp tự động; 3 súng; 5 linh kiện; Gate 02 Mountain (Bat, Brute, Stone Behemoth, đá lăn, vực); boss nhiều phase; điều khiển cảm ứng, tay cầm, PWA; menu, lưu tiến trình; sửa 15 lỗi của v3 |
