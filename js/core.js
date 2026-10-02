@@ -173,6 +173,7 @@ window.MB = window.MB || {};
       return this.data;
     },
     save() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } },
+    blank: () => defaults(),
     gate(id) {
       if (!this.data.gates[id]) this.data.gates[id] = { best: 0, done: [], cleared: false, bestTime: 0 };
       return this.data.gates[id];

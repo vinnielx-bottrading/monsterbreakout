@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v5.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v5.4** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Đủ 10 Gate**, mỗi Gate chơi được ở cả 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
-| Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1` |
+| Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 11) |
+| README cập nhật | 2026-10-02 (rev 12) |
 
 ---
 
@@ -38,6 +38,37 @@ Mở `http://localhost:3000` (hoặc cổng 8080). Thêm `?unlock=all` vào URL 
 
 `vercel.json` đã cấu hình sẵn header để `sw.js` và `version.json` không bị cache và file JS/CSS luôn được kiểm tra bản mới.
 
+## 2b. Đăng nhập Google, lưu tiến trình & bảng xếp hạng (Supabase)
+
+Không bắt buộc: khách vẫn chơi bình thường, tiến trình lưu trên máy. Đăng nhập Google thì tiến trình (gate đã mở, sao, kỷ lục, súng, xu, nâng cấp) được lưu lên Supabase và có tên trên bảng xếp hạng.
+
+- Dự án Supabase: `https://oapfplwvvspkvklldtpf.supabase.co`, khoá công khai (publishable) đặt trong `js/cloud.js`. Khoá này được phép để ở trình duyệt; quyền truy cập do RLS trong cơ sở dữ liệu quyết định.
+- Thư viện `js/vendor/supabase.min.js` (supabase-js 2.117, ~55 KB nén) **chỉ tải khi cần**: người đã đăng nhập, bấm Đăng nhập, hoặc mở Bảng xếp hạng.
+
+**Cài đặt một lần (làm theo thứ tự):**
+
+1. **Tạo bảng:** Supabase Dashboard → *SQL Editor* → *New query* → dán toàn bộ `supabase/schema.sql` → *Run*. (Chạy lại nhiều lần vẫn an toàn.)
+2. **Tạo OAuth Client trên Google:** [console.cloud.google.com](https://console.cloud.google.com) → *APIs & Services* → *OAuth consent screen* (chọn External, điền tên app, email) → *Credentials* → *Create credentials* → *OAuth client ID* → loại **Web application**:
+   - *Authorized JavaScript origins:* `https://<tên-miền-vercel>`
+   - *Authorized redirect URIs:* `https://oapfplwvvspkvklldtpf.supabase.co/auth/v1/callback`
+   - Lưu lại **Client ID** và **Client secret**.
+3. **Bật Google trong Supabase:** *Authentication* → *Sign In / Providers* → *Google* → bật, dán Client ID + Client secret → *Save*.
+4. **Khai báo địa chỉ game:** *Authentication* → *URL Configuration*:
+   - *Site URL:* `https://<tên-miền-vercel>`
+   - *Redirect URLs:* thêm `https://<tên-miền-vercel>/**` (và `http://localhost:8765/**` nếu muốn thử trên máy).
+5. Mở game → nút **ĐĂNG NHẬP LƯU TIẾN TRÌNH** → chọn tài khoản Google.
+
+**Dữ liệu:**
+
+| Bảng | Nội dung | Quyền (RLS) |
+|---|---|---|
+| `mb_saves` | 1 dòng / tài khoản: bản lưu JSON (< 40 KB, không gồm cài đặt) | Chỉ chủ tài khoản đọc/ghi bản của mình |
+| `mb_scores` | Thành tích tốt nhất mỗi người theo (gate, chế độ): điểm, wave, thời gian, tên + ảnh Google | Ai cũng xem được; **chỉ ghi qua hàm** `mb_submit_score` (kiểm tra đăng nhập, giới hạn giá trị, chỉ giữ thành tích tốt hơn) |
+
+**Đồng bộ:** khi đăng nhập: tải bản trên mạng → gộp với bản trên máy (gate/sao/kỷ lục/súng/nâng cấp lấy phần tốt hơn; xu lấy theo bản mới hơn; cài đặt giữ của từng máy) → đẩy bản đã gộp lên. Sau mỗi trận và mỗi lần mua nâng cấp: đẩy lên (gom trong 1,5 giây). Máy đang giữ tiến trình của tài khoản khác thì dùng bản của tài khoản vừa đăng nhập, không gộp chéo. Đăng xuất không xoá tiến trình trên máy.
+
+**Bảng xếp hạng:** *Chọn cửa ải → BẢNG XẾP HẠNG*. Chiến dịch: điểm cao nhất khi **thắng** Gate (kèm thời gian). Sinh tồn: wave cao nhất, rồi đến điểm. Top 50, dòng của mình được tô sáng.
+
 ## 3. Cấu trúc dự án
 
 ```
@@ -57,6 +88,7 @@ js/hero.js               Nhân vật Hunter: di chuyển, thể lực, lộn né
 js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hướng + khuôn hành vi (bắn xa, tự nổ, đào đất, dịch chuyển, khiên)
 js/items.js              Vật phẩm rơi và hệ thống thử thách
 js/skills.js             Kỹ năng giải vây: lựu đạn, xung kích
+js/cloud.js              Đăng nhập Google (Supabase), đồng bộ tiến trình, bảng xếp hạng
 js/progress.js           Xu & cửa hàng nâng cấp vĩnh viễn, thẻ nâng cấp trong trận, combo, rung điện thoại
 js/hud.js                HUD (DOM), chỉ cập nhật khi giá trị thay đổi
 js/game.js               Runtime một Gate: wave, đạn, va chạm, vụ nổ, dẫn đường (flow field), camera, minimap, vẽ
@@ -357,6 +389,8 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | K-12 | Trung bình | Gate 10 tải cả 10 file Gate (~230 KB) trước khi chơi | Chấp nhận được |
 | K-13 | Thấp | Gate 05 có ~80 vòng dung nham; máy yếu nên chọn đồ hoạ Thấp | Theo dõi |
 | K-14 | Cao | **Đen màn hình khi sang Gate mới** ở chế độ 3D (game vẫn chạy nền). **Nguyên nhân thật (v5.1.1):** đồng hồ `G.time` về 0 ở Gate mới nhưng camera 3D vẫn nhớ thời điểm cuối của Gate trước → bước thời gian âm → vị trí camera thành `NaN` → không vẽ được gì. Chỉ xảy ra khi Gate trước chơi lâu (>~1 phút), nên test tua nhanh không bắt được. Đã sửa: reset mốc thời gian mỗi khi dựng màn, kẹp bước thời gian ≥ 0, tự đặt lại camera nếu gặp NaN. (v5.1 cũng thêm dọn bộ nhớ GPU và tự chuyển 2D khi mất WebGL) | Đã sửa |
+| K-15 | Trung bình | **iPhone, app đã thêm ra màn hình chính:** trang đăng nhập Google có thể mở ra Safari và quay về Safari thay vì về app, nên app chưa nhận đăng nhập. Cần thử trên máy thật; nếu gặp, tạm thời đăng nhập trong Safari hoặc chơi trên Safari. Hướng sửa: chuyển sang nút Google Identity Services (đăng nhập ngay trong trang) | Cần test |
+| K-16 | Thấp | Điểm gửi từ trình duyệt nên người rành kỹ thuật vẫn có thể gửi điểm giả trong giới hạn hàm `mb_submit_score` cho phép. Đủ cho game giải trí; muốn chặt hơn cần kiểm tra phía server (Edge Function) | Chấp nhận |
 | K-09 | Thấp | 3D không chạy khi mở file trực tiếp (file://); game tự về 2D | Đã xử lý |
 | K-10 | Thấp | Model 3D vẫn dựng bằng code (hình khối toán học), chưa phải model chuyên nghiệp có xương và hoạt ảnh. Muốn chân thật hơn nữa cần nạp file glTF (.glb) từ thư viện như Quaternius (CC0) hoặc Mixamo | Roadmap |
 | K-11 | Thấp | Chế độ màn ngang kiểu Contra chưa làm (xem mục 12, M5) | Roadmap |
@@ -390,7 +424,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 - [x] Skill chủ động: lựu đạn, xung kích (v4.2)
 - [ ] Nhân vật mới: Medic, Engineer, Ghost
 - [ ] Thử thách hằng ngày, độ khó Ác mộng
-- [ ] Bảng xếp hạng online (cần backend, ví dụ Supabase)
+- [x] Bảng xếp hạng online + đăng nhập Google + đồng bộ tiến trình (Supabase, v5.4)
 
 ### M4: Gate 03 → 10 ✅ (v5.0)
 
@@ -426,6 +460,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v5.4** · README rev 12 | **Đăng nhập Google (không bắt buộc)** qua Supabase Auth; **đồng bộ tiến trình** giữa các máy (gộp thông minh, không gộp chéo tài khoản); **bảng xếp hạng online** theo Gate × Chiến dịch/Sinh tồn (top 50, ảnh + tên Google); lời mời đăng nhập ở menu và màn kết quả; `supabase/schema.sql` (bảng + RLS + hàm `mb_submit_score`, đã thử trên Postgres 16); thư viện supabase-js tự chứa trong repo, chỉ tải khi cần |
 | 2026-10-02 | **v5.3** · README rev 11 | **Bắn chạm** trên điện thoại (chạm/giữ bên phải = bắn vào điểm chạm, kéo = gậy ngắm) và **nút NGẮM** trên màn hình đổi Tự động / Hỗ trợ / Tay; **xu + cửa hàng nâng cấp vĩnh viễn** (7 mục); **thẻ nâng cấp** chọn 1/3 sau mỗi wave (12 thẻ); **combo** nhân điểm; **khựng hình** và **rung**; báo boss đổi phase; chế độ **Sinh tồn** vô hạn với kỷ lục theo Gate; file mới `js/progress.js` |
 | 2026-10-02 | **v5.2** · README rev 10 | **Cơ hội đấu lại Boss 1 lần mỗi Gate**: gục ở trận boss lần đầu → chọn đấu lại tại chỗ (hồi đầy máu/giáp/đạn/kỹ năng, giữ súng, linh kiện và điểm, dọn quái/đạn/vùng nguy hiểm tạm, bất tử 3 giây, boss hồi sinh đầy máu sau 3 giây) hoặc chấp nhận thua. Màn hình mới `#retry`, hàm `G.retryBoss()`, `App.offerBossRetry()` |
 | 2026-10-02 | **v5.1.2** · README rev 9 | **Tự cập nhật cho app đã cài ra màn hình chính**: thêm `version.json`; game kiểm tra khi app mở lại / vào menu / mỗi 5 phút, tự tải lại (đang chơi thì chờ về menu); service worker bỏ qua cache HTTP và không cache `version.json` |

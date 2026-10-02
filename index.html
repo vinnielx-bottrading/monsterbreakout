@@ -75,16 +75,18 @@
   <!-- ===== Màn hình ===== -->
   <section id="menu" class="screen">
     <div class="card hero-card">
-      <div class="badge">10 GATE · v5.3 · 2D / 3D</div>
+      <div class="badge">10 GATE · v5.4 · 2D / 3D</div>
       <h1>MONSTER<br><span>BREAKOUT</span></h1>
       <p>Đặc nhiệm <b>Hunter</b> vượt qua 10 cửa ải bị virus chiếm đóng. Phá thùng tiếp tế, hoàn thành thử thách để nâng cấp súng và hạ boss mỗi Gate.</p>
       <div class="btns">
         <button id="btnPlay" class="primary">CHƠI</button>
+        <button id="btnAccount" class="acct"><span id="acctChip">ĐĂNG NHẬP</span></button>
         <button id="btnHelp">HƯỚNG DẪN</button>
         <button id="btnSettings">CÀI ĐẶT</button>
         <button id="btnFull" class="touch-only">TOÀN MÀN HÌNH</button>
         <button id="btnInstall" class="hidden">CÀI ĐẶT APP</button>
       </div>
+      <p id="acctHint" class="hint acct-hint"></p>
       <p id="iosHint" class="hint hidden">iPhone/iPad: bấm <b>Chia sẻ → Thêm vào MH chính</b> để chơi như app.</p>
     </div>
   </section>
@@ -93,7 +95,7 @@
     <div class="card wide">
       <div class="head"><h2>CHỌN CỬA ẢI</h2><div class="vt" id="modeToggle"><button data-mode="campaign">CHIẾN DỊCH</button><button data-mode="survival">SINH TỒN</button></div><div class="vt" id="viewToggle"><button data-view="2d">2D</button><button data-view="3d">3D <small>thử nghiệm</small></button></div><button data-back="menu" class="ghost">← Menu</button></div>
       <p id="viewNote" class="hint vnote"></p>
-      <div class="coinbar"><span>Xu: <b id="coinText">0</b></span><button id="btnShop" class="primary sm">NÂNG CẤP NHÂN VẬT</button></div>
+      <div class="coinbar"><span>Xu: <b id="coinText">0</b></span><span class="cbtns"><button id="btnBoard" class="sm">BẢNG XẾP HẠNG</button><button id="btnShop" class="primary sm">NÂNG CẤP NHÂN VẬT</button></span></div>
       <div id="gateGrid" class="grid"></div>
       <p id="armoryText" class="hint"></p>
     </div>
@@ -190,6 +192,22 @@
     </div>
   </section>
 
+  <section id="account" class="screen hidden">
+    <div class="card">
+      <div class="head"><h2>TÀI KHOẢN</h2><button data-back="menu" class="ghost">← Menu</button></div>
+      <div id="acctBody"></div>
+    </div>
+  </section>
+
+  <section id="board" class="screen hidden">
+    <div class="card wide scroll">
+      <div class="head"><h2>BẢNG XẾP HẠNG</h2><div class="vt" id="boardMode"><button data-bmode="campaign">CHIẾN DỊCH</button><button data-bmode="survival">SINH TỒN</button></div><button data-back="gates" class="ghost">← Chọn Gate</button></div>
+      <div id="boardGates" class="bgates"></div>
+      <div id="boardList" class="blist"></div>
+      <p id="boardNote" class="hint"></p>
+    </div>
+  </section>
+
   <section id="retry" class="screen hidden">
     <div class="card">
       <h2 class="lose">HUNTER ĐÃ GỤC NGÃ</h2>
@@ -207,6 +225,7 @@
       <div id="resStars" class="stars big"></div>
       <div id="resStats" class="stats"></div>
       <p id="resCoins" class="rescoins"></p>
+      <p id="resCloud" class="rescloud"></p>
       <div class="btns">
         <button id="btnNext" class="primary">GATE TIẾP THEO →</button>
         <button id="btnAgain">CHƠI LẠI</button>
@@ -231,6 +250,7 @@
 <script src="js/items.js"></script>
 <script src="js/skills.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/cloud.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/game.js"></script>
 <script src="js/gates/index.js"></script>

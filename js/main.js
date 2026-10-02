@@ -3,7 +3,9 @@
 (function (MB) {
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
-  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'loading'];
+  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'loading'];
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const safeImg = (u) => (/^https:\/\//.test(u || '') ? esc(u) : '');
   const loaded = {};
 
   const App = MB.App = {
@@ -28,6 +30,7 @@
       this.show('menu');
       this.loop();
       this.pwa();
+      MB.Cloud.init();
     },
 
     bind() {
@@ -45,6 +48,9 @@
       on('btnView', () => this.switchView());
       on('btnRetryBoss', () => this.retryBoss());
       on('btnShop', () => this.openShop());
+      on('btnAccount', () => this.openAccount());
+      on('btnBoard', () => this.openBoard());
+      document.querySelectorAll('#boardMode [data-bmode]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.openBoard(this.boardGate, b.dataset.bmode); }));
       on('btnResShop', () => { G.running = false; this.openShop(); });
       document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.addEventListener('click', () => {
         MB.Audio.play('ui'); this.mode = b.dataset.mode; this.openGates();
@@ -231,9 +237,74 @@
           <button data-buy="${it.id}" class="${maxed ? 'ghost' : 'primary'} sm" ${maxed || (sv.coins || 0) < c ? 'disabled' : ''}>${maxed ? 'TỐI ĐA' : c.toLocaleString('vi-VN') + ' xu'}</button></div>`;
       }).join('');
       $('shopList').querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
-        if (MB.Shop.buy(b.dataset.buy)) { MB.Audio.play('pickup'); this.openShop(); }
+        if (MB.Shop.buy(b.dataset.buy)) { MB.Audio.play('pickup'); MB.Cloud.push(); this.openShop(); }
       }));
       this.show('shop');
+    },
+
+    /* ---------- tài khoản (Google) ---------- */
+    renderAccount() {
+      const C = MB.Cloud, u = C.user, chip = $('acctChip'), hint = $('acctHint');
+      if (!chip) return;
+      const t = C.lastSync ? new Date(C.lastSync).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+      if (!u) {
+        chip.innerHTML = C.status === 'loading' ? 'ĐANG KẾT NỐI…' : '<b class="g">G</b> ĐĂNG NHẬP LƯU TIẾN TRÌNH';
+        hint.textContent = 'Không cần đăng nhập vẫn chơi được. Đăng nhập Google để giữ tiến trình trên mọi máy và có tên trên bảng xếp hạng.';
+      } else {
+        const av = safeImg(C.avatar());
+        chip.innerHTML = (av ? `<img src="${av}" alt="" referrerpolicy="no-referrer">` : '👤 ') + esc(C.name().split(' ').slice(-1)[0]);
+        hint.textContent = C.status === 'syncing' ? 'Đang đồng bộ tiến trình…' : C.status === 'error' ? 'Chưa đồng bộ được (mất mạng?). Tiến trình vẫn lưu trên máy.' : `Đã đồng bộ tiến trình${t ? ' lúc ' + t : ''}.`;
+      }
+      $('btnAccount').classList.toggle('in', !!u);
+      if (this.current === 'account') this.openAccount(true);
+    },
+    openAccount(keep) {
+      const C = MB.Cloud, u = C.user;
+      if (!keep) MB.Audio.play('ui');
+      const t = C.lastSync ? new Date(C.lastSync).toLocaleString('vi-VN') : 'chưa';
+      $('acctBody').innerHTML = u ? `
+        <div class="who">${safeImg(C.avatar()) ? `<img src="${safeImg(C.avatar())}" alt="" referrerpolicy="no-referrer">` : '<i>👤</i>'}<div><b>${esc(C.name())}</b><span>${esc(u.email || '')}</span></div></div>
+        <p class="hint">${C.status === 'syncing' ? 'Đang đồng bộ…' : C.status === 'error' ? 'Lỗi đồng bộ: ' + esc(C.error) : 'Đồng bộ gần nhất: ' + t}</p>
+        <ul class="perks-list"><li>Tiến trình, xu và nâng cấp được lưu trên mạng — đổi máy vẫn chơi tiếp.</li><li>Thành tích tự gửi lên bảng xếp hạng sau mỗi trận.</li></ul>
+        <div class="btns"><button id="btnSync" class="primary">ĐỒNG BỘ NGAY</button><button id="btnLogout">ĐĂNG XUẤT</button></div>`
+        : `
+        <p>Game chơi được ngay, <b>không bắt buộc đăng nhập</b>. Tiến trình hiện lưu trên máy này.</p>
+        <ul class="perks-list"><li><b>Lưu tiến trình trên mạng:</b> đổi điện thoại, xoá dữ liệu trình duyệt vẫn không mất gate, xu, nâng cấp.</li>
+        <li><b>Chơi tiếp trên máy khác</b> chỉ cần đăng nhập cùng tài khoản.</li><li><b>Có tên trên bảng xếp hạng</b> từng Gate và chế độ Sinh tồn.</li></ul>
+        <p class="hint">Tiến trình đang có trên máy này sẽ được gộp vào tài khoản ngay khi đăng nhập.</p>
+        <div class="btns"><button id="btnGoogle" class="google"><b class="g">G</b> ĐĂNG NHẬP BẰNG GOOGLE</button></div>
+        ${C.status === 'loading' ? '<p class="hint">Đang chuyển sang trang Google…</p>' : ''}${C.error && !u ? `<p class="hint err">${esc(C.error)}</p>` : ''}`;
+      const b = (id, f) => { const el = $(id); if (el) el.addEventListener('click', f); };
+      b('btnGoogle', () => { MB.Audio.play('ui'); C.signIn(); });
+      b('btnSync', () => { MB.Audio.play('ui'); C.sync(); });
+      b('btnLogout', () => { MB.Audio.play('ui'); C.signOut(); });
+      if (!keep) this.show('account');
+    },
+
+    /* ---------- bảng xếp hạng ---------- */
+    async openBoard(gate, mode) {
+      gate = gate || this.boardGate || 1; mode = mode || this.boardMode || 'campaign';
+      this.boardGate = gate; this.boardMode = mode;
+      document.querySelectorAll('#boardMode [data-bmode]').forEach((b) => b.classList.toggle('on', b.dataset.bmode === mode));
+      $('boardGates').innerHTML = MB.Gates.meta.map((m) => `<button data-bg="${m.id}" class="${m.id === gate ? 'on' : ''}" style="--gc:${m.color}">${String(m.id).padStart(2, '0')}<small>${esc(m.name)}</small></button>`).join('');
+      $('boardGates').querySelectorAll('[data-bg]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.openBoard(+b.dataset.bg, this.boardMode); }));
+      $('boardList').innerHTML = '<p class="hint">Đang tải…</p>';
+      $('boardNote').textContent = MB.Cloud.user ? '' : 'Bạn đang chơi khách — đăng nhập Google (ở Menu → nút đăng nhập) để có tên trên bảng xếp hạng.';
+      this.show('board');
+      const req = (this.boardReq = (this.boardReq || 0) + 1);
+      try {
+        const rows = await MB.Cloud.leaderboard(gate, mode);
+        if (req !== this.boardReq) return;
+        const me = MB.Cloud.user && MB.Cloud.user.id;
+        $('boardList').innerHTML = rows.length ? rows.map((r, i) => {
+          const mm = Math.floor(r.time_s / 60), ss = String(Math.floor(r.time_s % 60)).padStart(2, '0');
+          const av = safeImg(r.avatar);
+          return `<div class="brow${r.user_id === me ? ' me' : ''}"><span class="rk">${i + 1}</span>${av ? `<img src="${av}" alt="" referrerpolicy="no-referrer">` : '<i>👤</i>'}
+            <b>${esc(r.name)}</b><span class="sc">${mode === 'survival' ? 'Wave ' + r.wave + ' · ' : ''}${r.score.toLocaleString('vi-VN')}</span>${mode === 'campaign' ? `<span class="tm">${mm}:${ss}</span>` : ''}</div>`;
+        }).join('') : '<p class="hint">Chưa có ai trên bảng này. Hãy là người đầu tiên!</p>';
+      } catch (e) {
+        if (req === this.boardReq) $('boardList').innerHTML = '<p class="hint err">Không tải được bảng xếp hạng (kiểm tra mạng).</p>';
+      }
     },
 
     /* ---------- cơ hội đấu lại boss ---------- */
@@ -264,7 +335,8 @@
         if (newBest) g.surv = { wave: sum.wave, score: sum.score };
       } else { newBest = sum.score > g.best; if (newBest) g.best = sum.score; }
       const coins = MB.Shop.earn(sum);
-      sv.coins = (sv.coins || 0) + coins;
+      sv.coins = (sv.coins || 0) + coins; sv.ts = Date.now();
+      MB.Cloud.submit(sum); MB.Cloud.push();
       if (sum.win && !surv) {
         g.cleared = true;
         if (!g.bestTime || sum.time < g.bestTime) g.bestTime = sum.time;
@@ -284,6 +356,8 @@
         <div><span>Chính xác</span><b>${sum.accuracy}%</b></div>
         <div><span>Thử thách</span><b>${sum.done.length}/${sum.totalChallenges}</b></div>
         <div><span>Sức mạnh súng</span><b>PWR ${sum.mods}</b></div>`;
+      $('resCloud').innerHTML = MB.Cloud.user ? '' : 'Bạn đang chơi khách · <button id="btnResLogin" class="sm google"><b class="g">G</b> Đăng nhập để lưu tiến trình & lên bảng xếp hạng</button>';
+      const rl = $('btnResLogin'); if (rl) rl.addEventListener('click', () => { G.running = false; this.openAccount(); });
       const next = MB.Gates.meta.find((m) => m.id === sum.gateId + 1);
       $('btnNext').classList.toggle('hidden', !(sum.win && !surv && next && next.file));
       this.show('result');

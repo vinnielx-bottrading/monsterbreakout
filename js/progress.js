@@ -27,7 +27,7 @@
       if (!it || l >= it.max) return false;
       const c = this.cost(it, l);
       if ((sv.coins || 0) < c) return false;
-      sv.coins -= c; sv.upg = sv.upg || {}; sv.upg[id] = l + 1; MB.Save.save();
+      sv.coins -= c; sv.upg = sv.upg || {}; sv.upg[id] = l + 1; sv.ts = Date.now(); MB.Save.save();
       return true;
     },
     // áp dụng vào nhân vật khi bắt đầu trận
