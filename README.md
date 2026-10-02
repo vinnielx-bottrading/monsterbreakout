@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.2.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v6.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 20) |
+| README cập nhật | 2026-10-02 (rev 21) |
 
 ---
 
@@ -79,6 +79,7 @@ version.json             Số phiên bản; app so với server để tự cập
 vercel.json              Cấu hình header cho Vercel
 css/style.css            Giao diện, bố cục responsive cho điện thoại
 assets/icons/            Icon app (svg, 192, 512)
+assets/hunter/           Ảnh nhân vật Hunter: body.webp (key art menu), portrait.webp (chân dung thoại), dossier.webp (hồ sơ)
 js/core.js               Tiện ích, va chạm (tròn / hộp xoay), lưu game, registry
 js/props.js              Vẽ vật cản, vùng nguy hiểm dùng chung (virus, bùn, axit, khí độc, dung nham, lửa, băng, nước, dầu) và bộ công cụ vẽ nền MB.GK
 js/input.js              Bàn phím + chuột, twin-stick cảm ứng, gamepad
@@ -297,7 +298,9 @@ Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 l�
 | Lộn né | 0,19 s, tốc độ 700, bất tử 0,3 s, hồi chiêu 1 s |
 | Sau khi trúng đòn | Bất tử 0,55 s, bị đẩy lùi |
 
-**Ngoại hình:** giáp màu xanh lam đậm, sọc cam cảnh báo sinh học, mũ có kính visor phát sáng màu cyan, bình lọc virus màu xanh sau lưng. Chân quay theo hướng chạy, thân quay theo hướng ngắm. Nhân vật có hoạt ảnh bước chân, giật súng, chớp nòng, vỏ đạn văng ra, súng nghiêng khi nạp đạn, bóng mờ khi lộn né và chớp đỏ khi trúng đòn. Dưới chân có vòng cyan để dễ nhận ra giữa đám quái.
+**Ngoại hình (v6.3 — "Operator", theo ảnh concept của chủ dự án):** áo chiến đấu đen than xắn tay tới khuỷu, áo giáp tấm nâu ô liu với hàng túi đạn + quai vai, thắt lưng và túi hông, ba lô chiến thuật (có bình lọc sinh học nhỏ phát sáng xanh bên hông), mũ trùm cổ, tóc nâu sẫm rối, bảo vệ gối, bốt da, găng đen, bao súng ngắn ở đùi phải. **Điểm nhận diện:** phù hiệu cánh-kiếm phát sáng cyan trên vai trái + vòng cyan dưới chân (bảng màu mới tối, nên cần 2 điểm sáng này để không chìm trên map tối). Súng trường AR-7 có ống ngắm chấm đỏ, tay nắm trước, giảm thanh (`tip` 48). Chân quay theo hướng chạy, thân quay theo hướng ngắm. Hoạt ảnh: bước chân, giật súng, chớp nòng, vỏ đạn, nghiêng súng khi nạp, bóng mờ khi lộn né, chớp đỏ khi trúng đòn. 2D vẽ trong `hero.js`, 3D dựng trong `render3d.js → buildHero()`.
+
+**Hình ảnh nhân vật (v6.3):** ảnh concept dùng làm key art ở menu (bên phải trên máy tính, mờ phía sau trên điện thoại), khẩu hiệu đội **SURVIVE · CONTAIN · ELIMINATE** + phù hiệu cánh-kiếm (SVG vẽ lại) dưới tên game, màn **HỒ SƠ HUNTER** (ảnh hồ sơ đầy đủ, trang bị, thống kê tác chiến lấy từ tiến trình), chân dung Hunter trong khung thoại cảnh truyện và bộ đàm trong trận; bóng Hunter trong cảnh truyện đổi sang tóc rối + mũ trùm cổ + ba lô.
 
 ## 8. Quái vật
 
@@ -506,6 +509,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v6.3** · README rev 21 | Hunter đổi ngoại hình theo ảnh concept "Operator" (2D + 3D): áo đen than, giáp nâu ô liu, ba lô, tóc nâu, súng giảm thanh + ống ngắm; phù hiệu cánh-kiếm phát sáng làm điểm nhận diện. Key art ở menu, khẩu hiệu + phù hiệu, màn Hồ sơ Hunter, chân dung trong thoại/bộ đàm |
 | 2026-10-02 | **v6.2.2** · README rev 20 | Hunter quay đầu nhanh khi đổi hướng / quái sau lưng (~0,15 giây thay vì ~0,5 giây); ngắm Tự động ưu tiên quái đang áp sát thay vì giữ khoá quái ở xa |
 | 2026-10-02 | **v6.2.1** · README rev 19 | Máy tính có nút **NGẮM** (Chuột / Hỗ trợ / Tự động) + phím T + mục cài đặt riêng; chế độ Tự động trên máy tính tự khoá và tự bắn |
 | 2026-10-02 | **v6.2** · README rev 18 | **Sinh tồn Bất tận**: 1 chuỗi chiến đấu liên tục qua mọi Gate đã qua (mang theo máu, súng, thẻ nâng cấp; hồi 25% máu giữa khu vực; quay vòng), kỷ lục + bảng xếp hạng chung; **độ khó tự điều chỉnh**: chấm điểm kỹ năng mỗi Gate, giỏi ở Gate 1–7 → âm thầm bật Ác mộng từ Gate 8 (thua 2 lần liền thì tự hạ về thường) |

@@ -113,11 +113,11 @@
       const sp = Math.hypot(p.vx, p.vy);
       const stride = sp > 25 ? Math.sin(p.walk) * Math.min(9, 3 + sp / 45) : 0;
       ctx.save(); ctx.rotate(p.moveAng);
-      ctx.fillStyle = '#1a2226';
+      ctx.fillStyle = '#2b2e2b';
       U.rr(ctx, -6 + stride, -10, 14, 7, 3); ctx.fill();
       U.rr(ctx, -6 - stride, 3, 14, 7, 3); ctx.fill();
-      ctx.fillStyle = '#f2a33a';
-      ctx.fillRect(5 + stride, -9, 2, 5); ctx.fillRect(5 - stride, 4, 2, 5);
+      ctx.fillStyle = '#3a2c1f'; // mũi bốt da
+      U.rr(ctx, 4 + stride, -10, 5, 7, 2.5); ctx.fill(); U.rr(ctx, 4 - stride, 3, 5, 7, 2.5); ctx.fill();
       ctx.restore();
 
       // --- thân (theo hướng ngắm)
@@ -129,48 +129,65 @@
       const s = MB.Weapons.DEFS[w.id];
       const reloadK = w.reloading > 0 ? 1 - w.reloading / (s.reload * (1 - 0.12 * p.mods.mag)) : 0;
 
-      // bình lọc sinh học
-      ctx.fillStyle = '#1f2f34'; U.rr(ctx, -23, -9, 11, 18, 4); ctx.fill();
-      const glow = 0.6 + Math.sin(t * 4) * 0.25;
-      ctx.fillStyle = `rgba(125,255,155,${glow})`; U.rr(ctx, -21, -6, 5, 12, 2); ctx.fill();
-      ctx.fillStyle = '#9aa9ad'; ctx.fillRect(-15, -2, 4, 4);
+      // ba lô chiến thuật (sau lưng) + bình lọc sinh học nhỏ bên hông
+      ctx.fillStyle = '#433d2e'; ctx.strokeStyle = '#14120d'; ctx.lineWidth = 1.4;
+      U.rr(ctx, -24, -10, 12, 20, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2f2a20'; for (const yy of [-6, -1, 4]) ctx.fillRect(-23, yy, 10, 1.3);
+      ctx.fillStyle = '#4b4432'; U.rr(ctx, -27, -5, 4, 10, 1.5); ctx.fill();
+      const glow = 0.55 + Math.sin(t * 4) * 0.25;
+      ctx.fillStyle = `rgba(125,255,155,${glow})`; U.rr(ctx, -20, -13.5, 7, 3.5, 1.5); ctx.fill();
 
-      // thân giáp (viền tối để nổi trên nền)
-      ctx.fillStyle = hurt ? '#b84b4b' : '#3a5f66';
-      ctx.strokeStyle = '#0c1416'; ctx.lineWidth = 2;
+      // áo chiến đấu đen than + áo giáp tấm nâu-ô liu đầy túi đạn
+      ctx.fillStyle = hurt ? '#7a3434' : '#2a2e30';
+      ctx.strokeStyle = '#0b0d0e'; ctx.lineWidth = 2;
       U.rr(ctx, -13, -14 - breathe * 0.3, 23, 28 + breathe * 0.6, 9); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = hurt ? '#d06a6a' : '#3f6870';
-      U.rr(ctx, -8, -10, 14, 20, 5); ctx.fill();
-      ctx.fillStyle = '#f2a33a'; ctx.fillRect(-2, -10, 3, 20);
-      // vai giáp
-      ctx.fillStyle = '#4f7f87';
-      U.circle(ctx, -2, -13, 6.5); ctx.fill();
-      U.circle(ctx, -2, 13, 6.5); ctx.fill();
-      ctx.fillStyle = '#f2a33a';
-      ctx.fillRect(-5, -15, 6, 2); ctx.fillRect(-5, 13, 6, 2);
+      ctx.fillStyle = hurt ? '#b85a4a' : '#5a4f3a';
+      U.rr(ctx, -9, -11, 17, 22, 4); ctx.fill();
+      ctx.fillStyle = '#272219'; ctx.fillRect(-9, -11, 3, 22); // quai vai
+      ctx.fillStyle = hurt ? '#a04a3c' : '#4b4432';
+      for (const yy of [-8, -2.5, 3]) { U.rr(ctx, 3, yy, 5, 5, 1.2); ctx.fill(); }
+      ctx.fillStyle = '#272219'; for (const yy of [-8, -2.5, 3]) ctx.fillRect(3, yy, 5, 1.2);
+      // vai: tay áo đen; phù hiệu cánh-kiếm phát sáng ở vai trái
+      ctx.fillStyle = '#30353a';
+      U.circle(ctx, -2, -13, 6.2); ctx.fill();
+      U.circle(ctx, -2, 13, 6.2); ctx.fill();
+      ctx.shadowColor = '#7ef3ff'; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#86f6ff'; U.rr(ctx, -4.5, -17.5, 5, 3.6, 1); ctx.fill();
+      ctx.shadowBlur = 0;
 
-      // tay
-      ctx.strokeStyle = '#263a3f'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      // tay: tay áo đen tới khuỷu, cẳng tay trần
+      ctx.lineCap = 'round';
       const rk = p.recoil * 0.6;
-      ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(13 - rk, -4); ctx.moveTo(0, 12); ctx.lineTo(19 - rk, 2); ctx.stroke();
+      ctx.strokeStyle = '#2c3033'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(6.5 - rk * 0.5, -8); ctx.moveTo(0, 12); ctx.lineTo(9.5 - rk * 0.5, 7); ctx.stroke();
+      ctx.strokeStyle = '#b7876a'; ctx.lineWidth = 4.6;
+      ctx.beginPath(); ctx.moveTo(6.5 - rk * 0.5, -8); ctx.lineTo(13 - rk, -4); ctx.moveTo(9.5 - rk * 0.5, 7); ctx.lineTo(19 - rk, 2); ctx.stroke();
 
       MB.Weapons.drawGun(ctx, w.id, p.recoil, reloadK);
 
-      ctx.fillStyle = '#151c1f';
+      ctx.fillStyle = '#15181a';
       U.circle(ctx, 13 - rk, -4, 3.4); ctx.fill();
       U.circle(ctx, 19 - rk, 2, 3.4); ctx.fill();
 
-      // mũ + kính visor
-      ctx.fillStyle = '#2a4247'; ctx.strokeStyle = '#0c1416'; ctx.lineWidth = 1.6;
-      U.circle(ctx, 0, 0, 9); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#5b8790'; U.circle(ctx, -1.5, -1.5, 6); ctx.fill();
-      ctx.shadowColor = '#7ef3ff'; ctx.shadowBlur = 10;
-      ctx.fillStyle = '#86f6ff';
-      ctx.beginPath(); ctx.ellipse(4.5, 0, 3.6, 6.4, 0, -Math.PI / 2, Math.PI / 2); ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(5.5, -4, 1.4, 3);
-      ctx.strokeStyle = '#f2a33a'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(1, 0); ctx.stroke();
+      // đầu: mũ trùm cổ, mặt (nhìn từ trên thấy trán + sống mũi), tóc nâu sẫm rối
+      ctx.fillStyle = '#23272a'; U.circle(ctx, -1.5, 0, 10); ctx.fill();
+      ctx.fillStyle = '#c0937a'; ctx.beginPath(); ctx.ellipse(2.5, 0, 6.6, 6.8, 0, -Math.PI / 2, Math.PI / 2); ctx.fill();
+      ctx.fillRect(7.6, -1, 2, 2);
+      // tóc: khối rối mép răng cưa, mái rủ ra trước trán, các lọn toả ra từ xoáy đỉnh đầu
+      ctx.fillStyle = '#2a1d15'; ctx.strokeStyle = '#0d0907'; ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      for (let i = 0; i <= 16; i++) {
+        const a = (i / 16) * Math.PI * 2, fr = Math.cos(a) > 0.35;
+        const r = (i % 2 ? 7 : 7.8) + (fr ? 0.8 : 0);
+        const px = -0.8 + Math.cos(a) * r, py = Math.sin(a) * r * 0.97;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#4b3628'; ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      for (let i = 0; i < 9; i++) { const a = -2.4 + i * 0.6; ctx.moveTo(-3.6, 0.6); ctx.quadraticCurveTo(-3.6 + Math.cos(a + 0.3) * 3.5, 0.6 + Math.sin(a + 0.3) * 3.5, -3.6 + Math.cos(a) * 7.2 + 2, 0.6 + Math.sin(a) * 6.6); }
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(120,92,70,.35)'; ctx.beginPath(); ctx.ellipse(-1.5, -2.8, 3.4, 1.8, -0.3, 0, Math.PI * 2); ctx.fill();
 
       // chớp nòng
       if (p.muzzle > 0) {
@@ -189,9 +206,11 @@
       const k = Math.min(1, p.deadT * 2);
       ctx.rotate(p.aim + k * 1.4);
       ctx.globalAlpha = 1 - Math.min(0.5, p.deadT * 0.3);
-      ctx.fillStyle = '#2e4a50'; U.rr(ctx, -13, -14, 24, 28, 9); ctx.fill();
-      ctx.fillStyle = '#35535a'; U.circle(ctx, 0, 0, 9); ctx.fill();
-      ctx.fillStyle = '#86f6ff'; ctx.globalAlpha *= 0.4; U.circle(ctx, 4, 0, 4); ctx.fill();
+      ctx.fillStyle = '#433d2e'; U.rr(ctx, -24, -10, 12, 20, 3); ctx.fill();
+      ctx.fillStyle = '#2a2e30'; U.rr(ctx, -13, -14, 24, 28, 9); ctx.fill();
+      ctx.fillStyle = '#5a4f3a'; U.rr(ctx, -9, -11, 17, 22, 4); ctx.fill();
+      ctx.fillStyle = '#c0937a'; U.circle(ctx, 3, 0, 6); ctx.fill();
+      ctx.fillStyle = '#2a1d15'; U.circle(ctx, -0.6, 0, 7.4); ctx.fill();
       ctx.restore();
     },
 

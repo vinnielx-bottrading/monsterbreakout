@@ -3,8 +3,8 @@
 (function (MB) {
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
-  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'loading'];
-  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'result'];
+  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'dossier', 'loading'];
+  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'dossier', 'result'];
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeImg = (u) => (/^https:\/\//.test(u || '') ? esc(u) : '');
   const loaded = {};
@@ -39,6 +39,7 @@
       const on = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', () => { MB.Audio.unlock(); MB.Audio.play('ui'); fn(); }); };
       on('btnPlay', () => this.openGates());
       on('btnHelp', () => this.show('help'));
+      on('btnDossier', () => this.openDossier());
       on('btnSettings', () => this.openSettings());
       on('btnFull', () => this.fullscreen());
       document.querySelectorAll('#viewToggle [data-view]').forEach((b) => b.addEventListener('click', () => {
@@ -274,6 +275,23 @@
       b.innerHTML = m
         ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+    },
+    openDossier() {
+      const sv = MB.Save.data, gs = sv.gates || {};
+      const cleared = Object.keys(gs).filter((k) => gs[k] && gs[k].cleared).length;
+      const best = Object.values(gs).reduce((a, g) => a + ((g && g.best) || 0), 0);
+      const upg = MB.Shop.SHOP.map((it) => `${it.name} ${MB.Shop.level(it.id)}/${it.max}`).join(' · ');
+      const en = sv.endless || {};
+      const rows = [
+        ['Cửa đã qua', `${cleared} / ${MB.Gates.meta.filter((m) => m.file).length}`],
+        ['Tổng điểm cao nhất', best.toLocaleString('vi-VN')],
+        ['Sinh tồn Bất tận', en.wave ? `Wave ${en.wave} · ${(en.score || 0).toLocaleString('vi-VN')} điểm` : 'Chưa chơi'],
+        ['Kho súng', (sv.armory || []).map((id) => (MB.Weapons.DEFS[id] || {}).short || id).join(', ') || 'AR-7'],
+        ['Nâng cấp', upg],
+        ['Xu', (sv.coins || 0).toLocaleString('vi-VN')],
+      ];
+      $('dosStats').innerHTML = rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+      this.show('dossier');
     },
     aimKey() { return MB.Input.mode === 'kb' ? 'aimModeKb' : 'aimMode'; },
     aimNow() { const st = MB.Save.data.settings, k = this.aimKey(); return st[k] || (k === 'aimModeKb' ? 'manual' : 'auto'); },

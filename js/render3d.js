@@ -158,57 +158,80 @@
       g.add(mesh(box(19, 6, 5), dark, 9.5, 0, 0), barrel(1.6, 8, 22, 0.5), mesh(box(4, 11, 4), mid, 6, -7.5, 0), mesh(box(7, 1.6, 5.4), glowMat(0x4fd6ff, 1.4), 12, 3.2, 0));
       g.userData.tip = 26;
     } else {
-      g.add(mesh(box(27, 6, 5), dark, 13.5, 0, 0), barrel(1.7, 12, 32, 0.6), mesh(box(5, 9, 4), mid, 10, -6.5, 0), mesh(box(3, 6.4, 5.4), orange, 20, 0, 0),
-        mesh(cyl(2, 2, 9, 10), mid, 13, 5, 0), mesh(box(8, 5, 4), dark, -3, -1, 0));
+      // súng trường chính: ống ngắm, ốp tay cầm dài, tay nắm trước, giảm thanh
+      g.add(mesh(box(27, 6, 5), dark, 13.5, 0, 0), barrel(1.7, 12, 32, 0.6), mesh(box(5, 9, 4), mid, 10, -6.5, 0), mesh(box(12, 5.4, 5.6), mid, 22, 0.2, 0),
+        mesh(cyl(2, 2, 9, 10), dark, 13, 5.4, 0), mesh(box(8, 5, 4), dark, -3, -1, 0), mesh(box(2.4, 5, 2.6), dark, 24, -4.6, 0));
       g.children[4].rotation.z = Math.PI / 2;
-      g.userData.tip = 38;
+      g.add(mesh(cyl(1.5, 1.5, 1.2, 10), glowMat(0xff5040, 1), 17.6, 5.4, 0)); g.children[7].rotation.z = Math.PI / 2;
+      g.add(barrel(2.4, 11, 43.5, 0.6));
+      void orange;
+      g.userData.tip = 49;
     }
     return g;
   }
 
+  // Hunter (v6.3): đặc nhiệm "Operator" — áo chiến đấu đen than, giáp tấm nâu-ô liu đầy túi đạn,
+  // ba lô chiến thuật, mũ trùm cổ, tóc nâu sẫm, bảo vệ gối, bốt da; phù hiệu cánh-kiếm phát sáng trên vai trái để dễ nhận ra.
   function buildHero() {
     const g = new T.Group();
-    const armor = std(0x3f6b73, { rough: 0.5, metal: 0.15 }), dark = std(0x223238, { rough: 0.7 }), orange = std(0xf2a33a, { rough: 0.6 });
-    const boot = std(0x161d20, { rough: 0.6 }), pad = std(0x5b8f98, { rough: 0.45, metal: 0.2 });
+    const pants = std(0x2b2e2b, { rough: 0.9 }), boot = std(0x2e241a, { rough: 0.75 }), kneeM = std(0x3d362b, { rough: 0.55, metal: 0.1 });
+    const coyote = std(0x5a4f3a, { rough: 0.85 }), pouch = std(0x4b4432, { rough: 0.9 }), strap = std(0x272219, { rough: 0.9 });
     const legs = new T.Group(); g.add(legs);
     const mkLeg = (z) => {
-      const hip = joint(legs, 0, 17, z, 3.6, 3.1, 8.5, dark);
-      const knee = joint(hip.userData.end, 0, 0, 0, 3.1, 2.7, 7, dark);
-      knee.add(mesh(sph(2.9, 10), pad, 1.6, 0.5, 0));
-      const b = mesh(cap(3.1, 6), boot, 2.5, -7.2, 0); b.rotation.z = Math.PI / 2; b.scale.set(1, 1, 1.15); knee.userData.end.add(b);
-      knee.userData.end.add(mesh(box(2, 3, 6.6), orange, 7.5, -0.4, 0));
+      const hip = joint(legs, 0, 17, z, 3.7, 3.2, 8.5, pants);
+      const knee = joint(hip.userData.end, 0, 0, 0, 3.2, 2.9, 7, pants);
+      const kp = mesh(sph(3.1, 12), kneeM, 1.9, 0.2, 0); kp.scale.set(0.75, 1.1, 1); knee.add(kp);
+      const b = mesh(cap(3.2, 6), boot, 2.4, -7.3, 0); b.rotation.z = Math.PI / 2; b.scale.set(1, 1, 1.15); knee.userData.end.add(b);
+      knee.userData.end.add(mesh(cyl(3.3, 3.4, 3.4, 12), boot, 0, -4.4, 0));
       return { hip, knee };
     };
     const L = mkLeg(-5.2), R = mkLeg(5.2);
+    // bao súng ngắn bên đùi phải
+    R.hip.add(mesh(box(4.2, 7, 2.2), strap, 0.5, -4.5, 3.6));
     const upper = new T.Group(); upper.position.y = 17; g.add(upper);
-    const bodyMat = std(0x3a5f66, { own: true, rough: 0.55, metal: 0.1 });
+    const bodyMat = std(0x33383a, { own: true, rough: 0.85 });
     const body = mesh(cap(9, 9), bodyMat, 0, 10, 0); body.scale.set(0.95, 1, 1.25); upper.add(body);
-    const plate = mesh(cap(5.5, 7), armor, 5.5, 11, 0); plate.scale.set(0.6, 1, 1.5); upper.add(plate);
-    upper.add(mesh(box(2.4, 15, 2.6), orange, 8.8, 11, 0));
-    upper.add(mesh(cap(3.2, 6), dark, 0, 2, 0));
-    // bình lọc sinh học
-    const pack = mesh(cap(6, 8), std(0x1f2f34, { rough: 0.6 }), -11, 12, 0); pack.scale.set(0.75, 1, 1.15); upper.add(pack);
-    upper.add(mesh(cyl(3, 3, 13, 14), glowMat(0x7dff9b, 1.7), -16, 12, 0));
-    upper.add(mesh(cyl(3.6, 3.6, 1.6, 14), std(0x9aa9ad, { metal: 0.6, rough: 0.3 }), -16, 18.8, 0), mesh(cyl(3.6, 3.6, 1.6, 14), std(0x9aa9ad, { metal: 0.6, rough: 0.3 }), -16, 5.2, 0));
-    for (const z of [-12, 12]) {
-      const sh = mesh(sph(6, 14), pad, -0.5, 19, z); sh.scale.set(1.1, 0.8, 1); upper.add(sh);
-      upper.add(mesh(box(8, 1.6, 1.6), orange, -0.5, 22.5, z));
-    }
-    const armMat = std(0x263a3f, { rough: 0.7 }), glove = std(0x151c1f, { rough: 0.6 });
-    // tay ôm súng
-    limbBetween(upper, [0, 19, -12], [7, 13, -8], 2.8, 2.5, armMat);
-    limbBetween(upper, [7, 13, -8], [13, 14, -1.5], 2.5, 2.2, armMat);
-    limbBetween(upper, [0, 19, 12], [8, 13, 9], 2.8, 2.5, armMat);
-    limbBetween(upper, [8, 13, 9], [20, 14, 2.5], 2.5, 2.2, armMat);
-    upper.add(mesh(sph(2.6, 8), glove, 13, 14, -1.5), mesh(sph(2.6, 8), glove, 20, 14, 2.5));
-    upper.add(mesh(sph(2.5, 8), armMat, 7, 13, -8), mesh(sph(2.5, 8), armMat, 8, 13, 9));
+    // thắt lưng + túi đeo hông
+    const belt = mesh(cyl(9.4, 9.4, 2.6, 18), strap, 0, 2.6, 0); belt.scale.set(0.95, 1, 1.25); upper.add(belt);
+    upper.add(mesh(box(3.4, 4, 4), pouch, 6.4, 1.6, -7), mesh(box(3.4, 4, 4), pouch, 6.4, 1.6, 7), mesh(box(4, 4.5, 3.4), pouch, -4, 1.4, 10.4));
+    // áo giáp tấm: tấm trước, tấm sau, quai vai, hàng túi đạn
+    upper.add(mesh(box(4.4, 13, 15.5), coyote, 6.4, 11.5, 0), mesh(box(4, 13, 15), coyote, -6.6, 11.5, 0));
+    for (const z of [-5.2, 5.2]) upper.add(mesh(box(13.6, 2, 3.4), coyote, 0, 18.6, z));
+    for (const z of [-5, 0, 5]) { upper.add(mesh(box(2.6, 5.4, 4.2), pouch, 9.6, 8.2, z)); upper.add(mesh(box(2.8, 1, 4.4), strap, 9.7, 11, z)); }
+    upper.add(mesh(cyl(0.9, 0.9, 6, 8), strap, 8.9, 15.4, -4.5)); // ăng-ten bộ đàm
+    // ba lô chiến thuật + bình lọc sinh học nhỏ bên hông (giữ chi tiết cốt truyện)
+    const packM = std(0x433d2e, { rough: 0.9 });
+    upper.add(mesh(box(7, 14, 12.5), packM, -12, 12.5, 0), mesh(box(7.6, 3.4, 13), std(0x3a3427, { rough: 0.9 }), -12, 19.6, 0));
+    for (const y of [9, 12, 15]) upper.add(mesh(box(7.2, 0.7, 12.7), strap, -12.1, y, 0));
+    upper.add(mesh(box(2.6, 7, 9), pouch, -16.2, 11, 0));
+    upper.add(mesh(cyl(1.7, 1.7, 7, 10), glowMat(0x7dff9b, 1.5), -12, 12, -7.6));
+    // mũ trùm cổ (hood) quanh gáy
+    const hood = mesh(G3('hood', () => new T.TorusGeometry(6.2, 2.6, 8, 18)), std(0x23272a, { rough: 0.95 }), -0.8, 22, 0); hood.rotation.x = Math.PI / 2; hood.scale.set(1, 1.2, 1); upper.add(hood);
+    // tay: tay áo đen xắn tới khuỷu, cẳng tay để trần, găng đen
+    const sleeve = std(0x363b3e, { rough: 0.9 }), skinA = std(0xb7876a, { rough: 0.7 }), glove = std(0x15181a, { rough: 0.6 });
+    for (const z of [-12, 12]) { const sh = mesh(sph(5.4, 14), sleeve, -0.5, 19, z); sh.scale.set(1.1, 0.85, 1); upper.add(sh); }
+    // phù hiệu cánh-kiếm phát sáng nhẹ (vai trái): điểm nhận diện trên map tối
+    upper.add(mesh(box(3.8, 3.8, 0.6), std(0x5fd8ec, { emissive: 0x4fc8e0, ei: 0.7, rough: 0.4 }), -0.5, 19.2, -16.6));
+    limbBetween(upper, [0, 19, -12], [7, 13, -8], 2.9, 2.6, sleeve);
+    limbBetween(upper, [7, 13, -8], [13, 14, -1.5], 2.3, 2.1, skinA);
+    limbBetween(upper, [0, 19, 12], [8, 13, 9], 2.9, 2.6, sleeve);
+    limbBetween(upper, [8, 13, 9], [20, 14, 2.5], 2.3, 2.1, skinA);
+    upper.add(mesh(sph(2.8, 8), glove, 13, 14, -1.5), mesh(sph(2.8, 8), glove, 20, 14, 2.5));
+    upper.add(mesh(sph(2.75, 8), sleeve, 7, 13, -8), mesh(sph(2.75, 8), sleeve, 8, 13, 9));
     const gunHolder = new T.Group(); gunHolder.position.set(12, 14, 1.5); upper.add(gunHolder);
+    // đầu: mặt, tóc nâu sẫm rối, mắt, lông mày, râu lún phún
     const head = new T.Group(); head.position.set(0, 29, 0); upper.add(head);
-    head.add(mesh(cyl(3.4, 3.8, 4, 12), dark, 0, -6.5, 0));
-    const helm = mesh(sph(8.5, 22), std(0x2a4247, { rough: 0.35, metal: 0.25 }), 0, 0, 0); helm.scale.set(1.05, 1, 1); head.add(helm);
-    const visor = new T.Mesh(G3('visor', () => new T.SphereGeometry(8.1, 22, 14, Math.PI - 0.95, 1.9, 0.95, 1.05)), std(0x3fc8e0, { emissive: 0x2fb8d8, ei: 0.75, rough: 0.12, metal: 0.4 }));
-    visor.position.x = 0.9; head.add(visor);
-    head.add(mesh(box(14, 1.8, 2.6), orange, -1, 8.3, 0), mesh(cyl(0.6, 0.6, 9, 6), dark, -6, 10, 4));
+    const skin = std(0xc0937a, { rough: 0.72 });
+    head.add(mesh(cyl(3.3, 3.7, 5, 12), skin, 0, -6, 0));
+    const face = mesh(sph(7, 20), skin, 0.4, -0.4, 0); face.scale.set(1.08, 1.12, 0.92); head.add(face);
+    const beard = mesh(sph(4.6, 12), std(0x3a3029, { rough: 1 }), 2.4, -4.2, 0); beard.scale.set(0.9, 0.6, 1.05); head.add(beard); // râu lún phún ở cằm
+    const hairM = std(0x2a1d15, { rough: 0.95 });
+    const hair = mesh(bumpy('hair', new T.SphereGeometry(7.7, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.6), 0.8, 1.5), hairM, -0.9, 1.2, 0); head.add(hair);
+    for (let i = 0; i < 5; i++) { const f = mesh(G3('lock', () => new T.ConeGeometry(1.6, 6, 6)), hairM, 5.4, 4.2, -4.4 + i * 2.2); f.rotation.z = -1.9 - (i % 2) * 0.25; f.rotation.x = (i - 2) * 0.12; head.add(f); }
+    const eyeM = std(0x1a1512, { rough: 0.4 });
+    head.add(mesh(sph(0.85, 6), eyeM, 6.6, 0.6, -2.5), mesh(sph(0.85, 6), eyeM, 6.6, 0.6, 2.5));
+    head.add(mesh(box(1, 0.8, 2.8), hairM, 6.7, 2, -2.5), mesh(box(1, 0.8, 2.8), hairM, 6.7, 2, 2.5));
+    head.add(mesh(box(1.4, 2.6, 1.1), skin, 7.4, -0.6, 0));
     const muzzle = glowSprite(0xffd27a, 34, 1); muzzle.visible = false; upper.add(muzzle);
     const ring = new T.Mesh(G3('ring', () => new T.RingGeometry(23, 26.5, 48)), new T.MeshBasicMaterial({ color: 0x7ef3ff, transparent: true, opacity: 0.55, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.9; g.add(ring);

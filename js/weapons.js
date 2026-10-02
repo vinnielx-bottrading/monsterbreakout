@@ -6,7 +6,7 @@
   const DEFS = {
     rifle: {
       name: 'Rifle AR-7', short: 'AR-7', dmg: 20, rate: 110, mag: 30, reload: 1.1, spread: 0.035,
-      speed: 900, life: 0.85, pellets: 1, kick: 3, shake: 1.1, knock: 40, sound: 'shot_rifle', color: '#ffe39b', tip: 42, br: 3.5,
+      speed: 900, life: 0.85, pellets: 1, kick: 3, shake: 1.1, knock: 40, sound: 'shot_rifle', color: '#ffe39b', tip: 48, br: 3.5,
     },
     shotgun: {
       name: 'Shotgun SG-12', short: 'SG-12', dmg: 11, rate: 640, mag: 6, reload: 1.4, spread: 0.32,
@@ -187,11 +187,14 @@
         if (showMag) { ctx.fillStyle = '#2a3236'; ctx.fillRect(13, 3, 4, 9); }
         ctx.fillStyle = '#4fd6ff'; ctx.fillRect(17, -3, 6, 1.6);
       } else {
+        // súng trường: ốp tay cầm dài, ống ngắm có chấm đỏ, giảm thanh
         ctx.fillStyle = '#1d2224'; U.rr(ctx, 8, -3, 27, 6, 2); ctx.fill();
-        ctx.fillStyle = '#3c474b'; ctx.fillRect(34, -1.5, 8, 3);
-        ctx.fillStyle = '#2b3336'; ctx.fillRect(18, -4.5, 9, 2.5);
+        ctx.fillStyle = '#3c474b'; U.rr(ctx, 25, -3.2, 12, 6.4, 1.5); ctx.fill();
+        ctx.fillStyle = '#2b3236'; ctx.fillRect(37, -1.6, 4, 3.2);
+        ctx.fillStyle = '#3a4246'; U.rr(ctx, 40, -2.6, 9, 5.2, 2); ctx.fill();
+        ctx.fillStyle = '#14181a'; U.rr(ctx, 15, -2.2, 10, 4.4, 2); ctx.fill();
+        ctx.fillStyle = '#ff5040'; ctx.fillRect(18, -0.7, 1.6, 1.4);
         if (showMag) { ctx.fillStyle = '#2a3134'; ctx.fillRect(16, 3, 5, 7); }
-        ctx.fillStyle = '#f2a33a'; ctx.fillRect(28, -3, 3, 6);
       }
       ctx.restore();
     },

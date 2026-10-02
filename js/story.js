@@ -83,12 +83,15 @@
     ctx.moveTo(-16, 0); ctx.lineTo(-10 + b, -70); ctx.lineTo(10 - b, -70); ctx.lineTo(16, 0); ctx.lineTo(6, 0); ctx.lineTo(0, -50); ctx.lineTo(-6, 0); ctx.closePath(); ctx.fill();
     ctx.beginPath(); // thân + balo
     ctx.moveTo(-26, -72); ctx.quadraticCurveTo(-30, -130, -18, -142); ctx.lineTo(18, -142); ctx.quadraticCurveTo(30, -130, 26, -72); ctx.closePath(); ctx.fill();
-    ctx.fillRect(-15, -136, 30, 40);
-    ctx.beginPath(); ctx.arc(0, -158, 15, 0, U.TAU); ctx.fill(); // đầu + mũ
-    ctx.fillRect(-17, -162, 34, 7);
+    ctx.fillRect(-17, -138, 34, 44); ctx.fillRect(-20, -134, 4, 30); ctx.fillRect(16, -134, 4, 30); // ba lô chiến thuật
+    ctx.beginPath(); ctx.ellipse(0, -142, 17, 7, 0, 0, U.TAU); ctx.fill(); // mũ trùm cổ
+    ctx.beginPath(); ctx.arc(0, -157, 13.5, 0, U.TAU); ctx.fill(); // đầu
+    ctx.beginPath(); // tóc rối
+    for (let i = 0; i <= 14; i++) { const a = Math.PI + (i / 14) * Math.PI, r = i % 2 ? 15 : 18.5; const px = Math.cos(a) * r, py = -158 + Math.sin(a) * r; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.lineTo(14, -150); ctx.lineTo(-14, -150); ctx.closePath(); ctx.fill();
     ctx.save(); ctx.rotate(0.5); ctx.fillRect(10, -150, 9, 92); ctx.restore(); // súng đeo chéo
     ctx.strokeStyle = rim; ctx.lineWidth = 2.2; ctx.globalAlpha = 0.85;
-    ctx.beginPath(); ctx.moveTo(26, -72); ctx.quadraticCurveTo(30, -130, 18, -142); ctx.moveTo(14, -168); ctx.arc(0, -158, 15, -0.9, 0.6); ctx.moveTo(16, 0); ctx.lineTo(10 - b, -70); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(26, -72); ctx.quadraticCurveTo(30, -130, 18, -142); ctx.moveTo(10.6, -170.6); ctx.arc(0, -158, 16.5, -0.9, 0.6); ctx.moveTo(16, 0); ctx.lineTo(10 - b, -70); ctx.stroke();
     ctx.restore();
   }
   // gương mặt dê AI (GoatEvil) dạng ảnh ba chiều, đường nét phát sáng
@@ -401,8 +404,10 @@
         // khung thoại
         const box = $('storyText');
         const shown = L.text.slice(0, S.typed | 0);
-        const html = (L.who ? `<b class="${L.who === 'GOATEVIL' ? 'evil' : ''}">${esc(L.who)}</b>` : '') + `<span class="${L.who ? '' : 'narr'}">${esc(shown)}</span>`;
-        if (box.__h !== html) { box.innerHTML = html; box.__h = html; }
+        let html = (L.who ? `<b class="${L.who === 'GOATEVIL' ? 'evil' : ''}">${esc(L.who)}</b>` : '') + `<span class="${L.who ? '' : 'narr'}">${esc(shown)}</span>`;
+        // lời thoại của Hunter: kèm chân dung
+        if (L.who === 'HUNTER') html = `<img class="sp" src="assets/hunter/portrait.webp" alt=""><div>${html}</div>`;
+        if (box.__h !== html) { box.innerHTML = html; box.__h = html; box.classList.toggle('pt', L.who === 'HUNTER'); }
         raf = requestAnimationFrame(frame);
       };
       next();
@@ -423,7 +428,7 @@
       if (!m) { el.classList.remove('show'); return; }
       const evil = m.who === 'GOATEVIL';
       el.className = 'comm show' + (evil ? ' evil' : '');
-      el.innerHTML = `<i class="av">${evil ? GOAT_ICON : m.who === 'TED' ? 'T' : 'H'}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
+      el.innerHTML = `<i class="av${m.who === 'HUNTER' ? ' img' : ''}">${evil ? GOAT_ICON : m.who === 'TED' ? 'T' : m.who === 'HUNTER' ? '<img src="assets/hunter/portrait.webp" alt="">' : 'H'}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
       if (evil && SND.ok()) SND.glitch();
       clearTimeout(this.ct); this.ct = setTimeout(() => this.nextSay(), m.dur * 1000);
     },
