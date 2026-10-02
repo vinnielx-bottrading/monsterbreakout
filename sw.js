@@ -1,5 +1,5 @@
 /* Service worker: chơi offline sau lần tải đầu. Tăng VERSION mỗi lần deploy để người chơi nhận bản mới. */
-const VERSION = 'mb-v5.1.0';
+const VERSION = 'mb-v5.2.0';
 const CORE = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'assets/icons/icon.svg', 'assets/icons/icon-192.png',
   'js/core.js', 'js/props.js', 'js/input.js', 'js/audio.js', 'js/weapons.js', 'js/hero.js', 'js/enemies.js',
@@ -17,9 +17,11 @@ self.addEventListener('activate', (e) => {
 });
 // network-first: luôn lấy bản mới khi có mạng, rớt mạng thì dùng cache
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  if (url.pathname.endsWith('/version.json')) return; // luôn hỏi thẳng server, không cache
   e.respondWith(
-    fetch(e.request).then((res) => {
+    fetch(e.request.mode === 'navigate' ? e.request : new Request(e.request, { cache: 'no-cache' })).then((res) => {
       const copy = res.clone();
       caches.open(VERSION).then((c) => c.put(e.request, copy));
       return res;

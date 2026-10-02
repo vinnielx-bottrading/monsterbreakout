@@ -684,6 +684,7 @@
       const p = G.player;
       this.tgt.x = p.x; this.tgt.y = p.y;
       this.decalT = 0;
+      this.lastT = null; // G.time về 0 ở màn mới — không reset sẽ ra dt âm → camera NaN → màn hình đen
     },
 
     // giải phóng toàn bộ bộ nhớ GPU của màn cũ (geometry/vật liệu/texture dùng lại sẽ tự nạp lại khi cần)
@@ -792,7 +793,8 @@
       if (!this.scene || this.lost) return;
       this.frame++;
       this.autoQuality();
-      const t = G.time, p = G.player, I = MB.Input, dt = Math.min(0.05, t - (this.lastT || t)); this.lastT = t;
+      const t = G.time, p = G.player, I = MB.Input, dt = U.clamp(t - (this.lastT == null ? t : this.lastT), 0, 0.05); this.lastT = t;
+      if (!Number.isFinite(this.tgt.x) || !Number.isFinite(this.tgt.y)) { this.tgt.x = p.x; this.tgt.y = p.y; }
 
       // camera theo người chơi + nhìn trước theo hướng ngắm
       let lx = 0, ly = 0;

@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v5.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v5.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Đủ 10 Gate**, mỗi Gate chơi được ở cả 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1` |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 7) |
+| README cập nhật | 2026-10-02 (rev 10) |
 
 ---
 
@@ -32,9 +32,11 @@ Mở `http://localhost:3000` (hoặc cổng 8080). Thêm `?unlock=all` vào URL 
 2. Vào vercel.com, chọn **Add New → Project → Import** repo vừa tạo.
 3. Ở mục Framework Preset chọn **Other**. Không cần Build Command; Output Directory để trống (thư mục gốc).
 4. Bấm **Deploy**. Mỗi lần `git push`, Vercel sẽ tự triển khai lại.
-5. **Mỗi lần phát hành bản mới, tăng `VERSION` trong `sw.js`** để máy người chơi nhận bản mới thay vì bản đã lưu cache.
+5. **Mỗi lần phát hành bản mới, tăng số phiên bản ở 2 chỗ:** `version.json` (VD `"5.1.2"`) và `VERSION` trong `sw.js`.
+6. **Tự cập nhật app đã cài ra màn hình chính (từ v5.1.2):** app cài kiểu PWA thường chỉ "ngủ" rồi mở lại trang cũ, không tự tải lại. Game hỏi `version.json` trên server mỗi khi app được mở lại, khi vào menu và mỗi 5 phút. Thấy số khác bản đang chạy thì: đang ở menu → tự tải lại ngay; đang đánh dở → báo "Có bản mới" và tự cập nhật khi về menu hoặc vào Gate kế (tiến trình đã lưu nên không mất gì).
+   - Máy đang cài **bản cũ hơn v5.1.2** chưa có cơ chế này: cần tắt hẳn app **một lần** (iPhone: vuốt lên đóng app trong trình đa nhiệm; Android: đóng khỏi danh sách app gần đây) rồi mở lại. Từ đó trở đi sẽ tự cập nhật.
 
-`vercel.json` đã cấu hình sẵn header để `sw.js` không bị cache và file JS/CSS luôn được kiểm tra bản mới.
+`vercel.json` đã cấu hình sẵn header để `sw.js` và `version.json` không bị cache và file JS/CSS luôn được kiểm tra bản mới.
 
 ## 3. Cấu trúc dự án
 
@@ -42,6 +44,7 @@ Mở `http://localhost:3000` (hoặc cổng 8080). Thêm `?unlock=all` vào URL 
 index.html               Khung trang, HUD, menu, các màn hình
 manifest.webmanifest     Thông tin PWA (icon, chế độ toàn màn hình ngang)
 sw.js                    Service worker: chơi offline sau lần tải đầu
+version.json             Số phiên bản; app so với server để tự cập nhật
 vercel.json              Cấu hình header cho Vercel
 css/style.css            Giao diện, bố cục responsive cho điện thoại
 assets/icons/            Icon app (svg, 192, 512)
@@ -132,6 +135,10 @@ Chọn Gate → Wave 1 → nghỉ 5s → Wave 2 → nghỉ 5s → Wave 3 → c�
 ```
 
 - **Thắng:** hạ boss. Gate kế tiếp được mở khoá.
+- **Cơ hội đấu lại Boss (v5.2):** gục ngã trong trận boss (hoặc lúc cảnh báo boss) **lần đầu** → hiện màn *HUNTER ĐÃ GỤC NGÃ* với 2 lựa chọn:
+  - **ĐẤU LẠI BOSS (1 LẦN):** hồi sinh tại chỗ, đầy máu, giáp, đạn, lựu đạn và xung kích; giữ nguyên súng, linh kiện, điểm và thử thách đã xong. Quái, đạn địch và vùng nguy hiểm tạm thời bị dọn sạch; bất tử 3 giây để thoát khỏi dung nham/axit; boss xuất hiện lại **đầy máu** sau 3 giây.
+  - **CHẤP NHẬN THUA:** sang màn kết quả như bình thường.
+  - Mỗi lượt chơi Gate chỉ có 1 cơ hội; gục lần hai là thua. Gục ở các wave thường thì thua ngay (không có cơ hội).
 - **Thua:** HP về 0. Có thể chơi lại ngay.
 - **Sao (★):** mỗi thử thách hoàn thành cho 1 sao. Sao được cộng dồn qua các lần chơi, tối đa 3 sao mỗi Gate.
 - **Điểm:** điểm hạ quái, +500 mỗi wave, +1.000 mỗi thử thách, +25 mỗi vật phẩm, +5.000 khi hạ boss, thưởng thắng 2.000 + HP còn lại × 10.
@@ -311,7 +318,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | K-08 | Thấp | Một số model 3D dùng chung khuôn (VD: Brute/Cinder Golem/Magma Titan cùng khuôn golem khác màu) | Có thể làm riêng sau |
 | K-12 | Trung bình | Gate 10 tải cả 10 file Gate (~230 KB) trước khi chơi | Chấp nhận được |
 | K-13 | Thấp | Gate 05 có ~80 vòng dung nham; máy yếu nên chọn đồ hoạ Thấp | Theo dõi |
-| K-14 | Cao | Điện thoại bị **đen màn hình khi sang Gate mới** ở chế độ 3D: trình duyệt (nhất là iOS Safari) thu hồi WebGL do thiếu bộ nhớ đồ hoạ, game vẫn chạy nền. v5.1: giải phóng toàn bộ bộ nhớ GPU của màn cũ, giảm độ phân giải / bóng đổ trên điện thoại, bắt sự kiện mất WebGL để tự chuyển 2D và tự dựng lại 3D khi WebGL trở lại | Đã xử lý, cần test máy thật |
+| K-14 | Cao | **Đen màn hình khi sang Gate mới** ở chế độ 3D (game vẫn chạy nền). **Nguyên nhân thật (v5.1.1):** đồng hồ `G.time` về 0 ở Gate mới nhưng camera 3D vẫn nhớ thời điểm cuối của Gate trước → bước thời gian âm → vị trí camera thành `NaN` → không vẽ được gì. Chỉ xảy ra khi Gate trước chơi lâu (>~1 phút), nên test tua nhanh không bắt được. Đã sửa: reset mốc thời gian mỗi khi dựng màn, kẹp bước thời gian ≥ 0, tự đặt lại camera nếu gặp NaN. (v5.1 cũng thêm dọn bộ nhớ GPU và tự chuyển 2D khi mất WebGL) | Đã sửa |
 | K-09 | Thấp | 3D không chạy khi mở file trực tiếp (file://); game tự về 2D | Đã xử lý |
 | K-10 | Thấp | Model 3D vẫn dựng bằng code (hình khối toán học), chưa phải model chuyên nghiệp có xương và hoạt ảnh. Muốn chân thật hơn nữa cần nạp file glTF (.glb) từ thư viện như Quaternius (CC0) hoặc Mixamo | Roadmap |
 | K-11 | Thấp | Chế độ màn ngang kiểu Contra chưa làm (xem mục 12, M5) | Roadmap |
@@ -376,6 +383,9 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v5.2** · README rev 10 | **Cơ hội đấu lại Boss 1 lần mỗi Gate**: gục ở trận boss lần đầu → chọn đấu lại tại chỗ (hồi đầy máu/giáp/đạn/kỹ năng, giữ súng, linh kiện và điểm, dọn quái/đạn/vùng nguy hiểm tạm, bất tử 3 giây, boss hồi sinh đầy máu sau 3 giây) hoặc chấp nhận thua. Màn hình mới `#retry`, hàm `G.retryBoss()`, `App.offerBossRetry()` |
+| 2026-10-02 | **v5.1.2** · README rev 9 | **Tự cập nhật cho app đã cài ra màn hình chính**: thêm `version.json`; game kiểm tra khi app mở lại / vào menu / mỗi 5 phút, tự tải lại (đang chơi thì chờ về menu); service worker bỏ qua cache HTTP và không cache `version.json` |
+| 2026-10-02 | **v5.1.1** · README rev 8 | **Sửa gốc lỗi đen màn hình khi sang Gate mới (3D)**: camera 3D tính bước thời gian âm (đồng hồ Gate mới về 0) → toạ độ NaN. Reset mốc thời gian khi dựng màn, kẹp dt ≥ 0, chặn NaN. Thêm test: chơi Gate dài rồi sang Gate kế |
 | 2026-10-02 | **v5.1** · README rev 7 | Sửa **đen màn hình trên điện thoại khi sang Gate mới** (3D): dọn sạch geometry/vật liệu/texture/shadow map khi đổi màn; điện thoại dùng pixel ratio ≤ 1,25, shadow map 1024, không khử răng cưa; bắt `webglcontextlost` → tự chuyển 2D kèm thông báo, `webglcontextrestored` → dựng lại 3D; lỗi vẽ 3D → tự về 2D. Nút **đổi 2D ⇄ 3D giữa trận** trong menu Tạm dừng. **Bố cục cảm ứng gọn**: bỏ nút ĐỔI (chạm ô súng để đổi), cụm nút nhỏ hơn ~40%, ô súng 1 dòng, HUD và minimap nhỏ, trong hơn |
 | 2026-10-02 | **v5.0** · README rev 6 | **Hoàn thành Gate 03–10** (Swamp, Snow, Volcano, Ocean, Industrial, City, Laboratory, Apocalypse) với 20 loại quái mới và 8 boss mới; **3D cho cả 10 Gate** (Gate 02 có model mới); 5 súng mới (Rail Lancer, Pyro F-9, Boomer GL, Arc Plasma, Tempest MG), phím 1–8; khuôn hành vi quái dùng lại được; hệ thống vụ nổ dùng chung; vùng nguy hiểm mới (bùn, axit, khí độc, dung nham, lửa, băng, nước, dầu); trạng thái bỏng và đóng băng; vật thể động (actors); lớp phủ màn hình (bão tuyết, mực, tro); **dẫn đường flow field** để quái vòng qua tường/kênh; minimap vẽ đúng hình hộp và màu vùng nguy hiểm |
 | 2026-10-02 | **v4.2** · README rev 5 | Ngắm mượt (giới hạn tốc độ xoay, cài đặt Chậm/Vừa/Nhanh, vùng chết quanh nhân vật); chế độ ngắm Tự động/Hỗ trợ/Thủ công cho điện thoại; **lựu đạn** và **xung kích** giải vây; quái bị choáng; **thùng y tế thả dù** khi máu thấp; rơi máu nhiều hơn khi yếu; lựu đạn rơi từ thùng và quái tinh nhuệ; dựng lại model 3D hữu cơ (chi nhiều khớp, đầu, hàm, móng, bề mặt sần) cho Hunter, Zombie, Spider, Licker, Spider Queen; nút LỰU/XUNG trên điện thoại; tay cầm: RB lựu đạn, B xung kích |

@@ -38,6 +38,7 @@
       this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
       this.enemies = []; this.bullets = []; this.ebullets = []; this.pickups = []; this.particles = [];
       this.decals = []; this.texts = []; this.fx = []; this.obstacles = []; this.hazards = [];
+      this.bossRetryUsed = false; this.retryOffer = false;
       this.boss = null; this.score = 0; this.hurtFlash = 0; this.wantFire = false;
       this.stats = { shots: 0, bhits: 0, kills: 0, mods: 0, dmgTaken: 0, hitsTaken: 0 };
       this.world = { w: def.world.w, h: def.world.h };
@@ -321,7 +322,7 @@
 
     hurtPlayer(d, src) {
       const p = this.player;
-      if (p.dead || this.over || this.state === 'won') return;
+      if (p.dead || this.over || this.state === 'won' || p.reviveT > 0) return;
       const dot = src && src.dot;
       if (!dot) {
         if (p.iframes > 0) return;
@@ -341,9 +342,30 @@
         p.hp = 0; p.dead = true;
         this.burst(p.x, p.y, '#ff6b6b', 40, 220);
         MB.Audio.play('lose'); MB.Audio.intensity(0);
-        this.banner('NHIỆM VỤ THẤT BẠI', 'Hunter đã gục ngã', 2);
+        // gục ở trận boss lần đầu → được 1 cơ hội đấu lại boss, không phải chơi lại cả Gate
+        this.retryOffer = (this.state === 'boss' || this.state === 'preboss') && !this.bossRetryUsed;
+        this.banner('NHIỆM VỤ THẤT BẠI', this.retryOffer ? 'Còn 1 cơ hội đấu lại Boss' : 'Hunter đã gục ngã', 2);
         this.finish(false, 2.2);
       }
+    },
+    // đấu lại boss: hồi sinh tại chỗ, đầy máu/giáp/đạn/kỹ năng, dọn trận đấu, boss xuất hiện lại sau 3 giây
+    retryBoss() {
+      const p = this.player;
+      this.bossRetryUsed = true; this.retryOffer = false;
+      this.over = false; this.win = false; this.reported = false; this.overT = 0;
+      p.dead = false; p.hp = p.maxHp; if (p.maxArmor) p.armor = p.maxArmor;
+      p.burnT = 0; p.slow = 0; p.vx = 0; p.vy = 0; p.iframes = 3; p.reviveT = 3;
+      for (const w of p.weapons) { w.ammo = null; w.reloading = 0; }
+      p.grenades = Math.max(p.grenades, MB.Skills.GRENADE ? MB.Skills.GRENADE.max : 3); p.novaCd = 0;
+      for (const e of this.enemies) e.dead = true;
+      this.boss = null; MB.HUD.bossHide();
+      this.ebullets.length = 0; this.fx.length = 0;
+      for (let i = this.hazards.length - 1; i >= 0; i--) if (this.hazards[i].life != null) this.hazards.splice(i, 1);
+      this.burst(p.x, p.y, '#7ef3ff', 40, 260);
+      this.state = 'preboss'; this.stateT = 3;
+      this.banner('ĐẤU LẠI BOSS', 'Cơ hội cuối · đã hồi đầy máu, đạn và kỹ năng', 2.6);
+      MB.HUD.objective('ĐẤU LẠI', 'Boss xuất hiện lại sau 3 giây. Bất tử trong 3 giây để rời vùng nguy hiểm.');
+      MB.Audio.play('wave'); MB.Audio.intensity(0.6);
     },
     finish(win, delay) { if (this.over) return; this.over = true; this.win = win; this.overT = delay; },
 
@@ -483,9 +505,13 @@
 
       if (this.over) {
         this.overT -= dt;
-        if (this.overT <= 0 && !this.reported) { this.reported = true; MB.App.onGateEnd(this.summary()); }
+        if (this.overT <= 0 && !this.reported) {
+          this.reported = true;
+          if (this.retryOffer) MB.App.offerBossRetry(); else MB.App.onGateEnd(this.summary());
+        }
       }
 
+      if (p.reviveT > 0) p.reviveT -= dt;
       this.computeAim(dt);
       MB.Hero.update(p, this, dt);
 

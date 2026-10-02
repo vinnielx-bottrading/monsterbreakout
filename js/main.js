@@ -3,7 +3,7 @@
 (function (MB) {
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
-  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'loading'];
+  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'loading'];
   const loaded = {};
 
   const App = MB.App = {
@@ -42,6 +42,8 @@
       on('btnResume', () => this.resume());
       on('btnRestart', () => this.playGate(this.lastGate));
       on('btnView', () => this.switchView());
+      on('btnRetryBoss', () => this.retryBoss());
+      on('btnGiveUp', () => this.giveUp());
       on('btnQuit', () => this.quit());
       on('btnAgain', () => this.playGate(this.lastGate));
       on('btnNext', () => this.playGate(this.lastGate + 1));
@@ -64,6 +66,7 @@
 
     /* ---------- chọn Gate ---------- */
     openGates() {
+      if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
       const sv = MB.Save.data;
       $('gateGrid').innerHTML = MB.Gates.meta.map((m) => {
         const g = sv.gates[m.id] || { best: 0, done: [], cleared: false };
@@ -118,6 +121,7 @@
     },
 
     async playGate(id) {
+      if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
       const meta = MB.Gates.meta.find((m) => m.id === id);
       if (!meta || !meta.file) { this.openGates(); return; }
       MB.Audio.unlock();
@@ -169,6 +173,24 @@
     updateViewBtn() { $('btnView').textContent = G.r3on ? 'ĐỔI SANG 2D (NHẸ HƠN)' : 'ĐỔI SANG 3D'; },
     resume() { G.paused = false; MB.Input.clear(); this.show(null); },
     quit() { G.running = false; G.paused = false; document.getElementById('game3d').classList.add('hidden'); MB.Audio.stopMusic(); this.openGates(); },
+
+    /* ---------- cơ hội đấu lại boss ---------- */
+    offerBossRetry() {
+      G.paused = true; MB.Input.clear();
+      const b = MB.Enemies.types[G.def.boss.type];
+      $('retryInfo').innerHTML = `Bạn đã tới trận cuối với <b>${b ? b.name : 'Boss'}</b>.<br>Đấu lại ngay tại chỗ: hồi đầy máu, giáp, đạn, lựu đạn và xung kích; giữ nguyên súng, linh kiện và điểm.<br><small>Mỗi lượt chơi Gate chỉ có 1 cơ hội.</small>`;
+      this.show('retry');
+    },
+    retryBoss() {
+      MB.Audio.play('ui');
+      G.retryBoss(); G.paused = false; MB.Input.clear();
+      this.show(null);
+    },
+    giveUp() {
+      MB.Audio.play('ui');
+      G.retryOffer = false; G.paused = false;
+      this.onGateEnd(G.summary());
+    },
 
     /* ---------- kết thúc ---------- */
     onGateEnd(sum) {
@@ -285,8 +307,39 @@
       const host = location.hostname;
       const sandboxed = host.endsWith('claude.ai') || host.includes('claudeusercontent') || host.includes('anthropic');
       if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !sandboxed) {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => { this.swReg = r; }).catch(() => {});
       }
+      // Tự cập nhật: app cài ra màn hình chính thường chỉ "ngủ" rồi mở lại trang cũ, không tải lại.
+      // Mỗi lần app quay lại / mở menu / mỗi 5 phút: hỏi version.json trên server, khác bản đang chạy thì tải lại.
+      if (/^https?:$/.test(location.protocol) && !sandboxed) {
+        this.checkUpdate();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) this.checkUpdate(); });
+        addEventListener('pageshow', (e) => { if (e.persisted) this.checkUpdate(); });
+        setInterval(() => this.checkUpdate(), 5 * 60 * 1000);
+      }
+    },
+
+    async checkUpdate() {
+      try {
+        const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return;
+        const v = (await r.json()).version;
+        if (!this.runVersion) { this.runVersion = v; return; }
+        if (v && v !== this.runVersion) this.applyUpdate(v);
+      } catch (e) { /* offline: chơi tiếp bản cũ */ }
+    },
+    async applyUpdate(v) {
+      const inGame = G.running && !G.over && this.current !== 'gates' && this.current !== 'menu';
+      if (inGame) {
+        // đang đánh dở: không cắt ngang, chờ về menu / chọn Gate mới tải lại
+        if (!this.pendingUpdate) MB.HUD.toast('Có bản mới v' + v + ' — sẽ tự cập nhật khi bạn về menu.', '#7ef3ff');
+        this.pendingUpdate = v; return;
+      }
+      if (this.updating) return; this.updating = true;
+      $('loadingText').textContent = 'Đang cập nhật lên bản v' + v + '…'; this.show('loading');
+      try { if (this.swReg) await this.swReg.update(); } catch (e) { /* bỏ qua */ }
+      try { const keys = await caches.keys(); await Promise.all(keys.map((k) => caches.delete(k))); } catch (e) { /* bỏ qua */ }
+      location.reload();
     },
   };
 
