@@ -46,6 +46,7 @@
       let c = Math.floor(sum.score / 80) + sum.done.length * 40;
       if (sum.win) c += 120;
       if (sum.mode === 'survival') c += sum.wave * 15;
+      if (sum.nightmare) c = Math.round(c * 1.3);
       return Math.max(5, c);
     },
   };
@@ -84,6 +85,44 @@
       if (!k) return;
       p.perks[id] = (p.perks[id] || 0) + 1;
       k.apply(p);
+    },
+  };
+
+  /* ---------- đánh giá kỹ năng → độ khó Ác mộng (âm thầm) ----------
+     Mỗi lần thắng 1 Gate ở Chiến dịch: chấm điểm 0..1 từ độ chính xác, số đòn trúng/phút, máu còn lại,
+     số lần thua trước khi qua và việc có phải dùng "đấu lại boss". Qua đủ Gate 1–7 với điểm trung bình cao
+     → từ Gate 8 trở đi quái trâu hơn, mạnh hơn, đông tinh nhuệ hơn mà không báo cho người chơi.
+     Lưới an toàn: thua 2 lần liền ở 1 Gate thì Gate đó trở lại độ khó thường. */
+  const Skill = MB.Skill = {
+    PRO: 0.6,
+    rate(sum) {
+      const mins = Math.max(0.5, sum.time / 60);
+      const acc = U.clamp((sum.accuracy || 0) / 55, 0, 1);
+      const dodge = U.clamp(1 - (sum.hitsTaken || 0) / mins / 6, 0, 1);
+      const hp = U.clamp(sum.hpK || 0, 0, 1);
+      const g = MB.Save.gate(sum.gateId), fails = g.fails || 0;
+      let k = 0.35 * acc + 0.3 * dodge + 0.2 * hp + 0.15 * (1 - Math.min(1, fails / 3));
+      if (sum.retry) k -= 0.15;
+      return Math.round(U.clamp(k, 0, 1) * 100) / 100;
+    },
+    record(sum) {
+      if (sum.mode === 'survival') return;
+      const g = MB.Save.gate(sum.gateId);
+      if (sum.win) { g.skill = this.rate(sum); g.streakFail = 0; }
+      else { g.fails = (g.fails || 0) + 1; g.streakFail = (g.streakFail || 0) + 1; }
+    },
+    // điểm trung bình Gate 1–7 (null nếu chưa qua đủ)
+    level() {
+      const gs = MB.Save.data.gates; let sum = 0;
+      for (let i = 1; i <= 7; i++) { const g = gs[i]; if (!g || g.skill == null) return null; sum += g.skill; }
+      return sum / 7;
+    },
+    nightmareFor(id) {
+      if (id < 8 || /[?&]nightmare=0/.test(location.search)) return false;
+      if (/[?&]nightmare=1/.test(location.search)) return true;
+      const lv = this.level(); if (lv == null || lv < this.PRO) return false;
+      const g = MB.Save.data.gates[id];
+      return !(g && (g.streakFail || 0) >= 2);
     },
   };
 

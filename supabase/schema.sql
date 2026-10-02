@@ -24,7 +24,7 @@ grant select, insert, update on public.mb_saves to authenticated;
 -- 2) Bảng xếp hạng: thành tích tốt nhất của mỗi người theo (gate, chế độ)
 create table if not exists public.mb_scores (
   user_id     uuid not null references auth.users (id) on delete cascade,
-  gate        smallint not null check (gate between 1 and 10),
+  gate        smallint not null check (gate between 1 and 30),
   mode        text not null check (mode in ('campaign', 'survival')),
   name        text not null check (char_length(name) between 1 and 40),
   avatar      text,
@@ -34,6 +34,9 @@ create table if not exists public.mb_scores (
   updated_at  timestamptz not null default now(),
   primary key (user_id, gate, mode)
 );
+-- (v6.0) mở rộng số Gate cho Màn 2 — an toàn khi bảng đã có từ trước
+alter table public.mb_scores drop constraint if exists mb_scores_gate_check;
+alter table public.mb_scores add constraint mb_scores_gate_check check (gate between 1 and 30);
 create index if not exists mb_scores_rank_campaign on public.mb_scores (gate, mode, score desc);
 create index if not exists mb_scores_rank_survival on public.mb_scores (gate, mode, wave desc, score desc);
 alter table public.mb_scores enable row level security;
@@ -58,7 +61,7 @@ declare
   av text;
 begin
   if uid is null then raise exception 'not signed in'; end if;
-  if p_gate not between 1 and 10 or p_mode not in ('campaign', 'survival') then raise exception 'bad gate/mode'; end if;
+  if p_gate not between 1 and 30 or p_mode not in ('campaign', 'survival') then raise exception 'bad gate/mode'; end if;
   if p_score not between 0 and 10000000 or coalesce(p_wave, 0) not between 0 and 10000 then raise exception 'bad score'; end if;
   select u.raw_user_meta_data into meta from auth.users u where u.id = uid;
   nm := left(coalesce(nullif(meta->>'full_name', ''), nullif(meta->>'name', ''), 'Hunter'), 40);

@@ -4,6 +4,7 @@
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
   const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'loading'];
+  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'result'];
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeImg = (u) => (/^https:\/\//.test(u || '') ? esc(u) : '');
   const loaded = {};
@@ -16,11 +17,12 @@
     init() {
       MB.Save.load();
       const st = MB.Save.data.settings;
-      MB.Audio.set('sfx', st.sfx); MB.Audio.set('music', st.music);
+      MB.Audio.set('sfx', st.sfx); MB.Audio.set('music', st.music); MB.Audio.setMute(st.mute);
       if (new URLSearchParams(location.search).get('unlock') === 'all') { MB.Save.data.unlocked = 99; }
       G.init($('game'));
       MB.HUD.init();
       MB.Input.init($('input'));
+      MB.Audio.bindUnlock();
       if (MB.U.isTouchDevice()) MB.Input.setMode('touch');
       this.bind();
       this.onResize();
@@ -44,7 +46,7 @@
       }));
       document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); if (b.dataset.back === 'gates') this.openGates(); else this.show(b.dataset.back); }));
       on('btnResume', () => this.resume());
-      on('btnRestart', () => this.playGate(this.lastGate));
+      on('btnRestart', () => (this.endlessRun ? this.startEndless() : this.playGate(this.lastGate)));
       on('btnView', () => this.switchView());
       on('btnRetryBoss', () => this.retryBoss());
       on('btnShop', () => this.openShop());
@@ -52,9 +54,18 @@
       on('btnBoard', () => this.openBoard());
       document.querySelectorAll('#boardMode [data-bmode]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.openBoard(this.boardGate, b.dataset.bmode); }));
       on('btnResShop', () => { G.running = false; this.openShop(); });
+      document.querySelectorAll('#actToggle [data-actn]').forEach((b) => b.addEventListener('click', () => {
+        MB.Audio.play('ui'); this.act = +b.dataset.actn; this.openGates();
+      }));
+      on('btnReplay', () => MB.Story.play('act2', () => this.openGates()));
       document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.addEventListener('click', () => {
         MB.Audio.play('ui'); this.mode = b.dataset.mode; this.openGates();
       }));
+      // nút loa: bật / tắt toàn bộ âm thanh (dùng được cả ở menu lẫn trong trận)
+      const snd = $('soundBtn');
+      snd.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.toggleMute(); }, { passive: false });
+      addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !/INPUT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName)) this.toggleMute(); });
+      this.renderSound();
       // nút đổi chế độ ngắm ngay trên màn hình (cảm ứng): TỰ ĐỘNG → HỖ TRỢ → TAY
       const aimBtn = $('aimBtn');
       aimBtn.addEventListener('pointerdown', (e) => {
@@ -67,7 +78,7 @@
       this.updateAimBtn();
       on('btnGiveUp', () => this.giveUp());
       on('btnQuit', () => this.quit());
-      on('btnAgain', () => this.playGate(this.lastGate));
+      on('btnAgain', () => (this.endlessRun || (this.mode === 'survival' && this.lastEndless) ? this.startEndless() : this.playGate(this.lastGate)));
       on('btnNext', () => this.playGate(this.lastGate + 1));
       on('btnMenu', () => this.quit());
       on('btnReset', () => {
@@ -79,6 +90,8 @@
 
     show(name) {
       this.current = name;
+      // nhạc chủ đề hồi hộp ở các màn menu; vào trận thì nhường cho nhạc trận
+      MB.Audio.menuTheme(MENU_SCREENS.includes(name));
       for (const s of SCREENS) $(s).classList.toggle('hidden', s !== name);
       const inGame = G.running && (name === null);
       $('hud').classList.toggle('hidden', !G.running || name === 'menu' || name === 'gates');
@@ -90,14 +103,39 @@
     openGates() {
       if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
       const sv = MB.Save.data, surv = this.mode === 'survival';
+      if (!this.act) this.act = sv.unlocked >= 11 && sv.unlocked < 99 ? 2 : 1;
+      document.querySelectorAll('#actToggle [data-actn]').forEach((b) => b.classList.toggle('on', +b.dataset.actn === this.act));
+      const nClue = Object.keys(sv.clues || {}).length;
+      $('actNote').innerHTML = this.act === 2
+        ? `<b>MÀN 2 · NGUỒN GỐC</b> — lần theo manh mối của Giáo sư Ted khắp Việt Nam. Manh mối đã tìm: <b>${nClue}/10</b>`
+        : '<b>MÀN 1 · BÙNG PHÁT</b> — 10 cửa ải bị virus chiếm đóng.';
+      $('btnReplay').classList.toggle('hidden', !(this.act === 2 && MB.Story.seen('act2')));
       document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === (surv ? 'survival' : 'campaign')));
       $('coinText').textContent = (sv.coins || 0).toLocaleString('vi-VN');
-      $('gateGrid').innerHTML = MB.Gates.meta.map((m) => {
+      $('actToggle').classList.toggle('hidden', surv);
+      $('gateGrid').classList.toggle('endless-wrap', surv);
+      if (surv) {
+        const chain = this.endlessChain(), rec = sv.endless;
+        $('actNote').innerHTML = '<b>SINH TỒN BẤT TẬN</b> — một chuỗi chiến đấu không ngừng xuyên qua mọi khu vực bạn đã giải phóng.';
+        $('btnReplay').classList.add('hidden');
+        $('gateGrid').innerHTML = chain.length ? `<div class="endless">
+            <div class="etop"><div><b>BẤT TẬN</b><span>${rec ? `Kỷ lục: <em>Wave ${rec.wave}</em> · khu vực ${rec.stage} · ${rec.score.toLocaleString('vi-VN')} điểm` : 'Chưa có kỷ lục — hãy là người mở màn.'}</span></div>
+              <button id="btnEndless" class="primary">BẮT ĐẦU ▸</button></div>
+            <p class="hint">Mỗi khu vực: 4 wave + 1 boss. Hạ boss → hồi 25% máu, chọn thẻ nâng cấp rồi tiến sang khu vực kế tiếp. Máu, súng, linh kiện, thẻ nâng cấp được giữ suốt chuỗi. Hết các khu vực thì quay vòng với quái mạnh hơn. Không có đấu lại boss.</p>
+            <div class="echain">${chain.map((id, i) => { const m = MB.Gates.meta.find((q) => q.id === id); return `<span style="--gc:${m.color}"><i>${i + 1}</i>${m.name}</span>`; }).join('<b>›</b>')}<b>↻</b></div>
+          </div>` : '<p class="hint">Qua Gate 01 ở Chiến dịch để mở chế độ Sinh tồn Bất tận.</p>';
+        const be = $('btnEndless'); if (be) be.addEventListener('click', () => { MB.Audio.play('ui'); this.startEndless(); });
+        this.renderViewToggle();
+        $('armoryText').textContent = 'Kho vũ khí: ' + sv.armory.map((id) => MB.Weapons.DEFS[id].name).join(' · ');
+        this.show('gates');
+        return;
+      }
+      $('gateGrid').innerHTML = MB.Gates.meta.filter((m) => (m.act || 1) === this.act).map((m) => {
         const g = sv.gates[m.id] || { best: 0, done: [], cleared: false };
         const ready = !!m.file;
         const unlocked = ready && (surv ? !!g.cleared : m.id <= sv.unlocked);
         const stars = [0, 1, 2].map((i) => `<i class="${i < (g.done || []).length ? 'on' : ''}">★</i>`).join('');
-        let status = !ready ? 'Sắp ra mắt' : !unlocked ? (surv ? 'Qua Gate này ở Chiến dịch để mở' : `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở`) : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
+        let status = !ready ? (m.act === 2 ? 'Sắp ra mắt · Màn 2' : 'Sắp ra mắt') : !unlocked ? (surv ? 'Qua Gate này ở Chiến dịch để mở' : `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở`) : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
         if (surv && unlocked) status = g.surv ? `Kỷ lục: Wave ${g.surv.wave} · ${g.surv.score.toLocaleString('vi-VN')}` : 'Chưa có kỷ lục';
         return `<button class="gate${unlocked ? '' : ' locked'}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
           <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}
@@ -145,7 +183,35 @@
       return loaded[src];
     },
 
-    async playGate(id) {
+    /* ---------- Sinh tồn Bất tận: 1 chuỗi qua mọi khu vực đã giải phóng ---------- */
+    endlessChain() {
+      const gs = MB.Save.data.gates;
+      return MB.Gates.meta.filter((m) => m.file && gs[m.id] && gs[m.id].cleared).map((m) => m.id);
+    },
+    startEndless() {
+      const chain = this.endlessChain(); if (!chain.length) return;
+      this.mode = 'survival'; this.endlessRun = { chain, i: 0 };
+      this.playGate(chain[0], { endless: true });
+    },
+    async endlessAdvance() {
+      const run = this.endlessRun; if (!run) return;
+      run.i = (run.i + 1) % run.chain.length;
+      const id = run.chain[run.i], meta = MB.Gates.meta.find((m) => m.id === id), carry = G.carry();
+      G.paused = true;
+      $('loadingText').textContent = `Tiến vào khu vực ${carry.stage}: ${meta.name} — ${meta.vi}…`; this.show('loading');
+      try {
+        for (const rid of meta.requires || []) { const rm = MB.Gates.meta.find((m) => m.id === rid); if (rm && rm.file) await this.loadScript(rm.file); }
+        await this.loadScript(meta.file); await this.prepare3D(meta);
+        this.lastGate = id; MB.Input.clear();
+        G.start(MB.Gates.defs[id], { mode: 'survival', endless: true, carry });
+        G.banner(`KHU VỰC ${carry.stage}`, `${meta.name} · ${meta.vi}`, 2.6);
+        this.updateAimBtn(); this.show(null);
+      } catch (err) { console.error(err); G.paused = false; G.finish(false, 0.1); }
+    },
+
+    async playGate(id, opts) {
+      opts = opts || {};
+      if (!opts.endless) this.endlessRun = null;
       if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
       const meta = MB.Gates.meta.find((m) => m.id === id);
       if (!meta || !meta.file) { this.openGates(); return; }
@@ -160,7 +226,7 @@
         if (!def) throw new Error('Gate chưa đăng ký');
         this.lastGate = id;
         MB.Input.clear();
-        G.start(def, { mode: this.mode });
+        G.start(def, { mode: this.mode, endless: !!opts.endless });
         this.updateAimBtn();
         this.show(null);
       } catch (err) {
@@ -198,8 +264,23 @@
     },
     updateViewBtn() { $('btnView').textContent = G.r3on ? 'ĐỔI SANG 2D (NHẸ HƠN)' : 'ĐỔI SANG 3D'; },
     resume() { G.paused = false; MB.Input.clear(); this.show(null); },
-    quit() { G.running = false; G.paused = false; document.getElementById('game3d').classList.add('hidden'); MB.Audio.stopMusic(); this.openGates(); },
+    quit() { MB.Story.clearSay(); G.running = false; G.paused = false; document.getElementById('game3d').classList.add('hidden'); MB.Audio.stopMusic(); this.openGates(); },
 
+    toggleMute() {
+      const st = MB.Save.data.settings;
+      st.mute = !st.mute; MB.Save.save();
+      MB.Audio.unlock(); MB.Audio.setMute(st.mute);
+      if (!st.mute) MB.Audio.play('ui');
+      this.renderSound();
+      MB.HUD.toast(st.mute ? '🔇 Đã tắt âm thanh' : '🔊 Đã bật âm thanh', '#7ef3ff');
+    },
+    renderSound() {
+      const m = MB.Save.data.settings.mute, b = $('soundBtn');
+      b.classList.toggle('off', !!m);
+      b.innerHTML = m
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+    },
     updateAimBtn() {
       const m = MB.Save.data.settings.aimMode || 'auto';
       $('aimBtn').innerHTML = 'NGẮM <b>' + ({ auto: 'TỰ ĐỘNG', assist: 'HỖ TRỢ', manual: 'TAY' }[m]) + '</b>';
@@ -286,7 +367,9 @@
       gate = gate || this.boardGate || 1; mode = mode || this.boardMode || 'campaign';
       this.boardGate = gate; this.boardMode = mode;
       document.querySelectorAll('#boardMode [data-bmode]').forEach((b) => b.classList.toggle('on', b.dataset.bmode === mode));
-      $('boardGates').innerHTML = MB.Gates.meta.map((m) => `<button data-bg="${m.id}" class="${m.id === gate ? 'on' : ''}" style="--gc:${m.color}">${String(m.id).padStart(2, '0')}<small>${esc(m.name)}</small></button>`).join('');
+      if (mode === 'survival') gate = 30;
+      $('boardGates').classList.toggle('hidden', mode === 'survival');
+      $('boardGates').innerHTML = MB.Gates.meta.filter((m) => m.file).map((m) => `<button data-bg="${m.id}" class="${m.id === gate ? 'on' : ''}" style="--gc:${m.color}">${String(m.id).padStart(2, '0')}<small>${esc(m.name)}</small></button>`).join('');
       $('boardGates').querySelectorAll('[data-bg]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.openBoard(+b.dataset.bg, this.boardMode); }));
       $('boardList').innerHTML = '<p class="hint">Đang tải…</p>';
       $('boardNote').textContent = MB.Cloud.user ? '' : 'Bạn đang chơi khách — đăng nhập Google (ở Menu → nút đăng nhập) để có tên trên bảng xếp hạng.';
@@ -326,11 +409,24 @@
     },
 
     /* ---------- kết thúc ---------- */
-    onGateEnd(sum) {
+    onGateEnd(sum, afterStory) {
+      MB.Story.clearSay();
+      // thắng Gate 10 lần đầu → cảnh chuyển sang Màn 2
+      if (!afterStory && sum.gateId === 10 && sum.win && sum.mode !== 'survival' && !MB.Story.seen('act2')) {
+        G.running = false; MB.Audio.stopMusic();
+        MB.Story.play('act2', () => { this.act = 2; this.onGateEnd(sum, true); });
+        return;
+      }
       const sv = MB.Save.data, g = MB.Save.gate(sum.gateId), surv = sum.mode === 'survival';
+      MB.Skill.record(sum);
+      this.lastEndless = !!sum.endless;
       g.done = Array.from(new Set([...(g.done || []), ...sum.done]));
       let newBest;
-      if (surv) {
+      if (surv && sum.endless) {
+        const e = sv.endless;
+        newBest = !e || sum.wave > e.wave || (sum.wave === e.wave && sum.score > e.score);
+        if (newBest) sv.endless = { wave: sum.wave, score: sum.score, stage: sum.stage };
+      } else if (surv) {
         newBest = !g.surv || sum.wave > g.surv.wave || (sum.wave === g.surv.wave && sum.score > g.surv.score);
         if (newBest) g.surv = { wave: sum.wave, score: sum.score };
       } else { newBest = sum.score > g.best; if (newBest) g.best = sum.score; }
@@ -345,7 +441,7 @@
       MB.Save.save();
       G.running = false; MB.Audio.stopMusic();
       const mm = Math.floor(sum.time / 60), ss = String(Math.floor(sum.time % 60)).padStart(2, '0');
-      $('resTitle').textContent = surv ? `SINH TỒN · WAVE ${sum.wave}` : sum.win ? (sum.gateId === 10 ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : 'GATE CLEARED') : 'MISSION FAILED';
+      $('resTitle').textContent = surv ? (sum.endless ? `BẤT TẬN · WAVE ${sum.wave} · KHU VỰC ${sum.stage}` : `SINH TỒN · WAVE ${sum.wave}`) : sum.win ? (sum.gateId === 10 ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : 'GATE CLEARED') : 'MISSION FAILED';
       $('resTitle').className = sum.win || surv ? 'win' : 'lose';
       $('resCoins').innerHTML = `+${coins.toLocaleString('vi-VN')} xu · tổng ${sv.coins.toLocaleString('vi-VN')} xu` + (sum.comboBest >= 5 ? ` · combo cao nhất ×${sum.comboBest}` : '');
       $('resStars').innerHTML = [0, 1, 2].map((i) => `<i class="${i < sum.done.length ? 'on' : ''}">★</i>`).join('');
@@ -418,8 +514,12 @@
       G.safeT = parseInt(cs.getPropertyValue('--sat')) || 0;
       G.safeR = parseInt(cs.getPropertyValue('--sar')) || 0;
       document.documentElement.style.setProperty('--mmw', G.mmW + 'px');
+      // gợi ý xoay ngang: hiện 4 giây mỗi lần chuyển sang dọc rồi tự ẩn (không che nút bấm khi đang chơi)
       const portrait = innerHeight > innerWidth && MB.U.isTouchDevice();
-      $('rotateHint').classList.toggle('hidden', !portrait);
+      if (portrait && !this.rotShown) {
+        this.rotShown = true; $('rotateHint').classList.remove('hidden');
+        clearTimeout(this.rotT); this.rotT = setTimeout(() => $('rotateHint').classList.add('hidden'), 4000);
+      } else if (!portrait) { this.rotShown = false; $('rotateHint').classList.add('hidden'); }
     },
     onInputMode(m) {
       $('touchUI').classList.toggle('hidden', !(G.running && this.current === null));

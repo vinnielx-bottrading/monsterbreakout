@@ -231,7 +231,7 @@
   for (let i = 0; i < 12; i++) { const a = i / 12 * U.TAU; hazards.push({ kind: 'water', x: LAGOON.x + Math.cos(a) * (LAGOON.r + 40), y: LAGOON.y + Math.sin(a) * (LAGOON.r + 40), r: 70, slowMul: 0.7, base: 70 }); }
 
   MB.registerGate({
-    id: 6, seed: 606, view3d: true,
+    id: 6, seed: 606, view3d: true, bright: true,
     title: 'GATE 06 — OCEAN', subtitle: 'Đảo Hoang',
     world: { w: WW, h: WH }, bg: '#0a2a40', mmColor: 'rgba(210,190,130,.7)',
     scale: { hp: 1.4, dmg: 1.2 },

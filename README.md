@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v5.4** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
-| Gate chơi được | **Đủ 10 Gate**, mỗi Gate chơi được ở cả 2D và 3D |
+| Phiên bản | **v6.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 12) |
+| README cập nhật | 2026-10-02 (rev 18) |
 
 ---
 
@@ -88,6 +88,7 @@ js/hero.js               Nhân vật Hunter: di chuyển, thể lực, lộn né
 js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hướng + khuôn hành vi (bắn xa, tự nổ, đào đất, dịch chuyển, khiên)
 js/items.js              Vật phẩm rơi và hệ thống thử thách
 js/skills.js             Kỹ năng giải vây: lựu đạn, xung kích
+js/story.js              Cốt truyện: cảnh chuyển (canvas), bộ đàm trong trận, manh mối của GS. Ted
 js/cloud.js              Đăng nhập Google (Supabase), đồng bộ tiến trình, bảng xếp hạng
 js/progress.js           Xu & cửa hàng nâng cấp vĩnh viễn, thẻ nâng cấp trong trận, combo, rung điện thoại
 js/hud.js                HUD (DOM), chỉ cập nhật khi giá trị thay đổi
@@ -106,6 +107,8 @@ js/gates/gate07-industrial.js  Nhà máy: Drone, Sludge, Assembler Mech, băng c
 js/gates/gate08-city.js        Thành phố: Runner, Riot, Abomination, ô tô nổ, bầy đàn
 js/gates/gate09-lab.js         Phòng thí nghiệm: Clone, Phase Stalker, Sentry, Specimen Omega, laser quay, bệ dịch chuyển
 js/gates/gate10-apocalypse.js  Tận thế: tất cả quái, The Origin (4 phase), virus lan, sét đỏ
+js/gates/gate11-hanoi.js      Màn 2 · Hà Nội – Hồ Gươm: Tháp Rùa, cầu Thê Húc, phố cổ; bộ công cụ MB.VN dùng chung
+js/gates/gate12-hoian.js      Màn 2 · Hội An – phố đèn lồng ban đêm: Chùa Cầu, sông Hoài, Mãng Xà Đèn Lồng
 ```
 
 **Vì sao tách file:** phần engine dùng chung (khoảng 130 KB) được tải một lần. Mỗi Gate là một file riêng 15–30 KB, chỉ tải khi người chơi chọn Gate đó (Gate 10 tải thêm các Gate trước để dùng lại quái). Bộ vẽ 3D và Three.js chỉ tải khi chơi 3D.
@@ -148,6 +151,7 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
 | Lựu đạn | G / chuột giữa | Nút **LỰU** (ném vào quái đang khoá) | RB |
 | Xung kích | F hoặc E | Nút **XUNG** | B |
 | Tạm dừng | Esc / P | Nút ❚❚ | Start |
+| Bật / tắt âm thanh | M hoặc nút loa | Nút loa (góc trên phải; trong trận nằm cạnh nút ❚❚) | — |
 
 - Phím dùng `e.code`, nên vẫn hoạt động khi đang bật bộ gõ Telex hay VNI.
 - **Xoay người có giới hạn tốc độ** (Cài đặt → *Tốc độ xoay người khi ngắm*: Chậm 5 / Vừa 8 / Nhanh 14 rad/giây; chuột nhanh gấp 2,2 lần). Chuột đặt sát nhân vật (dưới 34 đơn vị) thì giữ hướng cũ, tránh xoay vòng loạn.
@@ -159,6 +163,12 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
 - Game tự tạm dừng khi chuyển tab hoặc khi app bị ẩn.
 - **Bố cục cảm ứng (v5.1):** cụm 4 nút gọn ở góc phải dưới (NÉ to ở góc, NẠP / LỰU / XUNG nhỏ xếp vòng cung quanh ngón cái); ô súng thu thành 1 dòng nằm cạnh cụm nút, chạm để đổi súng; khung HP, thử thách, minimap nhỏ và trong hơn để nhìn rõ chiến trường.
 - **2D hay 3D đều chơi được trên điện thoại.** Chọn ở màn hình chọn Gate, hoặc đổi ngay giữa trận trong menu Tạm dừng (nút *ĐỔI SANG 2D / 3D*). Máy yếu nên chơi 2D.
+
+## 4b. Âm thanh
+
+- Toàn bộ âm thanh tổng hợp bằng WebAudio (không có file mp3).
+- **Nhạc chủ đề ở menu (v5.5):** phát ngay từ màn hình đầu (sau lần chạm/nhấp đầu tiên — trình duyệt không cho tự phát trước đó). Không khí hồi hộp, nguy hiểm: tiếng tim đập "thình… thịch", nền trầm rung rợn người, đoạn lặp giọng Rê thứ dồn dập dần, hợp âm nghịch tai mỗi 8 ô nhịp, tiếng rít kim loại thỉnh thoảng. Phát ở các màn menu, chọn Gate, cửa hàng, bảng xếp hạng, tài khoản, kết quả; vào trận thì chuyển sang nhạc trận (mạnh dần khi đánh boss).
+- **Nút loa** bật/tắt toàn bộ âm thanh, lưu lại cho lần sau. Trên iPhone, nút loa **thắng nút gạt im lặng** của máy (xem K-17). Cài đặt vẫn có tuỳ chọn riêng cho hiệu ứng và nhạc nền.
 
 ## 5. Vòng chơi
 
@@ -252,7 +262,13 @@ Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 l�
 
 **Cảm giác bắn.** Khựng hình ngắn khi hạ quái tinh nhuệ (0,05 giây), boss chuyển phase (0,12 giây, kèm chữ *BOSS NỔI ĐIÊN*) và hạ boss (0,22 giây). Rung điện thoại khi trúng đòn, nổ gần, boss đổi phase, hạ boss, gục ngã (tắt được trong Cài đặt → *Rung điện thoại*).
 
-**Chế độ Sinh tồn.** Ở màn Chọn cửa ải, bấm **SINH TỒN** (mở cho Gate đã qua ở Chiến dịch). Wave vô hạn: số quái, mật độ, tỉ lệ tinh nhuệ và máu quái (+9%/wave) tăng dần; từ wave 4 trộn tất cả loại quái của Gate. Cứ 5 wave có boss (máu +35% mỗi lần gặp lại), hạ boss rơi máu + giáp + linh kiện rồi đánh tiếp. Không có cơ hội đấu lại boss. Kỷ lục (wave cao nhất, điểm) lưu theo từng Gate và hiện trên thẻ Gate.
+**Chế độ Sinh tồn Bất tận (v6.2).** Thay cho sinh tồn từng Gate: bấm **SINH TỒN → BẮT ĐẦU** để chiến đấu một chuỗi liên tục xuyên qua **mọi Gate đã qua ở Chiến dịch** (theo thứ tự, hết thì quay vòng). Mỗi khu vực = 4 wave + 1 boss; hạ boss → hồi 25% máu, chọn thẻ nâng cấp, tự chuyển sang bản đồ kế tiếp. Máu, giáp, súng, đạn, linh kiện, thẻ nâng cấp, điểm, combo được **mang theo suốt chuỗi**; wave tiếp tục đếm (quái mạnh dần +9%/wave, trộn quái của bản đồ hiện tại, boss sau mỗi lần gặp lại trâu hơn +35%). Không có đấu lại boss. Kỷ lục lưu ở `Save.data.endless = {wave, score, stage}`; bảng xếp hạng Sinh tồn dùng mã gate **30** (một bảng chung).
+
+**Độ khó tự điều chỉnh — Ác mộng âm thầm (v6.2).** Mỗi lần thắng một Gate ở Chiến dịch, game chấm điểm kỹ năng 0–1: độ chính xác (35%, tối đa ở 55%), né đòn = số đòn trúng mỗi phút (30%, 0 đòn = tối đa, ≥6 đòn/phút = 0), máu còn lại (20%), số lần thua trước khi qua (15%), trừ 0,15 nếu phải dùng đấu lại boss. Lưu ở `gates[id].skill`.
+- Qua đủ Gate 1–7 với **điểm trung bình ≥ 0,6** → từ **Gate 8 trở đi** (gồm cả Màn 2) game **âm thầm** bật Ác mộng: quái thường máu ×1,35, sát thương ×1,2, tốc độ ×1,07; boss máu ×1,3, sát thương ×1,15; thêm 8% quái tinh nhuệ; quái ra nhanh hơn 15%. Bù lại: điểm quái ×1,25 và xu cuối trận ×1,3. Không có thông báo nào.
+- Điểm trung bình < 0,6 → độ khó bình thường tới hết Gate 10 rồi sang Màn 2 như cũ.
+- **Lưới an toàn:** thua 2 lần liền ở một Gate thì Gate đó trở về độ khó thường cho tới khi thắng.
+- Thử nghiệm: thêm `?nightmare=1` (ép bật) hoặc `?nightmare=0` (ép tắt) vào cuối link.
 
 ## 6b. Giải vây và tiếp tế
 
@@ -337,6 +353,22 @@ Boss xuất hiện theo hướng đấu trường, cách người chơi tối đ
 | 08 City | ✅ | Phố giữa các khối nhà, **ô tô nổ được**, đám cháy, sự kiện **bầy đàn** Runner mỗi 32–40 s | + Runner, Riot | Abomination | Phá 4 ổ zombie → Bộ Chia Tia · Trạm cứu hộ 16 s → Lõi Xuyên Phá · 20 hạ gục → Cò Siêu Tốc |
 | 09 Laboratory | ✅ | 3 tia laser **quay vòng**, 2 cặp **bệ dịch chuyển**, 4 tháp súng, rò rỉ khí độc | + Clone, Phase Stalker, Sentry | Specimen Omega | Phá 4 máy chủ → Nòng Tăng Lực · Phòng điều khiển 16 s → Bộ Chia Tia · 22 hạ gục → Băng Đạn |
 | 10 Apocalypse | ✅ | Virus **lan rộng** theo thời gian, sét đỏ đánh xuống, **4 wave** quái của mọi Gate | Tất cả | The Origin | Phá 4 khe nứt → Bộ Chia Tia · Thiết bị phong ấn 18 s → Lõi Xuyên Phá · 25 hạ gục → Nòng Tăng Lực |
+| **11 Hà Nội** · Hồ Gươm lúc hoàng hôn | ✅ v6.0 | **Hồ Gươm** nước xanh lục (đạn bay qua, người không lội được), **Tháp Rùa** giữa hồ, **cầu Thê Húc** đỏ là lối duy nhất vào **Đền Ngọc Sơn**, **Tháp Bút**, **Tháp Hoà Phong**, liễu rủ + lộc vừng ven hồ, phố cổ nhà ống (mái ngói / sân thượng bồn nước inox, biển hiệu PHỞ BÒ, BÚN CHẢ…, dây điện chằng chịt), **hàng xe máy bắn nổ được** | + Drone GoatEvil (bay, bắn 3 tia), Xe Ôm Zombie (lấy đà rồi lao thẳng) | **Sát Thủ Bóng Đêm** (tàng hình khi rình, chém lướt, phi tiêu, phân thân, bom khói) | Phá 4 ăng-ten GoatEvil → Nòng Tăng Lực · Giữ Đền Ngọc Sơn 15 s → Bộ Chia Tia · 18 hạ gục → Cò Siêu Tốc |
+| **12 Hội An** · Phố cổ đêm đèn lồng | ✅ v6.0 | **Ban đêm**: chỉ thấy rõ quanh đèn lồng / Hunter; **Chùa Cầu** (cầu có mái bắc qua rạch), nhà cổ tường vàng mái ngói âm dương phủ rêu, **dây đèn lồng** giăng phố, **cổng Hội quán Phúc Kiến**, sông Hoài với **thuyền gỗ & hoa đăng** trôi, hoa giấy | + Ma Đèn Lồng (bay, tự nổ lửa tím), Thuỷ Xà (lặn rồi trồi lên đớp) | **Mãng Xà Đèn Lồng** (thân là chuỗi đèn lồng gây bỏng, phun cầu lửa, chui xuống lòng phố rồi phóng lên, xả vòng lửa) | Phá 4 đèn ma → Lõi Xuyên Phá · Giữ Chùa Cầu 15 s → Băng Đạn · 20 hạ gục → Bộ Chia Tia |
+| 13–21 | 🔒 Sắp ra mắt | Theo dấu manh mối (gợi ý: Hạ Long…) · Gate 21: trận cuối | | | |
+
+### Màn 2 · Nguồn Gốc — cốt truyện (v6.0)
+
+- **Cảnh chuyển sau Gate 10** (khoảng 1 phút, chạm để sang câu, có nút BỎ QUA, xem lại được ở tab MÀN 2): The Origin gục ngã → **GoatEvil** (AI hiện hình đầu dê ba chiều, giọng méo, cười man rợ rồi vỡ vụn) → căn cứ bị phá, **Giáo sư Ted** nằm bất động, tay nắm mẩu giấy → cận cảnh mẩu giấy cháy dở ghi *Hồ Gươm · Tháp Rùa* + toạ độ + ký hiệu đầu dê → Hunter lên đường, hiện chữ **MÀN 2 · NGUỒN GỐC**. Vẽ hoàn toàn bằng code (canvas), âm thanh tổng hợp (tiếng cười, nhiễu sóng, báo động, nhịp tim).
+- **Bộ đàm trong trận**: GoatEvil khiêu khích lúc vào trận, ở wave 2, khi Hunter yếu máu, khi boss xuất hiện / đổi giai đoạn; Hunter tự nói khi thắng. Khung nhỏ phía trên, không dừng game. (`comms` trong định nghĩa Gate.)
+- **Manh mối của Giáo sư Ted**: mỗi Gate Màn 2 giấu 1 mẩu giấy phát sáng (Gate 11: trong sân Đền Ngọc Sơn; Gate 12: kho số 7 bến sông). Nhặt được → hiện trang ghi chép, lưu vào `Save.data.clues` (đồng bộ lên mạng nếu đăng nhập). Gom đủ 10 mảnh (Gate 11–20) để mở **kết thúc thật** ở Gate 21.
+- ⚠️ **Tiết lộ cốt truyện — Sự thật (chưa lộ trong game)**: chính Ted là trùm cuối — vì lòng tham bá quyền, ông dựng vở kịch "bị sát hại", tạo GoatEvil làm bình phong và gieo virus khắp thế giới. Các ghi chép cài sẵn dấu hiệu: chủng V-0 có từ 12 năm trước, hoá đơn ký tên "T.K." mà "tôi đã thấy mỗi ngày suốt mười hai năm".
+- Màn hình Chọn cửa ải có tab **MÀN 1 / MÀN 2**; Màn 2 mở khi thắng Gate 10.
+
+### Đồ hoạ có chiều sâu (Màn 2)
+
+- **2D**: nhà nhìn xiên 3/4 — mặt tiền (cửa hàng, ban công, cửa chớp, biển hiệu) vẽ ở lớp dưới, **mái nhà / tán cây / đỉnh tháp vẽ đè lên nhân vật đi phía sau** và tự mờ đi khi Hunter bị che; bóng đổ xiên Đông-Nam theo chiều cao. Bộ công cụ dùng chung `MB.VN` (trong `gate11-hanoi.js`): `row()` (dãy nhà Hà Nội / Hội An), `tileRoof`, `yinYangRoof`, `lantern`, `moto`, `darkness()` (bóng tối có lỗ sáng cho cả 2D và 3D), `drawOver()`.
+- **3D**: ánh sáng theo Gate (`light3d`: hoàng hôn cam ở Hà Nội, đêm xanh tím ở Hội An), mặt hồ phản chiếu có lỗ cho đảo, cầu Thê Húc dựng từng đốt, mái ngói có vân, đèn lồng phát sáng; Hội An có **5 đèn điểm tự bám theo các đèn lồng gần Hunter** để tường nhà được hắt sáng ấm mà không tốn hiệu năng.
 
 ### Cấu trúc một file Gate
 
@@ -390,6 +422,13 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | K-13 | Thấp | Gate 05 có ~80 vòng dung nham; máy yếu nên chọn đồ hoạ Thấp | Theo dõi |
 | K-14 | Cao | **Đen màn hình khi sang Gate mới** ở chế độ 3D (game vẫn chạy nền). **Nguyên nhân thật (v5.1.1):** đồng hồ `G.time` về 0 ở Gate mới nhưng camera 3D vẫn nhớ thời điểm cuối của Gate trước → bước thời gian âm → vị trí camera thành `NaN` → không vẽ được gì. Chỉ xảy ra khi Gate trước chơi lâu (>~1 phút), nên test tua nhanh không bắt được. Đã sửa: reset mốc thời gian mỗi khi dựng màn, kẹp bước thời gian ≥ 0, tự đặt lại camera nếu gặp NaN. (v5.1 cũng thêm dọn bộ nhớ GPU và tự chuyển 2D khi mất WebGL) | Đã sửa |
 | K-15 | Trung bình | **iPhone, app đã thêm ra màn hình chính:** trang đăng nhập Google có thể mở ra Safari và quay về Safari thay vì về app, nên app chưa nhận đăng nhập. Cần thử trên máy thật; nếu gặp, tạm thời đăng nhập trong Safari hoặc chơi trên Safari. Hướng sửa: chuyển sang nút Google Identity Services (đăng nhập ngay trong trang) | Cần test |
+| K-17 | Thấp | **iPhone & nút gạt im lặng**: âm thanh web mặc định bị iOS tắt theo nút im lặng. Từ v5.5.1 **nút loa của game quyết định**: loa BẬT → chuyển phiên âm thanh sang "playback" (`navigator.audioSession` trên iOS 17+, đoạn `<audio>` im lặng lặp lại cho iOS cũ) nên vẫn có tiếng dù máy đang im lặng; loa TẮT → trả phiên về mặc định, dừng đoạn im lặng, không chiếm nhạc của app khác. Âm lượng theo phím âm lượng của máy. Khi loa bật, nhạc app khác (Spotify…) sẽ tạm dừng | Theo thiết kế |
+| K-20 | Cao | **Đấu lại boss ở 3D: Hunter nằm vặn vẹo, súng bắn sai hướng** — model 3D giữ nguyên tư thế ngã sau khi hồi sinh. v6.1: dựng lại tư thế khi hết chết, reset `deadT`/lộn né khi đấu lại | Đã sửa |
+| K-21 | Cao | **Đạn trắng/vàng nhạt gần như không thấy trên tuyết, cát** — v6.1: vệt đạn có viền sẫm + tâm trắng ở mọi map; map sáng (`bright: true`: Gate 04, 06) đổi màu đạn sang tông đậm bão hoà (vàng nhạt → cam đỏ); 3D bỏ quầng phát sáng cộng màu trên map sáng, thêm vỏ sẫm quanh đạn | Đã sửa |
+| K-22 | Trung bình | **HUD điện thoại chồng lấn** (nút NGẮM đè thanh máu boss, thanh boss đè khung HP, gợi ý "xoay ngang" che ô súng). v6.1: HUD cảm ứng xếp theo hàng (HP · ngắm/loa/tạm dừng/bản đồ → thanh boss → bộ đàm); màn dọc có bố cục riêng; gợi ý xoay ngang tự ẩn sau 4 giây | Đã sửa |
+| K-23 | Trung bình | **Cảnh vật trông "giả" vì hình tròn/vuông** — v6.1: mảng màu nền thành vệt loang méo mép mờ (mọi Gate, 2D + 3D), vùng nguy hiểm 3D thành vệt loang có lốm đốm thay cho đĩa tròn, tán cây 2D gồm nhiều chùm lá viền gợn có sáng tối, khúc gỗ 3D có vân vỏ cây + cành. Còn lại: nhà Gate 08 và vài vật cản 3D vẫn là khối đơn giản | Đang cải thiện |
+| K-18 | Trung bình | Màn 2 mới thử bằng bot tua nhanh và chụp ảnh; độ khó Gate 11–12 (scale máu ×2,0–2,1) cần người chơi thật kiểm tra. Ban đêm Hội An có thể quá tối trên màn hình độ sáng thấp | Cần test |
+| K-19 | Thấp | Bảng xếp hạng Gate 11+ cần chạy lại `supabase/schema.sql` (mở rộng giới hạn gate 1–30) | Cần làm 1 lần |
 | K-16 | Thấp | Điểm gửi từ trình duyệt nên người rành kỹ thuật vẫn có thể gửi điểm giả trong giới hạn hàm `mb_submit_score` cho phép. Đủ cho game giải trí; muốn chặt hơn cần kiểm tra phía server (Edge Function) | Chấp nhận |
 | K-09 | Thấp | 3D không chạy khi mở file trực tiếp (file://); game tự về 2D | Đã xử lý |
 | K-10 | Thấp | Model 3D vẫn dựng bằng code (hình khối toán học), chưa phải model chuyên nghiệp có xương và hoạt ảnh. Muốn chân thật hơn nữa cần nạp file glTF (.glb) từ thư viện như Quaternius (CC0) hoặc Mixamo | Roadmap |
@@ -460,6 +499,12 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v6.2** · README rev 18 | **Sinh tồn Bất tận**: 1 chuỗi chiến đấu liên tục qua mọi Gate đã qua (mang theo máu, súng, thẻ nâng cấp; hồi 25% máu giữa khu vực; quay vòng), kỷ lục + bảng xếp hạng chung; **độ khó tự điều chỉnh**: chấm điểm kỹ năng mỗi Gate, giỏi ở Gate 1–7 → âm thầm bật Ác mộng từ Gate 8 (thua 2 lần liền thì tự hạ về thường) |
+| 2026-10-02 | **v6.1** · README rev 17 | Rà soát UX/UI: sửa tư thế Hunter sau khi đấu lại boss (3D); đạn dễ thấy trên mọi nền (viền sẫm, màu đậm trên map sáng); HUD cảm ứng không chồng lấn (ngang + dọc), gợi ý xoay ngang tự ẩn; cảnh vật tự nhiên hơn (vệt loang thay hình tròn, tán cây nhiều chùm, gỗ có vân) — xem K-20…K-23 |
+| 2026-10-02 | **v6.0** · README rev 16 | **Màn 2 "Nguồn Gốc"**: cảnh chuyển sau Gate 10 (GoatEvil, Giáo sư Ted, mẩu giấy), bộ đàm trong trận, hệ thống manh mối 10 mảnh; **Gate 11 Hà Nội – Hồ Gươm** và **Gate 12 Hội An – phố đèn lồng** với thắng cảnh nhận diện được, đồ hoạ 2D chiều sâu (mái/tán đè, mặt tiền 3/4, bóng đổ) và 3D (ánh sáng theo Gate, đèn điểm bám theo); 4 quái mới, 2 boss mới; tab Màn 1/Màn 2; ánh sáng 3D tuỳ Gate (`light3d`); bóng tối có lỗ sáng; file mới `js/story.js`, `js/gates/gate11-hanoi.js`, `js/gates/gate12-hoian.js`; schema Supabase cho gate 1–30 |
+| 2026-10-02 | **v5.5.1** · README rev 15 | iPhone: nút loa trong game quyết định có tiếng hay không, kể cả khi máy gạt im lặng |
+| 2026-10-02 | **v5.5** · README rev 14 | **Nút loa** bật/tắt âm thanh (phím M) ở menu và trong trận; **nhạc chủ đề hồi hộp** phát từ màn hình đầu; tôn trọng nút im lặng của iPhone (bỏ cách ép phát của v5.4.1); tạm dừng âm thanh khi ẩn app |
+| 2026-10-02 | **v5.4.1** · README rev 13 | Sửa **iPhone không có âm thanh** (nút im lặng, mở khoá âm thanh theo thao tác chạm, khôi phục sau khi chuyển app) — xem K-17 |
 | 2026-10-02 | **v5.4** · README rev 12 | **Đăng nhập Google (không bắt buộc)** qua Supabase Auth; **đồng bộ tiến trình** giữa các máy (gộp thông minh, không gộp chéo tài khoản); **bảng xếp hạng online** theo Gate × Chiến dịch/Sinh tồn (top 50, ảnh + tên Google); lời mời đăng nhập ở menu và màn kết quả; `supabase/schema.sql` (bảng + RLS + hàm `mb_submit_score`, đã thử trên Postgres 16); thư viện supabase-js tự chứa trong repo, chỉ tải khi cần |
 | 2026-10-02 | **v5.3** · README rev 11 | **Bắn chạm** trên điện thoại (chạm/giữ bên phải = bắn vào điểm chạm, kéo = gậy ngắm) và **nút NGẮM** trên màn hình đổi Tự động / Hỗ trợ / Tay; **xu + cửa hàng nâng cấp vĩnh viễn** (7 mục); **thẻ nâng cấp** chọn 1/3 sau mỗi wave (12 thẻ); **combo** nhân điểm; **khựng hình** và **rung**; báo boss đổi phase; chế độ **Sinh tồn** vô hạn với kỷ lục theo Gate; file mới `js/progress.js` |
 | 2026-10-02 | **v5.2** · README rev 10 | **Cơ hội đấu lại Boss 1 lần mỗi Gate**: gục ở trận boss lần đầu → chọn đấu lại tại chỗ (hồi đầy máu/giáp/đạn/kỹ năng, giữ súng, linh kiện và điểm, dọn quái/đạn/vùng nguy hiểm tạm, bất tử 3 giây, boss hồi sinh đầy máu sau 3 giây) hoặc chấp nhận thua. Màn hình mới `#retry`, hàm `G.retryBoss()`, `App.offerBossRetry()` |

@@ -3,24 +3,72 @@
 (function (MB) {
   const A = MB.Audio = {
     ctx: null, out: null, sfx: null, mus: null, noiseBuf: null,
-    on: { sfx: true, music: true },
+    on: { sfx: true, music: true }, muted: false, wantMenu: false, menu: null,
     last: {},
     music: null,
 
+    // iPhone: âm thanh web mặc định bị tắt theo nút gạt im lặng. Khi nút loa của game đang BẬT,
+    // chuyển phiên âm thanh sang "playback" (như app nghe nhạc) để vẫn có tiếng dù máy đang im lặng.
+    // Khi người chơi TẮT loa trong game thì trả về mặc định, không chiếm âm thanh của app khác.
+    isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (/macintosh/i.test(navigator.userAgent) && 'ontouchend' in document); },
+    playback(on) {
+      try { if (navigator.audioSession) navigator.audioSession.type = on ? 'playback' : 'auto'; } catch (e) { /* iOS < 17 */ }
+      if (!this.isIOS()) return;
+      if (on && !this.silent) {
+        // đoạn WAV im lặng 0,5 giây phát lặp: cách giữ phiên "playback" trên iOS cũ
+        const n = 4000, b = new Uint8Array(44 + n), v = new DataView(b.buffer);
+        const w = (o, str) => { for (let i = 0; i < str.length; i++) b[o + i] = str.charCodeAt(i); };
+        w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+        b.fill(128, 44);
+        let bin = ''; for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+        const el = this.silent = document.createElement('audio');
+        el.src = 'data:audio/wav;base64,' + btoa(bin); el.loop = true; el.preload = 'auto';
+        el.setAttribute('playsinline', ''); el.setAttribute('x-webkit-airplay', 'deny');
+      }
+      if (!this.silent) return;
+      if (on && this.silent.paused && !document.hidden) { const pr = this.silent.play(); if (pr && pr.catch) pr.catch(() => {}); }
+      if (!on && !this.silent.paused) this.silent.pause();
+    },
     unlock() {
-      if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+      this.playback(!this.muted);
+      // "suspended" (chưa chạm) hoặc "interrupted" (iOS sau khi có cuộc gọi / chuyển app)
+      if (this.ctx) {
+        const go = () => { if (this.wantMenu && !this.menu) this.menuTheme(true); };
+        if (this.ctx.state !== 'running') this.ctx.resume().then(go).catch(() => {}); else go();
+        return;
+      }
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       try {
         this.ctx = new AC();
-        this.out = this.ctx.createGain(); this.out.gain.value = 0.7; this.out.connect(this.ctx.destination);
+        this.out = this.ctx.createGain(); this.out.gain.value = this.muted ? 0 : 0.7; this.out.connect(this.ctx.destination);
         this.sfx = this.ctx.createGain(); this.sfx.gain.value = 0.85; this.sfx.connect(this.out);
         this.mus = this.ctx.createGain(); this.mus.gain.value = this.on.music ? 0.5 : 0; this.mus.connect(this.out);
         const len = this.ctx.sampleRate;
         this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
         const d = this.noiseBuf.getChannelData(0);
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        // iOS cũ: phải phát 1 mẫu âm trong cùng lần chạm thì ngữ cảnh mới thật sự mở
+        const src = this.ctx.createBufferSource(); src.buffer = this.ctx.createBuffer(1, 1, 22050); src.connect(this.ctx.destination); src.start(0);
+        if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+        if (this.wantMenu) this.menuTheme(true);
       } catch (e) { this.ctx = null; }
+    },
+    // nút loa: tắt / bật toàn bộ âm thanh của game
+    setMute(m) {
+      this.muted = !!m;
+      this.playback(!this.muted);
+      if (this.out && this.ctx) this.out.gain.setTargetAtTime(m ? 0 : 0.7, this.ctx.currentTime, 0.05);
+    },
+    // gắn 1 lần: mọi lần chạm/nhấp đều thử mở lại âm thanh (iOS chỉ tính touchend/click là thao tác của người dùng)
+    bindUnlock() {
+      const f = () => this.unlock();
+      ['touchend', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, f, { capture: true, passive: true }));
+      document.addEventListener('visibilitychange', () => {
+        if (!this.ctx) return;
+        if (document.hidden) { this.ctx.suspend().catch(() => {}); if (this.silent) this.silent.pause(); } else if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+      });
     },
     set(kind, v) {
       this.on[kind] = v;
@@ -61,8 +109,72 @@
       if (fn) { try { fn(this); } catch (e) { /* ignore */ } }
     },
 
-    // nhạc nền: drone tối giản, tăng cường độ khi đánh boss
+    /* ---------- nhạc chủ đề ở menu: hồi hộp, nguy hiểm ----------
+       tiếng tim đập "thình thịch", ostinato giọng thứ (Rê thứ) đều đặn, nền trầm rung rùng rợn,
+       thỉnh thoảng có hợp âm nghịch tai và tiếng rít kim loại. Lịch phát đặt trước theo đồng hồ âm thanh. */
+    menuTheme(on) {
+      this.wantMenu = on;
+      if (!on) {
+        if (!this.menu) return;
+        const m = this.menu; this.menu = null; clearInterval(m.timer);
+        m.g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.35);
+        setTimeout(() => m.nodes.forEach((o) => { try { o.stop(); } catch (e) { /* ignore */ } }), 1600);
+        return;
+      }
+      if (!this.ctx || this.menu || this.ctx.state !== 'running') return;
+      const c = this.ctx, g = c.createGain();
+      g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(1, c.currentTime + 2.5);
+      g.connect(this.mus);
+      // nền trầm: 2 sawtooth lệch nhẹ + quãng 5, qua lọc thấp có LFO chậm
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220; f.Q.value = 6;
+      const dg = c.createGain(); dg.gain.value = 0.07;
+      const o1 = c.createOscillator(), o2 = c.createOscillator(), o3 = c.createOscillator(), lfo = c.createOscillator(), lg = c.createGain();
+      o1.type = 'sawtooth'; o1.frequency.value = 36.7; o2.type = 'sawtooth'; o2.frequency.value = 36.95; o3.type = 'triangle'; o3.frequency.value = 55;
+      lfo.frequency.value = 0.06; lg.gain.value = 120; lfo.connect(lg); lg.connect(f.frequency);
+      o1.connect(f); o2.connect(f); o3.connect(f); f.connect(dg); dg.connect(g);
+      [o1, o2, o3, lfo].forEach((o) => o.start());
+      const m = this.menu = { g, nodes: [o1, o2, o3, lfo], next: c.currentTime + 0.3, step: 0 };
+      const BPM = 92, S = 60 / BPM / 4; // 1 phách = 4 bước
+      const D = 146.83;
+      const ost = [1, 0, 1.189, 0, 1.498, 0, 1.189, 1.335, 1, 0, 1.189, 0, 1.587, 0, 1.498, 1.335]; // Rê-Fa-La-Sib…
+      const note = (t, freq, dur, vol, type, cut) => {
+        const o = c.createOscillator(), ng = c.createGain(), nf = c.createBiquadFilter();
+        o.type = type || 'square'; o.frequency.setValueAtTime(freq, t);
+        nf.type = 'lowpass'; nf.frequency.setValueAtTime(cut || 1400, t); nf.frequency.exponentialRampToValueAtTime(300, t + dur);
+        ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(vol, t + 0.008); ng.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(nf); nf.connect(ng); ng.connect(g); o.start(t); o.stop(t + dur + 0.05);
+      };
+      const thump = (t, vol) => {
+        const o = c.createOscillator(), ng = c.createGain();
+        o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.16);
+        ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(vol, t + 0.01); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+        o.connect(ng); ng.connect(g); o.start(t); o.stop(t + 0.32);
+      };
+      const stab = (t) => { [1, 1.059, 1.414].forEach((k) => note(t, D * 2 * k, 1.6, 0.025, 'sawtooth', 2200)); };
+      const screech = (t) => {
+        const s = c.createBufferSource(), sf = c.createBiquadFilter(), sg = c.createGain();
+        s.buffer = this.noiseBuf; sf.type = 'bandpass'; sf.Q.value = 18;
+        sf.frequency.setValueAtTime(900, t); sf.frequency.exponentialRampToValueAtTime(3800, t + 1.4);
+        sg.gain.setValueAtTime(0.0001, t); sg.gain.exponentialRampToValueAtTime(0.05, t + 0.6); sg.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
+        s.connect(sf); sf.connect(sg); sg.connect(g); s.start(t, Math.random() * 0.4); s.stop(t + 1.6);
+      };
+      m.timer = setInterval(() => {
+        if (!this.menu || this.ctx.state !== 'running') return;
+        while (m.next < c.currentTime + 0.25) {
+          const t = m.next, i = m.step, bar = Math.floor(i / 16), k = i % 16;
+          if (k === 0 || k === 3) thump(t, k === 0 ? 0.5 : 0.32);          // tim đập: thình…thịch
+          if (bar % 8 >= 2 && ost[k]) note(t, D * ost[k] * (bar % 8 >= 6 ? 2 : 1), S * 1.6, 0.045, 'square', 1200 + (bar % 4) * 300);
+          if (bar % 8 >= 4 && k % 4 === 2) note(t, D * 4 * ost[(k + bar) % 16 || 1], 0.09, 0.018, 'triangle', 4000); // nhịp kim nhọn
+          if (k === 0 && bar % 8 === 7) stab(t);
+          if (k === 8 && bar % 16 === 11) screech(t);
+          m.step++; m.next += S;
+        }
+      }, 40);
+    },
+
+    // nhạc nền trong trận: drone tối giản, tăng cường độ khi đánh boss
     startMusic() {
+      this.menuTheme(false);
       if (!this.ctx || this.music) return;
       const c = this.ctx;
       const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 4;

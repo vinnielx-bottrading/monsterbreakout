@@ -46,6 +46,27 @@
     g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
     const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; return t;
   }
+  // vệt loang: gradient trong một đường viền méo + lốm đốm bên trong
+  function blobTex(inner, outer, seed) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+    const g = cv.getContext('2d'), r = U.seeded(seed || 7), p1 = r() * 6.3, p2 = r() * 6.3, p3 = r() * 6.3;
+    g.beginPath();
+    for (let k = 0; k <= 48; k++) {
+      const a = k / 48 * U.TAU, rr = 104 * (1 + 0.1 * Math.sin(a * 3 + p1) + 0.07 * Math.sin(a * 5 + p2) + 0.04 * Math.sin(a * 11 + p3));
+      if (k) g.lineTo(128 + Math.cos(a) * rr, 128 + Math.sin(a) * rr); else g.moveTo(128 + Math.cos(a) * rr, 128 + Math.sin(a) * rr);
+    }
+    g.closePath(); g.save(); g.clip();
+    const gr = g.createRadialGradient(128, 128, 6, 128, 128, 120); gr.addColorStop(0, inner); gr.addColorStop(0.7, inner); gr.addColorStop(1, outer);
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 26; i++) { const a = r() * 6.3, d = r() * 90, rr = 6 + r() * 16; g.fillStyle = `rgba(0,0,0,${0.15 + r() * 0.2})`; g.beginPath(); g.ellipse(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, rr, rr * 0.6, r() * 3, 0, U.TAU); g.fill(); }
+    g.restore();
+    // mép mềm
+    g.globalCompositeOperation = 'destination-in';
+    const m = g.createRadialGradient(128, 128, 70, 128, 128, 128); m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = m; g.fillRect(0, 0, 256, 256);
+    const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; return t;
+  }
   let glowTex = null;
   function glowSprite(color, size, opacity) {
     if (!glowTex) glowTex = radialTex('rgba(255,255,255,1)', 'rgba(255,255,255,0)');
@@ -224,6 +245,9 @@
       const k = Math.min(1, p.deadT * 2.2);
       m.rotation.set(0, -p.aim, 0); d.legGroup.rotation.y = 0;
       m.rotation.z = k * 1.45; d.ring.visible = false;
+    } else if (m.rotation.z !== 0 || m.rotation.y !== 0) {
+      // hồi sinh (đấu lại boss): dựng Hunter đứng thẳng lại
+      m.rotation.set(0, 0, 0); d.ring.visible = true;
     }
   }
 
@@ -471,7 +495,7 @@
   };
 
   /* ================= VẬT CẢN ================= */
-  let crateTex = null;
+  let crateTex = null, barkTex = null;
   const PROPS3D = {}, ACTORS3D = {}, HAZ3D = {
     virus: { inner: 'rgba(210,255,130,0.9)', outer: 'rgba(70,200,50,0)', add: true, opacity: 0.6, bub: 0xd8ffa0 },
     acid: { inner: 'rgba(200,255,90,0.9)', outer: 'rgba(90,200,30,0)', add: true, opacity: 0.6, bub: 0xd8ffa0 },
@@ -501,7 +525,16 @@
       const r = mesh(G3('rock' + Math.round(o.r), () => new T.DodecahedronGeometry(Math.round(o.r), 0)), std(o.c1 ? new T.Color(o.c1).getHex() : 0x646b6d, { flat: true }), 0, o.r * 0.25, 0);
       r.scale.set(1, 0.62, 0.92); r.rotation.set(rnd(), rnd() * 6, rnd() * 0.3); g.add(r);
     } else if (o.kind === 'log') {
-      const l = mesh(cyl(o.hh, o.hh * 1.05, o.w, 10), std(0x6e4a2b), 0, o.hh, 0); l.rotation.z = Math.PI / 2; g.add(l);
+      if (!barkTex) {
+        const cv = document.createElement('canvas'); cv.width = 64; cv.height = 128; const c = cv.getContext('2d');
+        c.fillStyle = '#8a6440'; c.fillRect(0, 0, 64, 128);
+        for (let i = 0; i < 40; i++) { c.strokeStyle = `rgba(${40 + Math.random() * 30},${25 + Math.random() * 20},12,.7)`; c.lineWidth = 1 + Math.random() * 2; const x = Math.random() * 64; c.beginPath(); c.moveTo(x, 0); c.bezierCurveTo(x + 6, 40, x - 6, 80, x + 3, 128); c.stroke(); }
+        for (let i = 0; i < 8; i++) { c.fillStyle = 'rgba(70,90,40,.35)'; c.beginPath(); c.ellipse(Math.random() * 64, Math.random() * 128, 8, 4, 0, 0, 6.3); c.fill(); }
+        barkTex = new T.CanvasTexture(cv); barkTex.wrapS = barkTex.wrapT = T.RepeatWrapping; barkTex.colorSpace = T.SRGBColorSpace;
+      }
+      const bm = std(0xffffff, { own: true, rough: 0.95 }); bm.map = barkTex;
+      const l = mesh(G3('logc' + o.hh + '_' + o.w, () => new T.CylinderGeometry(o.hh, o.hh * 1.08, o.w, 18, 1)), bm, 0, o.hh * 0.9, 0); l.rotation.z = Math.PI / 2; g.add(l);
+      for (let i = 0; i < 2; i++) { const br = mesh(cyl(o.hh * 0.22, o.hh * 0.3, o.hh * 1.6, 7), bm, -o.w * 0.2 + i * o.w * 0.35, o.hh * 1.5, (i ? -1 : 1) * o.hh * 0.4); br.rotation.x = (i ? -1 : 1) * 0.9; g.add(br); }
       const capM = std(0xb08355);
       const c1 = mesh(cyl(o.hh * 0.9, o.hh * 0.9, 1, 10), capM, o.hw, o.hh, 0); c1.rotation.z = Math.PI / 2; g.add(c1);
       g.rotation.y = -o.rot;
@@ -625,8 +658,11 @@
       const bg = new T.Color(d.bg || '#06100a');
       scene.background = bg;
       scene.fog = new T.Fog(bg, this.dist * 1.15, this.dist * 2.6);
-      scene.add(new T.HemisphereLight(0xdff2e4, 0x2a3a26, 1.7));
-      const sun = this.sun = new T.DirectionalLight(0xfff0d0, 2.4);
+      // ánh sáng theo từng Gate (hoàng hôn, ban đêm…) — mặc định: trời trưa
+      const L3 = d.light3d || {};
+      scene.add(new T.HemisphereLight(L3.hemiSky || 0xdff2e4, L3.hemiGround || 0x2a3a26, L3.hemi != null ? L3.hemi : 1.7));
+      this.renderer.toneMappingExposure = L3.exposure || 1.45;
+      const sun = this.sun = new T.DirectionalLight(L3.sun || 0xfff0d0, L3.sunI != null ? L3.sunI : 2.4);
       sun.castShadow = this.qLevel !== 2;
       const sm = this.low || this.mobile ? 1024 : 2048;
       sun.shadow.mapSize.set(sm, sm);
@@ -737,12 +773,13 @@
         g.add(mm); g.userData = { pool: mm, op: 0.85, r0: h.r }; return g;
       }
       const sty = st || { inner: h.color || 'rgba(255,120,60,.6)', outer: 'rgba(255,120,60,0)', add: false, opacity: 0.6 };
-      const key = h.kind + (st ? '' : h.color);
-      if (!this.hazTex[key]) this.hazTex[key] = radialTex(sty.inner, sty.outer);
+      const vari = Math.abs(Math.floor(h.x * 7 + h.y * 13)) % 3;
+      const key = h.kind + (st ? '' : h.color) + vari;
+      if (!this.hazTex[key]) this.hazTex[key] = blobTex(sty.inner, sty.outer, vari * 97 + h.kind.length * 13);
       const mat = new T.MeshBasicMaterial({ map: this.hazTex[key], transparent: true, opacity: sty.opacity, depthWrite: false, blending: sty.add ? T.AdditiveBlending : T.NormalBlending });
       mat.userData.own = true;
       const pool = new T.Mesh(G3('circ', () => new T.CircleGeometry(1, 40)), mat);
-      pool.rotation.x = -Math.PI / 2; pool.scale.set(h.r * 1.1, h.r * 1.1, 1); pool.position.y = sty.y || 1 + (h.layer || 0) * 0.3;
+      pool.rotation.x = -Math.PI / 2; pool.rotation.z = (h.x * 0.37 + h.y * 0.11) % 6.28; pool.scale.set(h.r * 1.2, h.r * 1.2, 1); pool.position.y = sty.y || 1 + (h.layer || 0) * 0.3;
       g.add(pool);
       const u = { pool, op: sty.opacity, r0: h.r, flick: !!sty.flick || h.kind === 'fire' };
       if (sty.bub && h.r > 30 && !this.low && !h.noBub) {
@@ -838,7 +875,7 @@
       this.sync('haz', G.hazards, (h) => this.buildHazard(h), (h, m) => {
         const u = m.userData;
         if (h.life != null && u.pool) u.pool.material.opacity = (u.op || 0.8) * Math.min(1, h.life / 1.2);
-        if (h.r !== u.r0 && u.pool) { u.pool.scale.set(h.r * 1.1, h.r * 1.1, 1); u.r0 = h.r; }
+        if (h.r !== u.r0 && u.pool) { u.pool.scale.set(h.r * 1.2, h.r * 1.2, 1); u.r0 = h.r; }
         if (u.bub) u.bub.forEach((b, i) => {
           const kk = (t * 0.6 + i * 0.37) % 1, a = t * 0.5 + i * 0.9 + h.x * 0.01;
           b.position.set(Math.cos(a) * h.r * 0.5, 2 + kk * 22, Math.sin(a * 1.3) * h.r * 0.4);
@@ -905,9 +942,11 @@
       // đạn người chơi
       this.sync('bul', G.bullets, (b) => {
         let mm;
-        if (b.flame) { mm = new T.Mesh(sph(1, 8), new T.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false })); }
-        else if (b.explode || b.chain) { mm = new T.Mesh(sph(1, 10), new T.MeshBasicMaterial({ color: colorOf(b.color) })); mm.add(glowSprite(colorOf(b.color), 5, 0.8)); }
-        else mm = new T.Mesh(box(16, 3, 3), new T.MeshBasicMaterial({ color: colorOf(b.color) }));
+        const bright = !!G.def.bright, col = colorOf(G.bulletCol(b.color));
+        const shell = (geo) => { const sm = new T.MeshBasicMaterial({ color: 0x140a06, transparent: true, opacity: bright ? 0.6 : 0.35, depthWrite: false }); sm.userData.own = true; const o = new T.Mesh(geo, sm); o.renderOrder = -1; return o; };
+        if (b.flame) { mm = new T.Mesh(sph(1, 8), new T.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.8, blending: bright ? T.NormalBlending : T.AdditiveBlending, depthWrite: false })); }
+        else if (b.explode || b.chain) { mm = new T.Mesh(sph(1, 10), new T.MeshBasicMaterial({ color: col })); const sh = shell(sph(1, 10)); sh.scale.setScalar(1.45); mm.add(sh); if (!bright) mm.add(glowSprite(col, 5, 0.8)); }
+        else { mm = new T.Mesh(box(22, 3.4, 3.4), new T.MeshBasicMaterial({ color: col })); mm.add(shell(box(26, 6, 6))); const hot = new T.Mesh(box(8, 2, 2), new T.MeshBasicMaterial({ color: 0xfffbe8 })); hot.material.userData.own = true; hot.position.x = 7; mm.add(hot); }
         mm.material.userData.own = true; return mm;
       }, (b, m) => {
         m.position.set(b.x, 30, b.y); m.rotation.y = -Math.atan2(b.vy, b.vx);

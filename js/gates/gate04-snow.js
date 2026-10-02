@@ -200,7 +200,7 @@
   [[800, 900, 110], [2200, 650, 120], [2300, 1500, 130], [900, 1500, 100], [1900, 1800, 110], [500, 500, 90]].forEach(([x, y, r]) => hazards.push({ kind: 'ice', x, y, r, slip: true }));
 
   MB.registerGate({
-    id: 4, seed: 404, view3d: true,
+    id: 4, seed: 404, view3d: true, bright: true,
     title: 'GATE 04 — SNOW', subtitle: 'Bão Tuyết',
     world: { w: WW, h: WH }, bg: '#9fb2c0', mmColor: 'rgba(200,220,235,.7)',
     scale: { hp: 1.2, dmg: 1.1 },

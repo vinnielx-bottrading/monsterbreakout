@@ -17,20 +17,33 @@
   Props.shadow = shadow;
 
   // Cây rừng (có đốm virus tuỳ chọn)
+  // Cây: tán gồm nhiều "chùm lá" chồng nhau (viền gợn như mây), đổ bóng, sáng phía Tây-Bắc, có vân lá
   Props.register('tree', (ctx, o, t) => {
     const { x, y, r } = o;
-    shadow(ctx, x + 8, y + 12, r * 0.95, r * 0.75, 0.3);
-    ctx.fillStyle = '#4a3322';
-    U.circle(ctx, x, y, r * 0.3); ctx.fill();
+    if (!o._lb) {
+      const rnd = U.seeded(Math.abs((x * 7 + y * 13) | 0) + 1), n = 10 + (rnd() * 4 | 0);
+      o._lb = Array.from({ length: n }, (_, i) => { const a = i / n * U.TAU + rnd() * 0.4; return [Math.cos(a) * r * (0.55 + rnd() * 0.2), Math.sin(a) * r * (0.5 + rnd() * 0.2), r * (0.36 + rnd() * 0.16)]; });
+      o._mid = Array.from({ length: 6 }, () => { const a = rnd() * U.TAU, d = rnd() * r * 0.45; return [Math.cos(a) * d - r * 0.1, Math.sin(a) * d - r * 0.12, r * (0.28 + rnd() * 0.16)]; });
+      o._hi = Array.from({ length: 5 }, () => [-r * (0.15 + rnd() * 0.35), -r * (0.15 + rnd() * 0.35), r * (0.12 + rnd() * 0.12)]);
+      o._sp = Array.from({ length: 16 }, () => { const a = rnd() * U.TAU, d = rnd() * r * 0.85; return [Math.cos(a) * d, Math.sin(a) * d, rnd() * 3]; });
+    }
+    // bóng đổ mềm
+    ctx.fillStyle = 'rgba(0,0,0,.16)'; U.ellipse(ctx, x + r * 0.35, y + r * 0.4, r * 1.15, r * 0.8); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; U.ellipse(ctx, x + r * 0.3, y + r * 0.35, r * 0.9, r * 0.6); ctx.fill();
+    ctx.fillStyle = '#3e2a1c'; U.circle(ctx, x, y, r * 0.24); ctx.fill();
     const c1 = o.c1 || '#2f5634', c2 = o.c2 || '#3f7244', c3 = o.c3 || '#58924f';
-    ctx.fillStyle = c1; U.circle(ctx, x, y, r * 0.95); ctx.fill();
+    // lớp tối (viền gợn)
+    ctx.fillStyle = c1;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.72, 0, U.TAU); for (const [dx, dy, rr] of o._lb) { ctx.moveTo(x + dx + rr, y + dy); ctx.arc(x + dx, y + dy, rr, 0, U.TAU); } ctx.fill();
+    // lớp giữa lệch về phía sáng
     ctx.fillStyle = c2;
-    U.circle(ctx, x - r * 0.22, y - r * 0.18, r * 0.58); ctx.fill();
-    U.circle(ctx, x + r * 0.26, y - r * 0.05, r * 0.52); ctx.fill();
-    U.circle(ctx, x - r * 0.02, y + r * 0.28, r * 0.5); ctx.fill();
+    ctx.beginPath(); for (const [dx, dy, rr] of o._mid) { ctx.moveTo(x + dx + rr, y + dy); ctx.arc(x + dx, y + dy, rr, 0, U.TAU); } ctx.fill();
+    // điểm sáng
     ctx.fillStyle = c3;
-    U.circle(ctx, x - r * 0.3, y - r * 0.3, r * 0.26); ctx.fill();
-    U.circle(ctx, x + r * 0.18, y - r * 0.22, r * 0.2); ctx.fill();
+    ctx.beginPath(); for (const [dx, dy, rr] of o._hi) { ctx.moveTo(x + dx + rr, y + dy); ctx.arc(x + dx, y + dy, rr, 0, U.TAU); } ctx.fill();
+    // vân lá
+    ctx.strokeStyle = 'rgba(0,0,0,.16)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); for (const [dx, dy, a] of o._sp) { ctx.moveTo(x + dx, y + dy); ctx.arc(x + dx, y + dy, 3.5, a, a + 1.8); } ctx.stroke();
     if (o.infected) {
       const p = 0.55 + Math.sin(t * 3 + x) * 0.25;
       ctx.fillStyle = `rgba(170,255,90,${p})`;
@@ -210,8 +223,22 @@
 
   /* ---------- công cụ vẽ nền dùng chung cho các Gate ---------- */
   MB.GK = {
+    // mảng màu nền: hình méo tự nhiên, mép mờ dần (không còn là hình tròn cứng)
     patches(g, rand, w, h, n, colors, rmin, rmax) {
-      for (let i = 0; i < n; i++) { g.fillStyle = colors[(rand() * colors.length) | 0]; g.beginPath(); g.arc(rand() * w, rand() * h, rmin + rand() * (rmax - rmin), 0, U.TAU); g.fill(); }
+      for (let i = 0; i < n; i++) {
+        const col = colors[(rand() * colors.length) | 0], x = rand() * w, y = rand() * h, r = rmin + rand() * (rmax - rmin);
+        const p1 = rand() * 6.3, p2 = rand() * 6.3, p3 = rand() * 6.3, sx = 0.7 + rand() * 0.6, rot = rand() * 6.3;
+        const clear = /rgba\(/.test(col) ? col.replace(/,\s*[\d.]+\)$/, ',0)') : null;
+        g.save(); g.translate(x, y); g.rotate(rot); g.scale(sx, 1 / sx);
+        if (clear) { const gr = g.createRadialGradient(0, 0, r * 0.05, 0, 0, r); gr.addColorStop(0, col); gr.addColorStop(0.5, col); gr.addColorStop(1, clear); g.fillStyle = gr; }
+        else g.fillStyle = col;
+        g.beginPath();
+        for (let k = 0; k <= 28; k++) {
+          const a = k / 28 * U.TAU, rr = r * (1 + 0.16 * Math.sin(a * 3 + p1) + 0.09 * Math.sin(a * 5 + p2) + 0.05 * Math.sin(a * 9 + p3));
+          if (k) g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        g.closePath(); g.fill(); g.restore();
+      }
     },
     strokes(g, rand, w, h, n, colors, len, lw) {
       g.lineWidth = lw || 1.5;
@@ -222,7 +249,7 @@
       }
     },
     dots(g, rand, w, h, n, colors, s) {
-      for (let i = 0; i < n; i++) { g.fillStyle = colors[(rand() * colors.length) | 0]; g.fillRect(rand() * w, rand() * h, s * (0.5 + rand()), s * (0.5 + rand())); }
+      for (let i = 0; i < n; i++) { g.fillStyle = colors[(rand() * colors.length) | 0]; g.beginPath(); g.ellipse(rand() * w, rand() * h, s * (0.3 + rand() * 0.5), s * (0.2 + rand() * 0.35), rand() * 3.14, 0, U.TAU); g.fill(); }
     },
     cracks(g, rand, w, h, n, color, step) {
       for (let k = 0; k < n; k++) {

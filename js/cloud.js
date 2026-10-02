@@ -122,7 +122,7 @@
     async submit(sum) {
       if (!this.user || !this.sb) return;
       if (sum.mode !== 'survival' && !sum.win) return;
-      const { error } = await this.sb.rpc('mb_submit_score', { p_gate: sum.gateId, p_mode: sum.mode || 'campaign', p_score: Math.round(sum.score), p_wave: sum.mode === 'survival' ? sum.wave : 0, p_time: sum.time });
+      const { error } = await this.sb.rpc('mb_submit_score', { p_gate: sum.mode === 'survival' ? 30 : sum.gateId, p_mode: sum.mode || 'campaign', p_score: Math.round(sum.score), p_wave: sum.mode === 'survival' ? sum.wave : 0, p_time: sum.time });
       if (error) console.warn('[cloud] gửi điểm lỗi', error);
     },
     async leaderboard(gate, mode) {

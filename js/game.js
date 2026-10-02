@@ -36,6 +36,9 @@
       opts = opts || {};
       this.def = def;
       this.mode = opts.mode === 'survival' ? 'survival' : 'campaign';
+      this.endless = !!opts.endless;
+      // độ khó tự điều chỉnh (âm thầm): người chơi giỏi ở Gate 1–7 → Ác mộng từ Gate 8
+      this.nightmare = this.mode === 'campaign' && MB.Skill.nightmareFor(def.id);
       this.hitstop = 0; this.perkT = 0; this.lastBossPhase = null;
       this.lowFx = this.quality() === 'low';
       this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
@@ -55,8 +58,13 @@
       for (const id of MB.Weapons.ORDER) if (armory.includes(id)) p.weapons.push(MB.Weapons.make(id));
       if (!p.weapons.length) p.weapons.push(MB.Weapons.make('rifle'));
       p.aim = 0;
-      MB.Shop.apply(p);
-      MB.Combo.reset(this); this.comboBest = 0;
+      const carry = opts.carry;
+      if (carry) {
+        // chuỗi Bất tận: mang trạng thái Hunter sang khu vực mới (không áp lại nâng cấp cửa hàng)
+        for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'weapons', 'wi', 'mods', 'perks', 'bonus', 'gMax', 'grenades', 'speed', 'magnet', 'dashCdMax']) if (carry.p[k] !== undefined) p[k] = carry.p[k];
+        for (const w of p.weapons) w.reloading = 0;
+      } else MB.Shop.apply(p);
+      MB.Combo.reset(this); this.comboBest = carry ? carry.comboBest : 0;
 
       this.nav = null; this.navDirty = true; this.navT = 0;
       MB.Skills.init(p);
@@ -69,10 +77,15 @@
       this.spawned = 0; this.spawnT = 0;
       this.gs = {};
       if (def.setup) def.setup(this);
+      MB.Story.startGate(this);
 
       this.snapCamera();
       this.viewRect = null;
       this.set3D(!!(MB.App.view3d && def.view3d && MB.R3 && MB.R3.ready));
+      if (carry) {
+        this.score = carry.score; this.stats = carry.stats; this.time = carry.time; this.stage = carry.stage;
+        this.waveIdx = carry.waveIdx; this.state = 'break'; this.stateT = 3.2;
+      } else this.stage = 1;
       this.running = true;
       this.banner(def.title, def.subtitle, 2.6);
       MB.HUD.reset(this);
@@ -242,6 +255,10 @@
       if (sc && !e.boss) { e.hp *= sc.hp || 1; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * (sc.dmg || 1)); e.score = Math.round(e.score * (sc.hp || 1)); }
       if (e.elite) { e.hp *= 2.4; e.maxHp = e.hp; e.r *= 1.15; e.speed *= 1.06; e.score *= 3; e.dmg = Math.round(e.dmg * 1.3); }
       if (def.init) def.init(e, this);
+      if (this.nightmare) {
+        const m = e.boss ? { hp: 1.3, dmg: 1.15, spd: 1.04 } : { hp: 1.35, dmg: 1.2, spd: 1.07 };
+        e.hp *= m.hp; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * m.dmg); e.speed *= m.spd; e.score = Math.round(e.score * 1.25);
+      }
       if (opts.hpMul && opts.hpMul !== 1) { e.hp *= opts.hpMul; e.maxHp *= opts.hpMul; e.score = Math.round(e.score * (1 + (opts.hpMul - 1) * 0.5)); }
       if (!e.fly) this.collide(e);
       this.enemies.push(e);
@@ -334,6 +351,14 @@
       MB.Items.drop(this, 'med', e.x - 30, e.y); MB.Items.drop(this, 'armor', e.x + 30, e.y);
       MB.Items.drop(this, 'mod', e.x, e.y + 30, MB.Items.randomMod(p));
       this.state = 'break'; this.stateT = 6; this.perkT = 1.2;
+      if (this.endless) { this.endlessNext = true; this.banner('KHU VỰC ĐÃ QUÉT SẠCH', 'Chuẩn bị tiến sang khu vực tiếp theo…', 2.6); }
+    },
+    // trạng thái mang sang khu vực mới (chuỗi Bất tận)
+    carry() {
+      const p = this.player, keep = {};
+      for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'weapons', 'wi', 'mods', 'perks', 'bonus', 'gMax', 'grenades', 'speed', 'magnet', 'dashCdMax']) keep[k] = p[k];
+      keep.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.25); // nghỉ chân giữa 2 khu vực: hồi 25% máu
+      return { p: keep, score: this.score, stats: this.stats, time: this.time, waveIdx: this.waveIdx, comboBest: this.comboBest || 0, stage: (this.stage || 1) + 1 };
     },
     // thông số wave: chiến dịch dùng đúng bảng của Gate; sinh tồn tăng dần vô hạn
     getWave(i) {
@@ -400,7 +425,7 @@
       const p = this.player;
       this.bossRetryUsed = true; this.retryOffer = false;
       this.over = false; this.win = false; this.reported = false; this.overT = 0;
-      p.dead = false; p.hp = p.maxHp; if (p.maxArmor) p.armor = p.maxArmor;
+      p.dead = false; p.deadT = 0; p.dash = null; p.hp = p.maxHp; if (p.maxArmor) p.armor = p.maxArmor;
       p.burnT = 0; p.slow = 0; p.vx = 0; p.vy = 0; p.iframes = 3; p.reviveT = 3;
       for (const w of p.weapons) { w.ammo = null; w.reloading = 0; }
       p.grenades = Math.max(p.grenades, p.gMax || 3); p.novaCd = 0; MB.Combo.break(this);
@@ -434,10 +459,10 @@
         this.spawnT -= dt;
         if (this.spawned < w.total && this.countedAlive() < w.maxAlive && this.spawnT <= 0) {
           const pos = this.pickSpawn();
-          const elite = Math.random() < (w.elite || 0);
+          const elite = Math.random() < (w.elite || 0) + (this.nightmare ? 0.08 : 0);
           this.spawnEnemyAt(U.weighted(w.mix), pos.x, pos.y, { elite, hpMul: w.hpMul });
           this.spawned++;
-          this.spawnT = U.rnd(w.interval[0], w.interval[1]);
+          this.spawnT = U.rnd(w.interval[0], w.interval[1]) * (this.nightmare ? 0.85 : 1);
         }
         if (this.spawned >= w.total && this.countedAlive() === 0) {
           this.addScore(500);
@@ -455,7 +480,10 @@
             MB.HUD.objective('CHUẨN BỊ', 'Boss sắp xuất hiện. Kiểm tra đạn và máu.');
           }
         }
-      } else if (this.state === 'break' && this.stateT <= 0) this.startWave(this.waveIdx + 1);
+      } else if (this.state === 'break' && this.stateT <= 0) {
+        if (this.endlessNext) { this.endlessNext = false; this.state = 'travel'; MB.App.endlessAdvance(); }
+        else this.startWave(this.waveIdx + 1);
+      }
       else if (this.state === 'preboss' && this.stateT <= 0) {
         this.state = 'boss';
         // boss xuất hiện ở hướng đấu trường nhưng không quá xa người chơi
@@ -614,7 +642,7 @@
       MB.Skills.update(this, dt);
       this.updateAid(dt);
       this.updateNav(dt);
-      if (!this.over) this.updateWaves(dt);
+      if (!this.over) { this.updateWaves(dt); MB.Story.update(this, dt); }
       this.updateEnemies(dt);
       this.updateObstacles(dt);
       this.updateBullets(dt);
@@ -890,9 +918,21 @@
         gateId: this.def.id, win: this.win, score: this.score, mode: this.mode, wave: this.waveIdx + 1, comboBest: this.comboBest || 0, time: this.time, kills: this.stats.kills,
         accuracy: this.stats.shots ? Math.min(100, Math.round(this.stats.bhits / this.stats.shots * 100)) : 0,
         done, totalChallenges: this.challenges.length, mods: MB.Weapons.power(this.player), hitsTaken: this.stats.hitsTaken,
+        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
       };
     },
 
+    // màu đạn hiển thị: map sáng (tuyết, cát) → đổi sang màu đậm, bão hoà để nổi bật
+    bulletCol(c) {
+      if (!this.def || !this.def.bright) return c;
+      const cache = this._bc || (this._bc = {});
+      if (cache[c]) return cache[c];
+      const n = parseInt(c.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, bl = (n & 255) / 255;
+      const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl); let hh = 0;
+      if (mx !== mn) { const d = mx - mn; hh = mx === r ? ((g - bl) / d) % 6 : mx === g ? (bl - r) / d + 2 : (r - g) / d + 4; hh *= 60; if (hh < 0) hh += 360; }
+      if (hh > 30 && hh < 70) hh = 24; // vàng nhạt → cam đỏ (dễ thấy nhất trên nền trắng)
+      return (cache[c] = `hsl(${hh | 0},100%,${hh > 180 && hh < 260 ? 42 : 48}%)`);
+    },
     /* ---------- bật / tắt 3D (đổi giữa trận, mất WebGL) ---------- */
     set3D(on) {
       const R = MB.R3;
@@ -964,11 +1004,16 @@
           ctx.globalAlpha = 0.25 + k * 0.5; ctx.fillStyle = k > 0.5 ? '#ffd27a' : '#ff7a2c';
           U.circle(ctx, b.x, b.y, b.r); ctx.fill(); ctx.globalAlpha = 1; continue;
         }
-        ctx.strokeStyle = b.color; ctx.lineWidth = b.r * 1.3;
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath(); ctx.moveTo(b.x - b.vx * 0.03, b.y - b.vy * 0.03); ctx.lineTo(b.x, b.y); ctx.stroke();
+        // vệt đạn: viền sẫm (nổi trên nền sáng như tuyết/cát) + lõi màu + tâm trắng
+        const col = this.bulletCol(b.color), tx = b.x - b.vx * 0.045, ty = b.y - b.vy * 0.045;
+        ctx.strokeStyle = 'rgba(16,10,6,.55)'; ctx.lineWidth = b.r * 1.3 + 3;
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.strokeStyle = col; ctx.lineWidth = b.r * 1.3; ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(b.x, b.y); ctx.stroke();
         ctx.globalAlpha = 1;
-        ctx.fillStyle = b.color; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
+        ctx.fillStyle = 'rgba(16,10,6,.6)'; U.circle(ctx, b.x, b.y, b.r + 1.6); ctx.fill();
+        ctx.fillStyle = col; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
+        ctx.fillStyle = '#fffbe8'; U.circle(ctx, b.x, b.y, b.r * 0.45); ctx.fill();
       }
 
       if (this.lockE && !this.lockE.dead && MB.Input.mode !== 'kb') {
@@ -1079,6 +1124,7 @@
         return;
       }
       const c = b.color || (b.kind === 'spit' ? '#b6ff6a' : '#ffb36b');
+      ctx.fillStyle = 'rgba(30,6,6,.55)'; U.circle(ctx, b.x, b.y, b.r + 2); ctx.fill();
       ctx.fillStyle = c; ctx.globalAlpha = 0.3; U.circle(ctx, b.x, b.y, b.r * 1.8); ctx.fill();
       ctx.globalAlpha = 1; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,.7)'; U.circle(ctx, b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.35); ctx.fill();
@@ -1161,6 +1207,7 @@
           if (o.dead) continue;
           if (o.kind === 'chasm') g.fillStyle = 'rgba(0,0,0,.85)';
           else if (o.kind === 'deep') g.fillStyle = 'rgba(30,80,140,.9)';
+          else if (o.water) g.fillStyle = 'rgba(50,110,90,.95)';
           else g.fillStyle = o.hp ? 'rgba(255,213,106,.8)' : (this.def.mmColor || 'rgba(110,160,110,.55)');
           if (o.shape === 'box') { g.save(); g.translate(o.x * k, o.y * k); g.rotate(o.rot || 0); g.fillRect(-o.hw * k, -o.hh * k, Math.max(1.5, o.w * k), Math.max(1.5, o.h * k)); g.restore(); }
           else { g.beginPath(); g.arc(o.x * k, o.y * k, Math.max(1.2, o.br * k * 0.8), 0, U.TAU); g.fill(); }
