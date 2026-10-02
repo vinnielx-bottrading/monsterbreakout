@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v5.0** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v5.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Đủ 10 Gate**, mỗi Gate chơi được ở cả 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1` |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 6) |
+| README cập nhật | 2026-10-02 (rev 7) |
 
 ---
 
@@ -108,7 +108,7 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
 | Lộn né (bất tử 0,3 giây) | Space / chuột phải | Nút **NÉ** | A / B |
 | Chạy nhanh | Giữ Shift | Đẩy gậy trái hết cỡ | LB |
 | Nạp đạn | R | Nút **NẠP** | X |
-| Đổi súng | Q / phím 1–8 / cuộn chuột | Nút **ĐỔI** | Y |
+| Đổi súng | Q / phím 1–8 / cuộn chuột | Chạm vào **ô súng** (góc dưới, có ký hiệu ⇄) | Y |
 | Lựu đạn | G / chuột giữa | Nút **LỰU** (ném vào quái đang khoá) | RB |
 | Xung kích | F hoặc E | Nút **XUNG** | B |
 | Tạm dừng | Esc / P | Nút ❚❚ | Start |
@@ -121,6 +121,8 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
   - **Thủ công**: không hỗ trợ.
 - Gậy điều khiển là loại "trôi": kéo ngón tay ra quá xa thì đế gậy đi theo.
 - Game tự tạm dừng khi chuyển tab hoặc khi app bị ẩn.
+- **Bố cục cảm ứng (v5.1):** cụm 4 nút gọn ở góc phải dưới (NÉ to ở góc, NẠP / LỰU / XUNG nhỏ xếp vòng cung quanh ngón cái); ô súng thu thành 1 dòng nằm cạnh cụm nút, chạm để đổi súng; khung HP, thử thách, minimap nhỏ và trong hơn để nhìn rõ chiến trường.
+- **2D hay 3D đều chơi được trên điện thoại.** Chọn ở màn hình chọn Gate, hoặc đổi ngay giữa trận trong menu Tạm dừng (nút *ĐỔI SANG 2D / 3D*). Máy yếu nên chơi 2D.
 
 ## 5. Vòng chơi
 
@@ -309,6 +311,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | K-08 | Thấp | Một số model 3D dùng chung khuôn (VD: Brute/Cinder Golem/Magma Titan cùng khuôn golem khác màu) | Có thể làm riêng sau |
 | K-12 | Trung bình | Gate 10 tải cả 10 file Gate (~230 KB) trước khi chơi | Chấp nhận được |
 | K-13 | Thấp | Gate 05 có ~80 vòng dung nham; máy yếu nên chọn đồ hoạ Thấp | Theo dõi |
+| K-14 | Cao | Điện thoại bị **đen màn hình khi sang Gate mới** ở chế độ 3D: trình duyệt (nhất là iOS Safari) thu hồi WebGL do thiếu bộ nhớ đồ hoạ, game vẫn chạy nền. v5.1: giải phóng toàn bộ bộ nhớ GPU của màn cũ, giảm độ phân giải / bóng đổ trên điện thoại, bắt sự kiện mất WebGL để tự chuyển 2D và tự dựng lại 3D khi WebGL trở lại | Đã xử lý, cần test máy thật |
 | K-09 | Thấp | 3D không chạy khi mở file trực tiếp (file://); game tự về 2D | Đã xử lý |
 | K-10 | Thấp | Model 3D vẫn dựng bằng code (hình khối toán học), chưa phải model chuyên nghiệp có xương và hoạt ảnh. Muốn chân thật hơn nữa cần nạp file glTF (.glb) từ thư viện như Quaternius (CC0) hoặc Mixamo | Roadmap |
 | K-11 | Thấp | Chế độ màn ngang kiểu Contra chưa làm (xem mục 12, M5) | Roadmap |
@@ -373,6 +376,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v5.1** · README rev 7 | Sửa **đen màn hình trên điện thoại khi sang Gate mới** (3D): dọn sạch geometry/vật liệu/texture/shadow map khi đổi màn; điện thoại dùng pixel ratio ≤ 1,25, shadow map 1024, không khử răng cưa; bắt `webglcontextlost` → tự chuyển 2D kèm thông báo, `webglcontextrestored` → dựng lại 3D; lỗi vẽ 3D → tự về 2D. Nút **đổi 2D ⇄ 3D giữa trận** trong menu Tạm dừng. **Bố cục cảm ứng gọn**: bỏ nút ĐỔI (chạm ô súng để đổi), cụm nút nhỏ hơn ~40%, ô súng 1 dòng, HUD và minimap nhỏ, trong hơn |
 | 2026-10-02 | **v5.0** · README rev 6 | **Hoàn thành Gate 03–10** (Swamp, Snow, Volcano, Ocean, Industrial, City, Laboratory, Apocalypse) với 20 loại quái mới và 8 boss mới; **3D cho cả 10 Gate** (Gate 02 có model mới); 5 súng mới (Rail Lancer, Pyro F-9, Boomer GL, Arc Plasma, Tempest MG), phím 1–8; khuôn hành vi quái dùng lại được; hệ thống vụ nổ dùng chung; vùng nguy hiểm mới (bùn, axit, khí độc, dung nham, lửa, băng, nước, dầu); trạng thái bỏng và đóng băng; vật thể động (actors); lớp phủ màn hình (bão tuyết, mực, tro); **dẫn đường flow field** để quái vòng qua tường/kênh; minimap vẽ đúng hình hộp và màu vùng nguy hiểm |
 | 2026-10-02 | **v4.2** · README rev 5 | Ngắm mượt (giới hạn tốc độ xoay, cài đặt Chậm/Vừa/Nhanh, vùng chết quanh nhân vật); chế độ ngắm Tự động/Hỗ trợ/Thủ công cho điện thoại; **lựu đạn** và **xung kích** giải vây; quái bị choáng; **thùng y tế thả dù** khi máu thấp; rơi máu nhiều hơn khi yếu; lựu đạn rơi từ thùng và quái tinh nhuệ; dựng lại model 3D hữu cơ (chi nhiều khớp, đầu, hàm, móng, bề mặt sần) cho Hunter, Zombie, Spider, Licker, Spider Queen; nút LỰU/XUNG trên điện thoại; tay cầm: RB lựu đạn, B xung kích |
 | 2026-10-02 | **v4.1** · README rev 4 | Chế độ **3D thử nghiệm** cho Gate 01 bằng Three.js (camera phối cảnh, bóng đổ, model low-poly cho Hunter, 3 loại quái, Spider Queen và môi trường); nút chọn 2D/3D; tự giảm chất lượng khi máy chậm; tách vạch cảnh báo của quái ra hàm `tele()` dùng chung cho 2D và 3D; minimap cắt đúng khung |

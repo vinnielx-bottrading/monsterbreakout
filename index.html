@@ -43,7 +43,7 @@
     <div class="objective panel"><b id="objTitle"></b><span id="objText"></span></div>
     <button class="pause-btn" data-act="pause" aria-label="Tạm dừng">❚❚</button>
 
-    <div class="weapon panel">
+    <div class="weapon panel" data-act="swap" title="Chạm để đổi súng">
       <div id="weaponSlots" class="slots"></div>
       <div class="ammo"><b id="ammoText">30</b><small id="magText">/30</small></div>
       <div class="bar rl"><div id="reloadFill"></div></div>
@@ -65,7 +65,6 @@
     <div class="tbtns">
       <button id="dodgeBtn" data-act="dodge" class="tbtn big">NÉ</button>
       <button data-act="reload" class="tbtn">NẠP</button>
-      <button data-act="swap" class="tbtn">ĐỔI</button>
       <button id="gBtn" data-act="grenade" class="tbtn sk1">LỰU<b id="gCount">2</b></button>
       <button id="nBtn" data-act="nova" class="tbtn sk2">XUNG<b id="nCd"></b></button>
     </div>
@@ -74,7 +73,7 @@
   <!-- ===== Màn hình ===== -->
   <section id="menu" class="screen">
     <div class="card hero-card">
-      <div class="badge">10 GATE · v5.0 · 2D / 3D</div>
+      <div class="badge">10 GATE · v5.1 · 2D / 3D</div>
       <h1>MONSTER<br><span>BREAKOUT</span></h1>
       <p>Đặc nhiệm <b>Hunter</b> vượt qua 10 cửa ải bị virus chiếm đóng. Phá thùng tiếp tế, hoàn thành thử thách để nâng cấp súng và hạ boss mỗi Gate.</p>
       <div class="btns">
@@ -121,7 +120,7 @@
           <table>
             <tr><td>Chạm nửa trái</td><td>Gậy di chuyển (đẩy hết cỡ = chạy nhanh)</td></tr>
             <tr><td>Chạm nửa phải</td><td>Gậy ngắm, kéo ra là tự bắn</td></tr>
-            <tr><td>NÉ / NẠP / ĐỔI</td><td>Lộn né · nạp đạn · đổi súng</td></tr>
+            <tr><td>NÉ / NẠP · chạm ô súng</td><td>Lộn né · nạp đạn · đổi súng</td></tr>
             <tr><td>LỰU / XUNG</td><td>Lựu đạn · xung kích giải vây</td></tr>
             <tr><td>Chế độ ngắm</td><td>Mặc định <b>Tự động</b>: tự khoá quái gần nhất và tự bắn; gạt gậy phải để chọn hướng ưu tiên</td></tr>
           </table>
@@ -165,6 +164,7 @@
       <p id="pauseInfo" class="hint"></p>
       <div class="btns">
         <button id="btnResume" class="primary">TIẾP TỤC</button>
+        <button id="btnView">ĐỔI SANG 2D</button>
         <button id="btnRestart">CHƠI LẠI GATE</button>
         <button id="btnQuit">THOÁT RA MENU</button>
       </div>

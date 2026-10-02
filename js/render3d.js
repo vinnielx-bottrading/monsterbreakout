@@ -586,11 +586,17 @@
       if (this.renderer) return;
       const low = G.quality() === 'low';
       this.low = low;
+      // điện thoại: GPU/bộ nhớ hạn chế → giảm độ phân giải, bóng đổ nhẹ, tắt khử răng cưa (màn hình DPR cao đã đủ nét)
+      this.mobile = MB.U.isTouchDevice();
       const canvas = document.getElementById('game3d');
-      const r = this.renderer = new T.WebGLRenderer({ canvas, antialias: !low, powerPreference: 'high-performance' });
+      const r = this.renderer = new T.WebGLRenderer({ canvas, antialias: !low && !this.mobile, powerPreference: this.mobile ? 'default' : 'high-performance' });
+      // trình duyệt (nhất là iOS Safari) có thể thu hồi WebGL khi thiếu bộ nhớ → màn hình đen.
+      // Bắt sự kiện để chuyển tạm sang 2D, và dựng lại 3D khi WebGL được trả lại.
+      canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.lost = true; console.warn('[3D] mất WebGL context'); if (MB.G.on3DLost) MB.G.on3DLost(); });
+      canvas.addEventListener('webglcontextrestored', () => { this.lost = false; console.info('[3D] WebGL context đã khôi phục'); if (MB.G.on3DRestored) MB.G.on3DRestored(); });
       r.outputColorSpace = T.SRGBColorSpace;
       r.toneMapping = T.ACESFilmicToneMapping; r.toneMappingExposure = 1.45;
-      r.shadowMap.enabled = true; r.shadowMap.type = low ? T.BasicShadowMap : T.PCFSoftShadowMap;
+      r.shadowMap.enabled = true; r.shadowMap.type = low ? T.BasicShadowMap : this.mobile ? T.PCFShadowMap : T.PCFSoftShadowMap;
       this.camera = new T.PerspectiveCamera(40, 1, 20, 6000);
       this.ray = new T.Raycaster(); this.plane = new T.Plane(new T.Vector3(0, 1, 0), 0);
       this.v = new T.Vector3(); this.v2 = new T.Vector2();
@@ -600,7 +606,7 @@
     resize(G) {
       if (!this.renderer) return;
       const W = G.W, H = G.H;
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.low ? 1 : 1.75));
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.low ? 1 : this.mobile ? 1.25 : 1.75));
       this.renderer.setSize(W, H, false);
       this.camera.aspect = W / H;
       // khoảng cách camera sao cho tầm nhìn tương đương bản 2D
@@ -621,8 +627,8 @@
       scene.fog = new T.Fog(bg, this.dist * 1.15, this.dist * 2.6);
       scene.add(new T.HemisphereLight(0xdff2e4, 0x2a3a26, 1.7));
       const sun = this.sun = new T.DirectionalLight(0xfff0d0, 2.4);
-      sun.castShadow = true;
-      const sm = this.low ? 1024 : 2048;
+      sun.castShadow = this.qLevel !== 2;
+      const sm = this.low || this.mobile ? 1024 : 2048;
       sun.shadow.mapSize.set(sm, sm);
       const sc = sun.shadow.camera; sc.left = -1000; sc.right = 1000; sc.top = 1000; sc.bottom = -1000; sc.near = 50; sc.far = 3000;
       sun.shadow.bias = -0.0006; sun.shadow.normalBias = 1.5; sun.shadow.intensity = 0.65;
@@ -680,11 +686,20 @@
       this.decalT = 0;
     },
 
+    // giải phóng toàn bộ bộ nhớ GPU của màn cũ (geometry/vật liệu/texture dùng lại sẽ tự nạp lại khi cần)
     teardown() {
       if (!this.scene) return;
-      this.scene.traverse((o) => { if (o.material && (o.material.userData.own || o.isSprite)) o.material.dispose(); });
+      const geos = new Set(), mats = new Set(), texs = new Set();
+      this.scene.traverse((o) => {
+        if (o.geometry) geos.add(o.geometry);
+        const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+        for (const m of ms) { mats.add(m); for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); } }
+      });
+      geos.forEach((g) => g.dispose()); mats.forEach((m) => m.dispose()); texs.forEach((t) => t.dispose());
       if (this.groundTex) this.groundTex.dispose();
       if (this.ovTex) this.ovTex.dispose();
+      if (this.sun && this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
+      if (this.renderer) this.renderer.renderLists.dispose();
       this.scene = null;
     },
 
@@ -774,7 +789,7 @@
     },
 
     render(G) {
-      if (!this.scene) return;
+      if (!this.scene || this.lost) return;
       this.frame++;
       this.autoQuality();
       const t = G.time, p = G.player, I = MB.Input, dt = Math.min(0.05, t - (this.lastT || t)); this.lastT = t;

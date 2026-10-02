@@ -22,7 +22,7 @@
       this.canvas.width = Math.round(this.W * this.dpr);
       this.canvas.height = Math.round(this.H * this.dpr);
       this.zoom = U.clamp(Math.sqrt(this.W * this.H) / 900, U.isTouchDevice() ? 0.74 : 0.62, 1.25);
-      this.mmW = Math.round(U.clamp(this.W * 0.16, 110, 180));
+      this.mmW = U.isTouchDevice() ? Math.round(U.clamp(this.W * 0.12, 88, 130)) : Math.round(U.clamp(this.W * 0.16, 110, 180));
       this.mmDirty = true;
       if (MB.R3 && MB.R3.renderer) MB.R3.resize(this);
     },
@@ -66,9 +66,7 @@
 
       this.snapCamera();
       this.viewRect = null;
-      this.r3on = !!(MB.App.view3d && def.view3d && MB.R3 && MB.R3.ready);
-      if (this.r3on) { MB.R3.init(this); MB.R3.build(this); }
-      document.getElementById('game3d').classList.toggle('hidden', !this.r3on);
+      this.set3D(!!(MB.App.view3d && def.view3d && MB.R3 && MB.R3.ready));
       this.running = true;
       this.banner(def.title, def.subtitle, 2.6);
       MB.HUD.reset(this);
@@ -795,9 +793,37 @@
       };
     },
 
+    /* ---------- bật / tắt 3D (đổi giữa trận, mất WebGL) ---------- */
+    set3D(on) {
+      const R = MB.R3;
+      on = !!(on && this.def && this.def.view3d && R && R.ready);
+      if (on) {
+        try { R.init(this); if (R.lost) on = false; else { R.resize(this); R.build(this); } }
+        catch (err) { console.warn('[3D] không dựng được, dùng 2D', err); on = false; }
+      }
+      if (!on && R && R.scene) R.teardown();
+      this.r3on = on; this.viewRect = null;
+      document.getElementById('game3d').classList.toggle('hidden', !on);
+      return on;
+    },
+    on3DLost() {
+      if (!this.r3on) return;
+      this.r3on = false; this.viewRect = null; this.lost3d = true;
+      document.getElementById('game3d').classList.add('hidden');
+      MB.HUD.toast('Máy thiếu bộ nhớ đồ hoạ — tạm chuyển 2D. Có thể đổi lại trong menu Tạm dừng.', '#ff8a5c');
+    },
+    on3DRestored() {
+      if (!this.lost3d) return;
+      this.lost3d = false;
+      if (this.running && !this.over && MB.App.view3d) { MB.R3.scene = null; this.set3D(true); }
+    },
+
     /* ================== vẽ ================== */
     draw() {
-      if (this.r3on) { MB.R3.render(this); MB.R3.drawOverlay(this); return; }
+      if (this.r3on) {
+        try { MB.R3.render(this); MB.R3.drawOverlay(this); return; }
+        catch (err) { console.error('[3D] lỗi vẽ, chuyển 2D', err); this.set3D(false); MB.HUD.toast('Đồ hoạ 3D lỗi — đã chuyển sang 2D.', '#ff8a5c'); }
+      }
       const ctx = this.ctx, z = this.zoom, dpr = this.dpr;
       const vw = this.W / z, vh = this.H / z;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

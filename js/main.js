@@ -41,6 +41,7 @@
       document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.show(b.dataset.back); }));
       on('btnResume', () => this.resume());
       on('btnRestart', () => this.playGate(this.lastGate));
+      on('btnView', () => this.switchView());
       on('btnQuit', () => this.quit());
       on('btnAgain', () => this.playGate(this.lastGate));
       on('btnNext', () => this.playGate(this.lastGate + 1));
@@ -88,8 +89,8 @@
       const v = MB.Save.data.settings.view || '2d';
       document.querySelectorAll('#viewToggle [data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
       $('viewNote').textContent = v === '3d'
-        ? 'Chế độ 3D (thử nghiệm): hiện có ở Gate 01. Các Gate khác tự chạy bản 2D. Máy yếu nên chọn 2D.'
-        : 'Chế độ 2D góc nhìn từ trên xuống: nhẹ, chạy tốt trên mọi máy.';
+        ? 'Chế độ 3D: đẹp hơn nhưng nặng. Nếu điện thoại bị đen màn hình hoặc giật, chọn 2D (đổi được cả trong menu Tạm dừng).'
+        : 'Chế độ 2D góc nhìn từ trên xuống: nhẹ, chạy tốt trên mọi máy — kể cả điện thoại.';
     },
     async prepare3D(meta) {
       this.view3d = false;
@@ -149,8 +150,23 @@
       G.paused = true; MB.Input.clear();
       const d = G.def;
       $('pauseInfo').innerHTML = `${d.title}<br><small>Điểm ${G.score.toLocaleString('vi-VN')} · ${G.challenges.filter((c) => c.done).length}/${G.challenges.length} thử thách · PWR ${MB.Weapons.power(G.player)}</small>`;
+      this.updateViewBtn();
       this.show('pause');
     },
+    // đổi 2D ⇄ 3D ngay giữa trận (từ menu Tạm dừng)
+    async switchView() {
+      MB.Audio.play('ui');
+      const to3d = !G.r3on;
+      MB.Save.data.settings.view = to3d ? '3d' : '2d'; MB.Save.save(); this.renderViewToggle();
+      if (to3d) {
+        const meta = MB.Gates.meta.find((m) => m.id === G.def.id);
+        $('btnView').textContent = 'ĐANG TẢI 3D…';
+        await this.prepare3D(meta);
+        if (!this.view3d || !G.set3D(true)) { this.view3d = false; MB.HUD.toast('Máy không chạy được 3D — giữ bản 2D.', '#ff8a5c'); }
+      } else { this.view3d = false; G.set3D(false); }
+      this.updateViewBtn();
+    },
+    updateViewBtn() { $('btnView').textContent = G.r3on ? 'ĐỔI SANG 2D (NHẸ HƠN)' : 'ĐỔI SANG 3D'; },
     resume() { G.paused = false; MB.Input.clear(); this.show(null); },
     quit() { G.running = false; G.paused = false; document.getElementById('game3d').classList.add('hidden'); MB.Audio.stopMusic(); this.openGates(); },
 

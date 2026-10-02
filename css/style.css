@@ -207,3 +207,36 @@ body:not([data-input="touch"]) .touch-only { display: none; }
 }
 body[data-input="touch"] .weapon { left: auto; right: calc(250px + var(--sar)); transform: none; }
 @media (max-width: 760px) { body[data-input="touch"] .weapon { right: calc(244px + var(--sar)); } }
+
+/* ---------- v5.1: bố cục cảm ứng gọn ---------- */
+body[data-input="touch"] .tbtns { width: 132px; height: 132px; right: calc(10px + var(--sar)); bottom: calc(10px + var(--sab)); }
+body[data-input="touch"] .tbtn { width: 50px; height: 50px; font-size: 10px; border-width: 1.5px; background: rgba(9, 22, 14, .38); }
+body[data-input="touch"] .tbtn b { font-size: 11px; }
+body[data-input="touch"] .tbtn.big { width: 70px; height: 70px; right: 0; bottom: 0; font-size: 13px; background: rgba(126, 243, 255, .16); }
+body[data-input="touch"] .tbtn[data-act="reload"] { right: 80px; bottom: 0; }
+body[data-input="touch"] .tbtn.sk1 { right: 70px; bottom: 60px; background: rgba(255,179,71,.14); }
+body[data-input="touch"] .tbtn.sk2 { right: 6px; bottom: 80px; background: rgba(126,243,255,.12); }
+body[data-input="touch"] .tzone.tr { right: calc(340px + var(--sar)); }
+
+/* ô vũ khí: 1 dòng, chạm để đổi súng */
+body[data-input="touch"] .weapon { pointer-events: auto; cursor: pointer; left: auto; transform: none; right: calc(152px + var(--sar)); bottom: calc(10px + var(--sab));
+  min-width: 0; padding: 5px 10px 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; border-radius: 12px; background: rgba(7, 16, 11, .5); }
+body[data-input="touch"] .weapon .slot:not(.on) { display: none; }
+body[data-input="touch"] .weapon .slots::after { content: '⇄'; color: var(--muted); font-size: 12px; font-weight: 900; margin-left: 2px; align-self: center; }
+body[data-input="touch"] .weapon .ammo { font-size: 18px; margin: 0; }
+body[data-input="touch"] .weapon .ammo small { font-size: 11px; }
+body[data-input="touch"] .weapon .bar.rl { flex-basis: 100%; margin: 1px 0 0; }
+body[data-input="touch"] .weapon .wfoot { display: none; }
+body[data-input="touch"] .weapon.on { transform: scale(.95); }
+
+/* góc trên gọn, trong suốt hơn để nhìn rõ chiến trường */
+body[data-input="touch"] .hud-tl { width: min(210px, 34vw); padding: 6px 9px; background: rgba(7, 16, 11, .5); }
+body[data-input="touch"] .bar.hp { height: 9px; }
+body[data-input="touch"] .hpnum { font-size: 11px; min-width: 32px; }
+body[data-input="touch"] .bar.st { margin: 4px 0 4px 22px; height: 3px; }
+body[data-input="touch"] .meta { font-size: 10px; gap: 6px; }
+body[data-input="touch"] .challenges { top: calc(70px + var(--sat)); width: min(200px, 32vw); padding: 4px 9px; background: rgba(7, 16, 11, .45); }
+body[data-input="touch"] .ch-head { font-size: 10px; }
+body[data-input="touch"] .pause-btn { width: 34px; height: 34px; border-radius: 10px; font-size: 11px; right: calc(var(--mmw) + 18px + var(--sar)); top: calc(10px + var(--sat)); }
+body[data-input="touch"] #toasts { bottom: calc(150px + var(--sab)); }
+body[data-input="touch"] .tbtn { text-shadow: 0 1px 3px rgba(0,0,0,.85); box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
