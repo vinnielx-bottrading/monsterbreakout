@@ -35,6 +35,9 @@
       on('btnHelp', () => this.show('help'));
       on('btnSettings', () => this.openSettings());
       on('btnFull', () => this.fullscreen());
+      document.querySelectorAll('#viewToggle [data-view]').forEach((b) => b.addEventListener('click', () => {
+        MB.Audio.play('ui'); MB.Save.data.settings.view = b.dataset.view; MB.Save.save(); this.renderViewToggle();
+      }));
       document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.show(b.dataset.back); }));
       on('btnResume', () => this.resume());
       on('btnRestart', () => this.playGate(this.lastGate));
@@ -68,7 +71,7 @@
         const stars = [0, 1, 2].map((i) => `<i class="${i < (g.done || []).length ? 'on' : ''}">★</i>`).join('');
         let status = !ready ? 'Sắp ra mắt' : !unlocked ? `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở` : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
         return `<button class="gate${unlocked ? '' : ' locked'}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
-          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>
+          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}
           <b>${m.name}</b><small>${m.vi}</small>
           <span class="stars">${unlocked ? stars : '🔒'}</span>
           <em>${status}</em>
@@ -76,8 +79,30 @@
         </button>`;
       }).join('');
       $('gateGrid').querySelectorAll('[data-gate]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.playGate(+b.dataset.gate); }));
+      this.renderViewToggle();
       $('armoryText').textContent = 'Kho vũ khí: ' + sv.armory.map((id) => MB.Weapons.DEFS[id].name).join(' · ');
       this.show('gates');
+    },
+
+    renderViewToggle() {
+      const v = MB.Save.data.settings.view || '2d';
+      document.querySelectorAll('#viewToggle [data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
+      $('viewNote').textContent = v === '3d'
+        ? 'Chế độ 3D (thử nghiệm): hiện có ở Gate 01. Các Gate khác tự chạy bản 2D. Máy yếu nên chọn 2D.'
+        : 'Chế độ 2D góc nhìn từ trên xuống: nhẹ, chạy tốt trên mọi máy.';
+    },
+    async prepare3D(meta) {
+      this.view3d = false;
+      if ((MB.Save.data.settings.view || '2d') !== '3d' || !meta.has3d) return;
+      try {
+        $('loadingText').textContent = 'Đang tải đồ hoạ 3D…';
+        await this.loadScript('js/render3d.js');
+        await MB.R3.load();
+        this.view3d = true;
+      } catch (err) {
+        console.warn('3D không khả dụng, dùng 2D', err);
+        MB.HUD.toast('Không tải được đồ hoạ 3D (cần mở qua web/server). Đang chơi bản 2D.', '#ff8a5c');
+      }
     },
 
     loadScript(src) {
@@ -97,7 +122,9 @@
       MB.Audio.unlock();
       this.show('loading');
       try {
+        $('loadingText').textContent = 'Đang tải cửa ải…';
         await this.loadScript(meta.file);
+        await this.prepare3D(meta);
         const def = MB.Gates.defs[id];
         if (!def) throw new Error('Gate chưa đăng ký');
         this.lastGate = id;
@@ -124,7 +151,7 @@
       this.show('pause');
     },
     resume() { G.paused = false; MB.Input.clear(); this.show(null); },
-    quit() { G.running = false; G.paused = false; MB.Audio.stopMusic(); this.openGates(); },
+    quit() { G.running = false; G.paused = false; document.getElementById('game3d').classList.add('hidden'); MB.Audio.stopMusic(); this.openGates(); },
 
     /* ---------- kết thúc ---------- */
     onGateEnd(sum) {
@@ -166,7 +193,10 @@
         `<label class="row"><span>Đồ hoạ</span><select data-set="quality">
           <option value="auto"${st.quality === 'auto' ? ' selected' : ''}>Tự động</option>
           <option value="high"${st.quality === 'high' ? ' selected' : ''}>Cao</option>
-          <option value="low"${st.quality === 'low' ? ' selected' : ''}>Thấp (máy yếu)</option></select></label>`;
+          <option value="low"${st.quality === 'low' ? ' selected' : ''}>Thấp (máy yếu)</option></select></label>
+        <label class="row"><span>Góc nhìn</span><select data-set="view">
+          <option value="2d"${st.view !== '3d' ? ' selected' : ''}>2D từ trên xuống</option>
+          <option value="3d"${st.view === '3d' ? ' selected' : ''}>3D (thử nghiệm)</option></select></label>`;
       $('settingsList').querySelectorAll('[data-set]').forEach((el) => el.addEventListener('change', () => {
         const k = el.dataset.set;
         st[k] = el.type === 'checkbox' ? el.checked : el.value;

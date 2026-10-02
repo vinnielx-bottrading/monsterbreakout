@@ -111,8 +111,8 @@
         if (e.st <= 0) { e.state = 'walk'; e.cd = U.rnd(1.5, 2.5); }
       }
     },
+    tele(ctx, e, G) { if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 400, 1 - e.st / 0.85); },
     draw(ctx, e, G) {
-      if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 400, 1 - e.st / 0.85);
       ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.face || 0);
       const s = e.r / 26;
       ctx.scale(s, s);
@@ -189,9 +189,9 @@
         Ens.stop(e, dt, 10); e.st -= dt; if (e.st <= 0) e.state = 'walk';
       }
     },
+    tele(ctx, e, G) { if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 460, 1 - e.st / 0.9); },
     draw(ctx, e, G) {
       const t = G.time;
-      if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 460, 1 - e.st / 0.9);
       ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.face || 0);
       const moving = Math.hypot(e.vx, e.vy) > 15;
       const sw = moving ? Math.sin(t * 5) * 10 : 0;

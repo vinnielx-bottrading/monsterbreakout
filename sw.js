@@ -1,10 +1,11 @@
 /* Service worker: chơi offline sau lần tải đầu. Tăng VERSION mỗi lần deploy để người chơi nhận bản mới. */
-const VERSION = 'mb-v4.0.0';
+const VERSION = 'mb-v4.1.0';
 const CORE = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'assets/icons/icon.svg', 'assets/icons/icon-192.png',
   'js/core.js', 'js/props.js', 'js/input.js', 'js/audio.js', 'js/weapons.js', 'js/hero.js', 'js/enemies.js',
   'js/items.js', 'js/hud.js', 'js/game.js', 'js/gates/index.js', 'js/main.js',
   'js/gates/gate01-jungle.js', 'js/gates/gate02-mountain.js',
+  'js/render3d.js', 'js/vendor/three.module.min.js',
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

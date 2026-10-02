@@ -19,6 +19,7 @@
 </head>
 <body data-input="kb">
 <div id="app">
+  <canvas id="game3d" class="hidden"></canvas>
   <canvas id="game"></canvas>
   <div id="input"></div>
 
@@ -70,7 +71,7 @@
   <!-- ===== Màn hình ===== -->
   <section id="menu" class="screen">
     <div class="card hero-card">
-      <div class="badge">GATE 01 – 02 · PROTOTYPE v4</div>
+      <div class="badge">GATE 01 – 02 · v4.1 · 3D THỬ NGHIỆM</div>
       <h1>MONSTER<br><span>BREAKOUT</span></h1>
       <p>Đặc nhiệm <b>Hunter</b> vượt qua 10 cửa ải bị virus chiếm đóng. Phá thùng tiếp tế, hoàn thành thử thách để nâng cấp súng và hạ boss mỗi Gate.</p>
       <div class="btns">
@@ -86,7 +87,8 @@
 
   <section id="gates" class="screen hidden">
     <div class="card wide">
-      <div class="head"><h2>CHỌN CỬA ẢI</h2><button data-back="menu" class="ghost">← Menu</button></div>
+      <div class="head"><h2>CHỌN CỬA ẢI</h2><div class="vt" id="viewToggle"><button data-view="2d">2D</button><button data-view="3d">3D <small>thử nghiệm</small></button></div><button data-back="menu" class="ghost">← Menu</button></div>
+      <p id="viewNote" class="hint vnote"></p>
       <div id="gateGrid" class="grid"></div>
       <p id="armoryText" class="hint"></p>
     </div>

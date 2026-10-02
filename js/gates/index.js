@@ -1,7 +1,7 @@
 /* Danh sách 10 Gate. Gate có `file` sẽ được tải khi người chơi chọn (lazy load). */
 'use strict';
 window.MB.Gates.meta = [
-  { id: 1, key: 'jungle', name: 'Jungle', vi: 'Rừng Nhiễm Độc', file: 'js/gates/gate01-jungle.js', color: '#7dd35c', boss: 'Spider Queen' },
+  { id: 1, key: 'jungle', name: 'Jungle', vi: 'Rừng Nhiễm Độc', file: 'js/gates/gate01-jungle.js', has3d: true, color: '#7dd35c', boss: 'Spider Queen' },
   { id: 2, key: 'mountain', name: 'Mountain', vi: 'Vách Núi Đá Lăn', file: 'js/gates/gate02-mountain.js', color: '#d0a374', boss: 'Stone Behemoth' },
   { id: 3, key: 'swamp', name: 'Swamp', vi: 'Đầm Lầy Đột Biến', file: null, color: '#6fae8f', boss: '???' },
   { id: 4, key: 'snow', name: 'Snow', vi: 'Bão Tuyết', file: null, color: '#a8d8ff', boss: '???' },

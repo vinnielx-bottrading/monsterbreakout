@@ -4,16 +4,19 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v4.0** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
-| Gate chơi được | Gate 01 Jungle, Gate 02 Mountain |
+| Phiên bản | **v4.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Gate chơi được | Gate 01 Jungle (2D + **3D thử nghiệm**), Gate 02 Mountain (2D) |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1` |
-| README cập nhật | 2026-10-01 (rev 3) |
+| Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
+| README cập nhật | 2026-10-02 (rev 4) |
 
 ---
 
 ## 1. Chạy thử trên máy
+
+> **Chế độ 3D cần chạy qua web hoặc server** (Vercel, `npx serve`). Nếu mở thẳng file `index.html` (file://), trình duyệt chặn tải Three.js và game tự chuyển về 2D.
 
 Game tải các file Gate bằng thẻ `<script>`, nên **mở trực tiếp `index.html` (file://) vẫn chơi được**. Nếu muốn thử đầy đủ cả PWA và service worker thì chạy một server tĩnh:
 
@@ -52,13 +55,37 @@ js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hư
 js/items.js              Vật phẩm rơi và hệ thống thử thách
 js/hud.js                HUD (DOM), chỉ cập nhật khi giá trị thay đổi
 js/game.js               Runtime một Gate: wave, đạn, va chạm, camera, minimap, vẽ
-js/main.js               Menu, chọn Gate, tải file Gate theo yêu cầu, vòng lặp
+js/main.js               Menu, chọn Gate, tải file Gate theo yêu cầu, vòng lặp, nút 2D/3D
+js/render3d.js           Bộ vẽ 3D (chỉ tải khi chọn 3D): model nhân vật, quái, vật cản, camera, ánh sáng
+js/vendor/three.module.min.js  Thư viện Three.js r170 (~690 KB, ~170 KB khi nén gzip), chỉ tải khi chơi 3D
 js/gates/index.js        Danh sách 10 Gate (tên, màu, file)
 js/gates/gate01-jungle.js    Bản đồ, boss Spider Queen, thử thách Gate 01
 js/gates/gate02-mountain.js  Bản đồ, quái Bat/Brute, boss Stone Behemoth, đá lăn Gate 02
 ```
 
 **Vì sao tách file:** phần engine dùng chung (khoảng 110 KB) được tải một lần. Mỗi Gate là một file riêng 15–25 KB, chỉ được tải khi người chơi chọn Gate đó. Nhờ vậy khi có đủ 10 Gate, lần tải đầu vẫn nhẹ, và mỗi Gate có thể được sửa độc lập.
+
+## 3b. Chế độ 3D (thử nghiệm, v4.1)
+
+Chọn ở màn hình **Chọn cửa ải** (nút **2D / 3D**) hoặc trong **Cài đặt → Góc nhìn**. Mặc định là 3D; Gate chưa có bản 3D tự chạy 2D.
+
+**Cách hoạt động:** logic game (va chạm, AI, đạn, wave, thử thách) dùng chung cho cả 2D và 3D. `render3d.js` chỉ đọc trạng thái game mỗi khung hình và dựng cảnh 3D tương ứng. Nhờ vậy cách chơi, điều khiển, điểm số, lưu tiến trình giống hệt nhau giữa hai chế độ.
+
+| Thành phần | Trong 3D |
+|---|---|
+| Camera | Phối cảnh, nghiêng 61°, nhìn từ phía nam, đi theo nhân vật và nhìn trước theo hướng ngắm; rung khi trúng đòn |
+| Ánh sáng | Đèn bầu trời + mặt trời có bóng đổ mềm, sương mù ở xa, tone mapping ACES |
+| Nền | Dùng lại texture vẽ của bản 2D; vết máu/virus được vẽ thêm lên nền |
+| Hunter | Model low-poly: giáp, vai, bình lọc phát sáng, mũ có visor cyan, súng đổi theo vũ khí. Chân bước theo hướng chạy, thân xoay theo hướng ngắm, giật súng, nghiêng súng khi nạp, chớp nòng, bóng mờ khi lộn né, ngã khi chết |
+| Quái | Zombie, Spider, Licker, Spider Queen có model riêng, có hoạt ảnh bước, chớp trắng khi trúng, trồi lên khi xuất hiện, vòng tím cho quái tinh nhuệ |
+| Môi trường | Cây (tán làm mờ khi che nhân vật), đá, khúc gỗ, thùng tiếp tế, ổ virus, trạm tín hiệu có đèn nháy, hồ virus phát sáng có bong bóng |
+| Lớp phủ mặt đất | Vạch cảnh báo đỏ, vòng sóng chấn, vùng thử thách vẽ lên một mặt phẳng sát đất |
+| Lớp 2D trên cùng | Số sát thương, thanh máu quái, mũi tên chỉ hướng, minimap, tâm ngắm, laser ngắm (cảm ứng) |
+| Tự giảm chất lượng | Nếu FPS dưới khoảng 30 trong 3 giây: hạ độ phân giải, rồi tắt bóng đổ |
+
+Mỗi khung hình, phần JS dựng cảnh 3D tốn khoảng 0,1 ms (đo bằng trình duyệt headless); phần còn lại là GPU.
+
+**Thêm 3D cho Gate khác:** thêm `view3d: true` vào định nghĩa Gate, `has3d: true` trong `js/gates/index.js`, rồi viết model cho quái/boss/vật cản mới trong `render3d.js` (`MODELS` và `buildProp`). Quái hoặc vật cản chưa có model sẽ hiện dạng khối đơn giản.
 
 ## 4. Điều khiển
 
@@ -217,6 +244,9 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | K-04 | Thấp | Nhân vật và quái vẽ bằng code (vector); chưa có sprite hay spritesheet | Roadmap |
 | K-05 | Thấp | Nhạc nền mới là drone đơn giản | Roadmap |
 | K-06 | Thấp | Chỉ có 3 súng; Grenade, Sniper, Flamethrower và vũ khí cận chiến chưa có | Roadmap |
+| K-07 | Trung bình | 3D chưa đo FPS trên GPU thật (môi trường test chỉ có GPU giả lập bằng CPU). Cần thử trên điện thoại tầm trung | Cần test |
+| K-08 | Thấp | 3D chỉ có ở Gate 01. Gate 02 cần model cho Bat, Brute, Stone Behemoth, vực, vách đá, tinh thể, đá lăn | Roadmap |
+| K-09 | Thấp | 3D không chạy khi mở file trực tiếp (file://); game tự về 2D | Đã xử lý |
 
 ## 12. Roadmap
 
@@ -257,6 +287,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 - [ ] Chuyển tab 10 giây rồi quay lại: game phải đang tạm dừng
 - [ ] Điện thoại: hai gậy hoạt động cùng lúc, các nút bấm được, HUD không che gậy
 - [ ] Cài PWA, tắt mạng rồi mở lại: vẫn chơi được
+- [ ] Chơi Gate 01 ở cả 2D và 3D; chuyển qua lại 2D/3D giữa các lần chơi
 - [ ] Tăng `VERSION` trong `sw.js`
 
 ## 14. Lịch sử thay đổi
@@ -266,6 +297,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v4.1** · README rev 4 | Chế độ **3D thử nghiệm** cho Gate 01 bằng Three.js (camera phối cảnh, bóng đổ, model low-poly cho Hunter, 3 loại quái, Spider Queen và môi trường); nút chọn 2D/3D; tự giảm chất lượng khi máy chậm; tách vạch cảnh báo của quái ra hàm `tele()` dùng chung cho 2D và 3D; minimap cắt đúng khung |
 | 2026-10-01 | **v4.0** · README rev 3 | Viết lại thành dự án nhiều file. Nhân vật Hunter mới; hệ thống thiết bị và thử thách thay cho nâng cấp tự động; 3 súng; 5 linh kiện; Gate 02 Mountain (Bat, Brute, Stone Behemoth, đá lăn, vực); boss nhiều phase; điều khiển cảm ứng, tay cầm, PWA; menu, lưu tiến trình; sửa 15 lỗi của v3 |
 
 ---

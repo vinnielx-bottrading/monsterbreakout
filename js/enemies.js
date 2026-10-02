@@ -149,8 +149,8 @@
         }
       }
     },
+    tele(ctx, e, G) { if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 270, 1 - e.st / 0.55); },
     draw(ctx, e, G) {
-      if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 270, 1 - e.st / 0.55);
       ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.face || 0);
       const sw = Math.sin(G.time * 10 + e.t) * 5;
       ctx.strokeStyle = '#5a2020'; ctx.lineWidth = 4; ctx.lineCap = 'round';

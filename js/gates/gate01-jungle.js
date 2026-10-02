@@ -99,9 +99,9 @@
         if (e.st <= 0) e.state = 'walk';
       }
     },
+    tele(ctx, e, G) { if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 430, 1 - e.st / 0.75); },
     draw(ctx, e, G) {
       const t = G.time;
-      if (e.state === 'aim') G.drawTelegraphLine(ctx, e.x, e.y, e.lock, 430, 1 - e.st / 0.75);
       ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.face || 0);
       const moving = Math.hypot(e.vx, e.vy) > 20;
       const gait = moving ? t * (e.state === 'dash' ? 22 : 9) : t * 1.5;
@@ -154,7 +154,7 @@
   L(900, 1080, 170, 0.2); L(1560, 900, 180, -0.25); L(2300, 600, 160, 0.15); L(640, 1450, 160, 0.1); L(2100, 1450, 170, -0.15);
 
   MB.registerGate({
-    id: 1, seed: 101,
+    id: 1, seed: 101, view3d: true,
     title: 'GATE 01 — JUNGLE', subtitle: 'Rừng Nhiễm Độc',
     world: { w: WW, h: WH }, bg: '#06100a', mmColor: 'rgba(90,150,90,.6)',
     start: { x: 260, y: 1000 },

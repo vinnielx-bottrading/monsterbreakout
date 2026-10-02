@@ -24,6 +24,7 @@
       this.zoom = U.clamp(Math.sqrt(this.W * this.H) / 900, U.isTouchDevice() ? 0.74 : 0.62, 1.25);
       this.mmW = Math.round(U.clamp(this.W * 0.16, 110, 180));
       this.mmDirty = true;
+      if (MB.R3 && MB.R3.renderer) MB.R3.resize(this);
     },
     quality() {
       const q = MB.Save.data.settings.quality;
@@ -61,6 +62,10 @@
       if (def.setup) def.setup(this);
 
       this.snapCamera();
+      this.viewRect = null;
+      this.r3on = !!(MB.App.view3d && def.view3d && MB.R3 && MB.R3.ready);
+      if (this.r3on) { MB.R3.init(this); MB.R3.build(this); }
+      document.getElementById('game3d').classList.toggle('hidden', !this.r3on);
       this.running = true;
       this.banner(def.title, def.subtitle, 2.6);
       MB.HUD.reset(this);
@@ -90,6 +95,8 @@
     shake(n) { if (MB.Save.data.settings.shake) this.shakeAmt = Math.min(18, this.shakeAmt + n); },
     addScore(n) { this.score += Math.round(n); },
     inView(x, y, m) {
+      const v = this.viewRect;
+      if (this.r3on && v) return x > v.x0 - m && x < v.x1 + m && y > v.y0 - m && y < v.y1 + m;
       const vw = this.W / this.zoom, vh = this.H / this.zoom;
       return x > this.cam.x - m && x < this.cam.x + vw + m && y > this.cam.y - m && y < this.cam.y + vh + m;
     },
@@ -128,7 +135,9 @@
       if (this.decals.length > 160) this.decals.shift();
       const blobs = [];
       for (let i = 0; i < 5; i++) blobs.push([U.rnd(-size, size) * 0.8, U.rnd(-size, size) * 0.8, U.rnd(size * 0.25, size * 0.6)]);
-      this.decals.push({ x, y, color, blobs });
+      const dc = { x, y, color, blobs };
+      if (this.r3on) { MB.R3.onDecal(dc); return; }
+      this.decals.push(dc);
     },
     text(x, y, txt, color, size) {
       if (this.texts.length > 40) this.texts.shift();
@@ -368,8 +377,8 @@
       const I = MB.Input, p = this.player;
       if (p.dead) { this.wantFire = false; return; }
       if (I.mode === 'kb') {
-        const wx = I.mouse.x / this.zoom + this.cam.x, wy = I.mouse.y / this.zoom + this.cam.y;
-        p.aim = Math.atan2(wy - p.y, wx - p.x);
+        if (this.r3on) { const w = MB.R3.screenToGround(I.mouse.x, I.mouse.y, this); p.aim = Math.atan2(w.y - p.y, w.x - p.x); }
+        else { const wx = I.mouse.x / this.zoom + this.cam.x, wy = I.mouse.y / this.zoom + this.cam.y; p.aim = Math.atan2(wy - p.y, wx - p.x); }
       } else {
         const v = I.aimVec();
         if (v) {
@@ -601,6 +610,7 @@
 
     /* ================== vẽ ================== */
     draw() {
+      if (this.r3on) { MB.R3.render(this); MB.R3.drawOverlay(this); return; }
       const ctx = this.ctx, z = this.zoom, dpr = this.dpr;
       const vw = this.W / z, vh = this.H / z;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -695,6 +705,7 @@
         ctx.strokeStyle = '#d79bff'; ctx.lineWidth = 3; U.circle(ctx, e.x, e.y, e.r + 7); ctx.stroke();
         ctx.restore();
       }
+      if (def.tele) def.tele(ctx, e, this);
       def.draw(ctx, e, this);
       if (e.flash > 0) {
         ctx.globalAlpha = Math.min(1, e.flash * 9) * 0.55;
@@ -810,7 +821,11 @@
       ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
       // khung nhìn
       ctx.strokeStyle = 'rgba(255,255,255,.35)';
-      ctx.strokeRect(x0 + this.cam.x * k, y0 + this.cam.y * k, this.W / this.zoom * k, this.H / this.zoom * k);
+      ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip();
+      const vr = this.r3on && this.viewRect;
+      if (vr) ctx.strokeRect(x0 + vr.x0 * k, y0 + vr.y0 * k, (vr.x1 - vr.x0) * k, (vr.y1 - vr.y0) * k);
+      else ctx.strokeRect(x0 + this.cam.x * k, y0 + this.cam.y * k, this.W / this.zoom * k, this.H / this.zoom * k);
+      ctx.restore();
       for (const m of MB.Challenges.markers(this)) { ctx.fillStyle = m.color; ctx.fillRect(x0 + m.x * k - 2, y0 + m.y * k - 2, 4, 4); }
       ctx.fillStyle = '#ff6d68';
       for (const e of this.enemies) if (!e.dead) { const r = e.boss ? 3.5 : 1.6; ctx.fillRect(x0 + e.x * k - r, y0 + e.y * k - r, r * 2, r * 2); }
