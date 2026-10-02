@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v6.2.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 18) |
+| README cập nhật | 2026-10-02 (rev 20) |
 
 ---
 
@@ -142,8 +142,8 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
 | Hành động | Máy tính | Điện thoại | Tay cầm |
 |---|---|---|---|
 | Di chuyển | W A S D / phím mũi tên | Chạm và kéo ở nửa trái màn hình | Cần trái |
-| Ngắm | Chuột | Nửa phải màn hình: **chạm/giữ tại chỗ** = quay ngay về điểm chạm; **kéo** = gậy ngắm | Cần phải |
-| Bắn | Giữ chuột trái | **Chạm liên tục / giữ** bên phải để bắn vào điểm chạm (mọi chế độ ngắm). Chế độ **Tự động** còn tự khoá và tự bắn. Gậy ngắm: kéo quá 30% là bắn | RT (hoặc đẩy cần phải mạnh) |
+| Ngắm | Chuột (đổi chế độ: phím **T** hoặc nút **NGẮM** dưới nút ❚❚) | Nửa phải màn hình: **chạm/giữ tại chỗ** = quay ngay về điểm chạm; **kéo** = gậy ngắm | Cần phải |
+| Bắn | Giữ chuột trái (chế độ **Tự động**: tự bắn, giữ chuột trái để bắn theo chuột) | **Chạm liên tục / giữ** bên phải để bắn vào điểm chạm (mọi chế độ ngắm). Chế độ **Tự động** còn tự khoá và tự bắn. Gậy ngắm: kéo quá 30% là bắn | RT (hoặc đẩy cần phải mạnh) |
 | Lộn né (bất tử 0,3 giây) | Space / chuột phải | Nút **NÉ** | A / B |
 | Chạy nhanh | Giữ Shift | Đẩy gậy trái hết cỡ | LB |
 | Nạp đạn | R | Nút **NẠP** | X |
@@ -159,6 +159,13 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
   - **Tự động** (mặc định): khoá quái gần nhất trong tầm 540 có đường bắn, ưu tiên boss và mục tiêu đang khoá; tự bắn khi đã quay đúng hướng (lệch dưới 0,3 rad). Gạt gậy phải để chọn hướng ưu tiên. Không có quái thì tự bắn thùng tiếp tế / mục tiêu thử thách gần. Mục tiêu khoá có vòng đỏ xoay.
   - **Hỗ trợ**: nắn hướng ngắm về quái trong góc ~24°, có khoá dính.
   - **Thủ công**: không hỗ trợ.
+- **Ngắm trên máy tính (v6.2.1)** — lưu riêng ở `settings.aimModeKb`, đổi bằng nút **NGẮM** (dưới nút ❚❚), phím **T** hoặc Cài đặt → *Ngắm trên máy tính*:
+  - **Chuột** (mặc định): súng theo con trỏ, giữ chuột trái để bắn.
+  - **Hỗ trợ**: theo chuột nhưng nắn nhẹ về quái gần hướng con trỏ.
+  - **Tự động**: tự khoá quái gần nhất (ưu tiên hướng con trỏ) và tự bắn; giữ chuột trái thì tạm bỏ khoá, bắn theo chuột.
+- Nút **NGẮM** hiện ở cả máy tính lẫn cảm ứng; nhãn và chế độ đổi theo thiết bị đang dùng.
+- **Quay đầu nhanh (v6.2.2):** tốc độ xoay tăng theo độ lệch — lệch >0,45 rad ×1,6, lệch >0,9 rad ×2,6 (quay 180° chỉ ~0,15 giây). Không ngắm gì thì Hunter quay mặt theo hướng chạy (chế độ Hỗ trợ còn nắn về quái gần hướng đó).
+- **Ưu tiên quái áp sát (v6.2.2):** ngắm Tự động trừ điểm mạnh cho quái trong bán kính 230 (kể cả sau lưng, bỏ qua lọc hướng gậy ngắm khi dưới 150); độ "dính" mục tiêu cũ giảm từ 140 xuống 70 để không mải bắn quái xa khi bị cạp từ phía sau.
 - Gậy điều khiển là loại "trôi": kéo ngón tay ra quá xa thì đế gậy đi theo.
 - Game tự tạm dừng khi chuyển tab hoặc khi app bị ẩn.
 - **Bố cục cảm ứng (v5.1):** cụm 4 nút gọn ở góc phải dưới (NÉ to ở góc, NẠP / LỰU / XUNG nhỏ xếp vòng cung quanh ngón cái); ô súng thu thành 1 dòng nằm cạnh cụm nút, chạm để đổi súng; khung HP, thử thách, minimap nhỏ và trong hơn để nhìn rõ chiến trường.
@@ -499,6 +506,8 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v6.2.2** · README rev 20 | Hunter quay đầu nhanh khi đổi hướng / quái sau lưng (~0,15 giây thay vì ~0,5 giây); ngắm Tự động ưu tiên quái đang áp sát thay vì giữ khoá quái ở xa |
+| 2026-10-02 | **v6.2.1** · README rev 19 | Máy tính có nút **NGẮM** (Chuột / Hỗ trợ / Tự động) + phím T + mục cài đặt riêng; chế độ Tự động trên máy tính tự khoá và tự bắn |
 | 2026-10-02 | **v6.2** · README rev 18 | **Sinh tồn Bất tận**: 1 chuỗi chiến đấu liên tục qua mọi Gate đã qua (mang theo máu, súng, thẻ nâng cấp; hồi 25% máu giữa khu vực; quay vòng), kỷ lục + bảng xếp hạng chung; **độ khó tự điều chỉnh**: chấm điểm kỹ năng mỗi Gate, giỏi ở Gate 1–7 → âm thầm bật Ác mộng từ Gate 8 (thua 2 lần liền thì tự hạ về thường) |
 | 2026-10-02 | **v6.1** · README rev 17 | Rà soát UX/UI: sửa tư thế Hunter sau khi đấu lại boss (3D); đạn dễ thấy trên mọi nền (viền sẫm, màu đậm trên map sáng); HUD cảm ứng không chồng lấn (ngang + dọc), gợi ý xoay ngang tự ẩn; cảnh vật tự nhiên hơn (vệt loang thay hình tròn, tán cây nhiều chùm, gỗ có vân) — xem K-20…K-23 |
 | 2026-10-02 | **v6.0** · README rev 16 | **Màn 2 "Nguồn Gốc"**: cảnh chuyển sau Gate 10 (GoatEvil, Giáo sư Ted, mẩu giấy), bộ đàm trong trận, hệ thống manh mối 10 mảnh; **Gate 11 Hà Nội – Hồ Gươm** và **Gate 12 Hội An – phố đèn lồng** với thắng cảnh nhận diện được, đồ hoạ 2D chiều sâu (mái/tán đè, mặt tiền 3/4, bóng đổ) và 3D (ánh sáng theo Gate, đèn điểm bám theo); 4 quái mới, 2 boss mới; tab Màn 1/Màn 2; ánh sáng 3D tuỳ Gate (`light3d`); bóng tối có lỗ sáng; file mới `js/story.js`, `js/gates/gate11-hanoi.js`, `js/gates/gate12-hoian.js`; schema Supabase cho gate 1–30 |

@@ -66,15 +66,9 @@
       snd.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.toggleMute(); }, { passive: false });
       addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !/INPUT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName)) this.toggleMute(); });
       this.renderSound();
-      // nút đổi chế độ ngắm ngay trên màn hình (cảm ứng): TỰ ĐỘNG → HỖ TRỢ → TAY
-      const aimBtn = $('aimBtn');
-      aimBtn.addEventListener('pointerdown', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        const st = MB.Save.data.settings, order = ['auto', 'assist', 'manual'];
-        st.aimMode = order[(order.indexOf(st.aimMode || 'auto') + 1) % 3]; MB.Save.save();
-        MB.Audio.play('ui'); this.updateAimBtn();
-        MB.HUD.toast({ auto: 'Ngắm TỰ ĐỘNG: tự khoá và tự bắn quái gần nhất.', assist: 'Ngắm HỖ TRỢ: bạn tự ngắm, game nắn nhẹ về phía quái.', manual: 'Ngắm TAY: tự ngắm hoàn toàn. Chạm bên phải để bắn vào điểm chạm.' }[st.aimMode], '#7ef3ff');
-      }, { passive: false });
+      // nút đổi chế độ ngắm ngay trên màn hình (cảm ứng và máy tính, mỗi loại lưu riêng): TỰ ĐỘNG → HỖ TRỢ → TAY/CHUỘT
+      $('aimBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.cycleAim(); }, { passive: false });
+      addEventListener('keydown', (e) => { if (e.code === 'KeyT' && !e.repeat && G.running && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement && document.activeElement.tagName)) this.cycleAim(); });
       this.updateAimBtn();
       on('btnGiveUp', () => this.giveUp());
       on('btnQuit', () => this.quit());
@@ -281,9 +275,21 @@
         ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
     },
+    aimKey() { return MB.Input.mode === 'kb' ? 'aimModeKb' : 'aimMode'; },
+    aimNow() { const st = MB.Save.data.settings, k = this.aimKey(); return st[k] || (k === 'aimModeKb' ? 'manual' : 'auto'); },
+    cycleAim() {
+      const st = MB.Save.data.settings, k = this.aimKey(), kb = k === 'aimModeKb';
+      const order = kb ? ['manual', 'assist', 'auto'] : ['auto', 'assist', 'manual'];
+      st[k] = order[(order.indexOf(this.aimNow()) + 1) % 3]; MB.Save.save();
+      MB.Audio.play('ui'); this.updateAimBtn();
+      const msg = kb
+        ? { manual: 'Ngắm CHUỘT: súng theo con trỏ, giữ chuột trái để bắn.', assist: 'Ngắm HỖ TRỢ: súng theo chuột nhưng nắn nhẹ về phía quái gần con trỏ.', auto: 'Ngắm TỰ ĐỘNG: tự khoá và tự bắn quái gần nhất. Giữ chuột trái để bắn theo chuột.' }
+        : { auto: 'Ngắm TỰ ĐỘNG: tự khoá và tự bắn quái gần nhất.', assist: 'Ngắm HỖ TRỢ: bạn tự ngắm, game nắn nhẹ về phía quái.', manual: 'Ngắm TAY: tự ngắm hoàn toàn. Chạm bên phải để bắn vào điểm chạm.' };
+      MB.HUD.toast(msg[st[k]], '#7ef3ff');
+    },
     updateAimBtn() {
-      const m = MB.Save.data.settings.aimMode || 'auto';
-      $('aimBtn').innerHTML = 'NGẮM <b>' + ({ auto: 'TỰ ĐỘNG', assist: 'HỖ TRỢ', manual: 'TAY' }[m]) + '</b>';
+      const m = this.aimNow(), kb = this.aimKey() === 'aimModeKb';
+      $('aimBtn').innerHTML = 'NGẮM <b>' + ({ auto: 'TỰ ĐỘNG', assist: 'HỖ TRỢ', manual: kb ? 'CHUỘT' : 'TAY' }[m]) + '</b>';
       $('aimBtn').dataset.mode = m;
     },
 
@@ -475,6 +481,10 @@
           <option value="auto"${st.aimMode === 'auto' ? ' selected' : ''}>Tự động (tự khoá + tự bắn)</option>
           <option value="assist"${st.aimMode === 'assist' ? ' selected' : ''}>Hỗ trợ (hút nhẹ về quái)</option>
           <option value="manual"${st.aimMode === 'manual' ? ' selected' : ''}>Thủ công</option></select></label>
+        <label class="row"><span>Ngắm trên máy tính (chuột)</span><select data-set="aimModeKb">
+          <option value="manual"${(st.aimModeKb || 'manual') === 'manual' ? ' selected' : ''}>Theo chuột (giữ chuột trái bắn)</option>
+          <option value="assist"${st.aimModeKb === 'assist' ? ' selected' : ''}>Hỗ trợ (nắn nhẹ về quái)</option>
+          <option value="auto"${st.aimModeKb === 'auto' ? ' selected' : ''}>Tự động (tự khoá + tự bắn)</option></select></label>
         <label class="row"><span>Tốc độ xoay người khi ngắm</span><select data-set="aimSpeed">
           <option value="slow"${st.aimSpeed === 'slow' ? ' selected' : ''}>Chậm (dễ ngắm)</option>
           <option value="normal"${st.aimSpeed === 'normal' || !st.aimSpeed ? ' selected' : ''}>Vừa</option>
@@ -487,6 +497,7 @@
         st[k] = el.type === 'checkbox' ? el.checked : el.value;
         if (k === 'sfx' || k === 'music') MB.Audio.set(k, st[k]);
         if (k === 'quality') G.resize();
+        if (k === 'aimMode' || k === 'aimModeKb') this.updateAimBtn();
         MB.Save.save();
       }));
       $('btnReset').textContent = 'Xoá tiến trình'; delete $('btnReset').dataset.confirm;
@@ -523,6 +534,7 @@
     },
     onInputMode(m) {
       $('touchUI').classList.toggle('hidden', !(G.running && this.current === null));
+      this.updateAimBtn();
       void m;
     },
 

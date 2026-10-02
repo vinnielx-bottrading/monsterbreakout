@@ -335,6 +335,9 @@ body.playing[data-input="touch"] .soundbtn { top: calc(10px + var(--sat)); right
 body[data-input="touch"] .aimchip { right: calc(var(--mmw) + 98px + var(--sar)); }
 body[data-input="touch"] .combo { right: calc(var(--mmw) + 98px + var(--sar)); }
 .combo { right: calc(var(--mmw) + 122px + var(--sar)); }
+/* v6.3: nút ngắm trên máy tính — nằm dưới hàng nút dừng/loa */
+body:not([data-input="touch"]) .aimchip { top: calc(60px + var(--sat)); right: calc(var(--mmw) + 24px + var(--sar)); height: 30px; cursor: pointer; }
+body:not([data-input="touch"]) .aimchip:hover { border-color: var(--accent); color: var(--text, #fff); }
 
 /* ---------- v6.0: cốt truyện Màn 2 ---------- */
 #story { position: fixed; inset: 0; z-index: 60; background: #000; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }

@@ -515,8 +515,17 @@
         if (this.r3on) { const w = MB.R3.screenToGround(I.mouse.x, I.mouse.y, this); wx = w.x; wy = w.y; }
         else { wx = I.mouse.x / this.zoom + this.cam.x; wy = I.mouse.y / this.zoom + this.cam.y; }
         // chuột quá sát nhân vật thì giữ hướng cũ (tránh xoay vòng loạn)
-        if (U.dist(wx, wy, p.x, p.y) > 34) want = Math.atan2(wy - p.y, wx - p.x);
+        const mouseA = U.dist(wx, wy, p.x, p.y) > 34 ? Math.atan2(wy - p.y, wx - p.x) : null;
+        const km = st.aimModeKb || 'manual';
         this.lockE = null;
+        if (km === 'auto' && !I.mouse.down) {
+          // tự khoá quái gần nhất & tự bắn; giữ chuột trái thì bắn theo chuột như thường
+          const tg = this.autoTarget(mouseA);
+          if (tg) {
+            this.lockE = tg; want = Math.atan2(tg.y - p.y, tg.x - p.x);
+            if (Math.abs(U.angDiff(p.aim, want)) < 0.3) fire = true;
+          } else want = mouseA;
+        } else if (mouseA != null) want = km === 'assist' ? this.assist(mouseA) : mouseA;
       } else if (I.tapPoint()) {
         // chạm-để-bắn: quay ngay về điểm chạm và bắn (không giới hạn tốc độ xoay)
         const tp = I.tapPoint();
@@ -544,9 +553,18 @@
         } else if (stickA != null) {
           want = mode === 'assist' ? this.assist(stickA) : stickA;
         }
-        if (want == null && Math.hypot(I.move.x, I.move.y) > 0.2) { want = Math.atan2(I.move.y, I.move.x); rate *= 0.7; }
+        // không ngắm gì: quay mặt theo hướng chạy (chế độ Hỗ trợ còn nắn về quái gần hướng đó)
+        if (want == null && Math.hypot(I.move.x, I.move.y) > 0.2) {
+          const ma = Math.atan2(I.move.y, I.move.x);
+          want = mode === 'assist' ? this.assist(ma) : ma;
+        }
       }
-      if (want != null) { const d = U.angDiff(p.aim, want), mx = rate * dt; p.aim += U.clamp(d, -mx, mx); }
+      if (want != null) {
+        const d = U.angDiff(p.aim, want);
+        // quay đầu gấp: lệch lớn (quái sau lưng, đổi hướng chạy) thì xoay nhanh hơn nhiều, lệch nhỏ vẫn mượt
+        const r = Math.abs(d) > 0.9 ? rate * 2.6 : Math.abs(d) > 0.45 ? rate * 1.6 : rate;
+        const mx = r * dt; p.aim += U.clamp(d, -mx, mx);
+      }
       this.wantFire = fire;
     },
     // ngắm tự động: chọn quái gần nhất trong tầm nhìn, ưu tiên hướng gậy ngắm và mục tiêu đang khoá
@@ -558,8 +576,12 @@
         const d = U.dist(e.x, e.y, p.x, p.y);
         if (d > 540) continue;
         let sc = d;
-        if (prefA != null) { const da = Math.abs(U.angDiff(prefA, Math.atan2(e.y - p.y, e.x - p.x))); if (da > 1.1) continue; sc += da * 320; }
-        if (e === this.lockE) sc -= 140;
+        // quái đã áp sát (dưới 230) là mối đe doạ: ưu tiên mạnh, kể cả khi ở sau lưng
+        const near = d < 230;
+        if (near) sc -= (230 - d) * 1.6;
+        if (prefA != null && !(near && d < 150)) { const da = Math.abs(U.angDiff(prefA, Math.atan2(e.y - p.y, e.x - p.x))); if (da > 1.1) continue; sc += da * 320; }
+        // giữ khoá mục tiêu cũ cho đỡ giật, nhưng không giữ khi nó ở xa còn quái khác đã áp sát
+        if (e === this.lockE) sc -= 70;
         if (e.boss) sc -= 60;
         if (sc < bs && this.los(p.x, p.y, e.x, e.y)) { bs = sc; best = e; }
       }
@@ -1016,7 +1038,7 @@
         ctx.fillStyle = '#fffbe8'; U.circle(ctx, b.x, b.y, b.r * 0.45); ctx.fill();
       }
 
-      if (this.lockE && !this.lockE.dead && MB.Input.mode !== 'kb') {
+      if (this.lockE && !this.lockE.dead) {
         const L = this.lockE, r = (L.r || L.br) + 10;
         ctx.strokeStyle = 'rgba(255,90,90,.85)'; ctx.lineWidth = 2;
         ctx.beginPath(); for (let i = 0; i < 4; i++) { const a = this.time * 2 + i * Math.PI / 2; ctx.moveTo(L.x + Math.cos(a) * r, L.y + Math.sin(a) * r); ctx.arc(L.x, L.y, r, a, a + 0.8); } ctx.stroke();
