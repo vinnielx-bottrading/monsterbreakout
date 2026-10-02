@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v4.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v4.2** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | Gate 01 Jungle (2D + **3D thử nghiệm**), Gate 02 Mountain (2D) |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1` |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 4) |
+| README cập nhật | 2026-10-02 (rev 5) |
 
 ---
 
@@ -53,6 +53,7 @@ js/weapons.js            Súng, linh kiện nâng cấp (mod), bắn đạn
 js/hero.js               Nhân vật Hunter: di chuyển, thể lực, lộn né, vẽ
 js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hướng
 js/items.js              Vật phẩm rơi và hệ thống thử thách
+js/skills.js             Kỹ năng giải vây: lựu đạn, xung kích
 js/hud.js                HUD (DOM), chỉ cập nhật khi giá trị thay đổi
 js/game.js               Runtime một Gate: wave, đạn, va chạm, camera, minimap, vẽ
 js/main.js               Menu, chọn Gate, tải file Gate theo yêu cầu, vòng lặp, nút 2D/3D
@@ -76,8 +77,8 @@ Chọn ở màn hình **Chọn cửa ải** (nút **2D / 3D**) hoặc trong **C�
 | Camera | Phối cảnh, nghiêng 61°, nhìn từ phía nam, đi theo nhân vật và nhìn trước theo hướng ngắm; rung khi trúng đòn |
 | Ánh sáng | Đèn bầu trời + mặt trời có bóng đổ mềm, sương mù ở xa, tone mapping ACES |
 | Nền | Dùng lại texture vẽ của bản 2D; vết máu/virus được vẽ thêm lên nền |
-| Hunter | Model low-poly: giáp, vai, bình lọc phát sáng, mũ có visor cyan, súng đổi theo vũ khí. Chân bước theo hướng chạy, thân xoay theo hướng ngắm, giật súng, nghiêng súng khi nạp, chớp nòng, bóng mờ khi lộn né, ngã khi chết |
-| Quái | Zombie, Spider, Licker, Spider Queen có model riêng, có hoạt ảnh bước, chớp trắng khi trúng, trồi lên khi xuất hiện, vòng tím cho quái tinh nhuệ |
+| Hunter | Model nhiều khớp (đùi, gối, ống chân, giày; tay ôm súng), giáp bo tròn, bình lọc phát sáng, mũ có visor, súng có nòng tròn và đổi theo vũ khí. Chân bước theo hướng chạy, thân xoay theo hướng ngắm, giật súng, nghiêng súng khi nạp, chớp nòng, bóng mờ khi lộn né, ngã khi chết |
+| Quái | Dựng hình hữu cơ thay cho khối hộp: Zombie (người gù, đầu méo, hàm há, mắt phát sáng, vết thương lộ sườn, tay có ngón, chân có gối); Spider (bụng sần, 8 chân 2 khớp, mắt bóng, răng nanh); Licker (thân cơ đỏ có vòng sườn, não lộ, hàm răng, 4 chi có móng vuốt, lưỡi dài khi tấn công); Spider Queen (bụng có hoa văn phát sáng, túi trứng, gai lưng). Bề mặt được làm méo nhẹ bằng nhiễu cho giống da thịt. Có hoạt ảnh bước theo nhịp chân, chớp trắng khi trúng, trồi lên khi xuất hiện, vòng tím cho quái tinh nhuệ |
 | Môi trường | Cây (tán làm mờ khi che nhân vật), đá, khúc gỗ, thùng tiếp tế, ổ virus, trạm tín hiệu có đèn nháy, hồ virus phát sáng có bong bóng |
 | Lớp phủ mặt đất | Vạch cảnh báo đỏ, vòng sóng chấn, vùng thử thách vẽ lên một mặt phẳng sát đất |
 | Lớp 2D trên cùng | Số sát thương, thanh máu quái, mũi tên chỉ hướng, minimap, tâm ngắm, laser ngắm (cảm ứng) |
@@ -93,15 +94,21 @@ Mỗi khung hình, phần JS dựng cảnh 3D tốn khoảng 0,1 ms (đo bằng 
 |---|---|---|---|
 | Di chuyển | W A S D / phím mũi tên | Chạm và kéo ở nửa trái màn hình | Cần trái |
 | Ngắm | Chuột | Chạm và kéo ở nửa phải màn hình | Cần phải |
-| Bắn | Giữ chuột trái | Kéo gậy phải ra quá 30% là tự bắn | RT (hoặc đẩy cần phải mạnh) |
+| Bắn | Giữ chuột trái | Chế độ **Tự động**: tự khoá quái gần nhất và tự bắn. Chế độ khác: kéo gậy phải quá 30% | RT (hoặc đẩy cần phải mạnh) |
 | Lộn né (bất tử 0,3 giây) | Space / chuột phải | Nút **NÉ** | A / B |
 | Chạy nhanh | Giữ Shift | Đẩy gậy trái hết cỡ | LB |
 | Nạp đạn | R | Nút **NẠP** | X |
 | Đổi súng | Q / 1 2 3 / cuộn chuột | Nút **ĐỔI** | Y |
+| Lựu đạn | G / chuột giữa | Nút **LỰU** (ném vào quái đang khoá) | RB |
+| Xung kích | F hoặc E | Nút **XUNG** | B |
 | Tạm dừng | Esc / P | Nút ❚❚ | Start |
 
 - Phím dùng `e.code`, nên vẫn hoạt động khi đang bật bộ gõ Telex hay VNI.
-- Trên điện thoại có **hỗ trợ ngắm**: hướng ngắm tự nắn nhẹ về phía quái gần nhất trong góc khoảng 18°. Có thể tắt trong Cài đặt.
+- **Xoay người có giới hạn tốc độ** (Cài đặt → *Tốc độ xoay người khi ngắm*: Chậm 5 / Vừa 8 / Nhanh 14 rad/giây; chuột nhanh gấp 2,2 lần). Chuột đặt sát nhân vật (dưới 34 đơn vị) thì giữ hướng cũ, tránh xoay vòng loạn.
+- **Ngắm trên điện thoại / tay cầm** (Cài đặt → *Ngắm*):
+  - **Tự động** (mặc định): khoá quái gần nhất trong tầm 540 có đường bắn, ưu tiên boss và mục tiêu đang khoá; tự bắn khi đã quay đúng hướng (lệch dưới 0,3 rad). Gạt gậy phải để chọn hướng ưu tiên. Không có quái thì tự bắn thùng tiếp tế / mục tiêu thử thách gần. Mục tiêu khoá có vòng đỏ xoay.
+  - **Hỗ trợ**: nắn hướng ngắm về quái trong góc ~24°, có khoá dính.
+  - **Thủ công**: không hỗ trợ.
 - Gậy điều khiển là loại "trôi": kéo ngón tay ra quá xa thì đế gậy đi theo.
 - Game tự tạm dừng khi chuyển tab hoặc khi app bị ẩn.
 
@@ -152,6 +159,15 @@ Súng nhận từ thử thách được lưu vào **kho vũ khí** và mang theo
 | SMG Viper | Thử thách Gate 02 | 10 | 62 ms | 44 | 1,15 s | ~161 (bắn toé) |
 
 Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 lần). Muốn đạt mức đó phải tích cực phá thùng và làm thử thách, khác với bản v3 tăng tự động 3,5 lần chỉ sau 3 wave.
+
+## 6b. Giải vây và tiếp tế
+
+| Công cụ | Cách dùng | Hiệu ứng | Giới hạn |
+|---|---|---|---|
+| **Lựu đạn** | G / nút LỰU / RB | Ném tới điểm ngắm (tối đa 460). Nổ bán kính 140: sát thương 140 ở tâm, giảm còn 70 ở rìa; hất văng quái (trừ boss); phá được thùng và ổ virus (120) | Mang tối đa 3, bắt đầu với 2, tự hồi 1 quả mỗi 15 s. Nhặt thêm từ thùng tiếp tế (tỉ lệ 2/12), quái tinh nhuệ (35%) |
+| **Xung kích** | F hoặc E / nút XUNG / B | Sóng quanh người bán kính 230: sát thương 50, đẩy lùi mạnh, **làm choáng 1,3 s** (quái chuyển xanh), xoá đạn địch trong vùng, bất tử 0,35 s | Hồi chiêu 18 s |
+| **Thùng y tế thả dù** | Tự động | Khi HP dưới 35%: thả dù 2 bộ máu + 1 giáp hoặc lựu đạn, cách 150–230, có mũi tên xanh lá chỉ đường | Tối đa 1 lần mỗi 40 s |
+| **Rơi máu khi yếu** | Tự động | HP dưới 40%: tỉ lệ quái rơi bộ máu tăng từ 5,5% lên 14% | |
 
 ## 7. Nhân vật Hunter
 
@@ -247,6 +263,8 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | K-07 | Trung bình | 3D chưa đo FPS trên GPU thật (môi trường test chỉ có GPU giả lập bằng CPU). Cần thử trên điện thoại tầm trung | Cần test |
 | K-08 | Thấp | 3D chỉ có ở Gate 01. Gate 02 cần model cho Bat, Brute, Stone Behemoth, vực, vách đá, tinh thể, đá lăn | Roadmap |
 | K-09 | Thấp | 3D không chạy khi mở file trực tiếp (file://); game tự về 2D | Đã xử lý |
+| K-10 | Thấp | Model 3D vẫn dựng bằng code (hình khối toán học), chưa phải model chuyên nghiệp có xương và hoạt ảnh. Muốn chân thật hơn nữa cần nạp file glTF (.glb) từ thư viện như Quaternius (CC0) hoặc Mixamo | Roadmap |
+| K-11 | Thấp | Chế độ màn ngang kiểu Contra chưa làm (xem mục 12, M5) | Roadmap |
 
 ## 12. Roadmap
 
@@ -277,6 +295,12 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 
 - [ ] Mỗi Gate có 1 cơ chế địa hình mới, 1–2 quái mới, 1 boss riêng và 3 thử thách
 
+### M5: Chế độ màn ngang kiểu Contra (đề xuất)
+
+- [ ] Chế độ chơi riêng: cuộn ngang, trọng lực, nhảy, bục đứng, thang, ngắm 8 hướng
+- [ ] Dùng lại: Hunter, súng, linh kiện, lựu đạn, HUD, âm thanh, lưu tiến trình
+- [ ] Làm mới: vật lý nhảy, thiết kế màn chơi ngang, AI quái theo mặt phẳng, điều khiển cảm ứng (nút Nhảy)
+
 ## 13. Checklist kiểm thử trước mỗi bản phát hành
 
 - [ ] Console không có lỗi khi chơi hết Gate 01 và Gate 02
@@ -288,6 +312,8 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 - [ ] Điện thoại: hai gậy hoạt động cùng lúc, các nút bấm được, HUD không che gậy
 - [ ] Cài PWA, tắt mạng rồi mở lại: vẫn chơi được
 - [ ] Chơi Gate 01 ở cả 2D và 3D; chuyển qua lại 2D/3D giữa các lần chơi
+- [ ] Để quái vây kín rồi dùng xung kích + lựu đạn; để máu dưới 35% kiểm tra thùng y tế thả dù
+- [ ] Thử 3 chế độ ngắm trên điện thoại
 - [ ] Tăng `VERSION` trong `sw.js`
 
 ## 14. Lịch sử thay đổi
@@ -297,6 +323,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v4.2** · README rev 5 | Ngắm mượt (giới hạn tốc độ xoay, cài đặt Chậm/Vừa/Nhanh, vùng chết quanh nhân vật); chế độ ngắm Tự động/Hỗ trợ/Thủ công cho điện thoại; **lựu đạn** và **xung kích** giải vây; quái bị choáng; **thùng y tế thả dù** khi máu thấp; rơi máu nhiều hơn khi yếu; lựu đạn rơi từ thùng và quái tinh nhuệ; dựng lại model 3D hữu cơ (chi nhiều khớp, đầu, hàm, móng, bề mặt sần) cho Hunter, Zombie, Spider, Licker, Spider Queen; nút LỰU/XUNG trên điện thoại; tay cầm: RB lựu đạn, B xung kích |
 | 2026-10-02 | **v4.1** · README rev 4 | Chế độ **3D thử nghiệm** cho Gate 01 bằng Three.js (camera phối cảnh, bóng đổ, model low-poly cho Hunter, 3 loại quái, Spider Queen và môi trường); nút chọn 2D/3D; tự giảm chất lượng khi máy chậm; tách vạch cảnh báo của quái ra hàm `tele()` dùng chung cho 2D và 3D; minimap cắt đúng khung |
 | 2026-10-01 | **v4.0** · README rev 3 | Viết lại thành dự án nhiều file. Nhân vật Hunter mới; hệ thống thiết bị và thử thách thay cho nâng cấp tự động; 3 súng; 5 linh kiện; Gate 02 Mountain (Bat, Brute, Stone Behemoth, đá lăn, vực); boss nhiều phase; điều khiển cảm ứng, tay cầm, PWA; menu, lưu tiến trình; sửa 15 lỗi của v3 |
 

@@ -18,7 +18,7 @@
     if (o.own) m.userData.own = true; else matCache[key] = m;
     return m;
   }
-  const glowMat = (color, ei) => std(color, { emissive: color, ei: ei || 1.4, rough: 0.4 });
+  const glowMat = (color, ei) => std(color, { emissive: color, ei: (ei || 1.4) * 0.6, rough: 0.4 });
   function mesh(geo, mat, x, y, z, cast) {
     const m = new T.Mesh(geo, mat);
     m.position.set(x || 0, y || 0, z || 0);
@@ -65,53 +65,113 @@
     });
   }
 
+  /* ================= CÔNG CỤ DỰNG HÌNH HỮU CƠ ================= */
+  // đoạn chi thon: đỉnh tại gốc toạ độ, kéo dài xuống -y (để xoay quanh khớp)
+  const limbGeo = (r1, r2, len) => G3(`l${r1}_${r2}_${len}`, () => { const g = new T.CylinderGeometry(r1, r2, len, 12, 1); g.translate(0, -len / 2, 0); return g; });
+  function limb(r1, r2, len, mat) { const m = new T.Mesh(limbGeo(r1, r2, len), mat); m.castShadow = true; return m; }
+  // khớp xoay: group chứa đoạn chi + khớp con ở đầu dưới
+  function joint(parent, x, y, z, r1, r2, len, mat, knob) {
+    const piv = new T.Group(); piv.position.set(x, y, z); parent.add(piv);
+    piv.add(limb(r1, r2, len, mat));
+    if (knob) piv.add(mesh(sph(r1 * 1.05, 10), knob, 0, 0, 0));
+    const end = new T.Group(); end.position.y = -len; piv.add(end);
+    piv.userData.end = end;
+    return piv;
+  }
+  // đoạn chi nối 2 điểm cố định
+  const DOWN = { x: 0, y: -1, z: 0 };
+  function limbBetween(parent, a, b, r1, r2, mat) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz);
+    const m = limb(r1, r2, L, mat);
+    m.position.set(a[0], a[1], a[2]);
+    m.quaternion.setFromUnitVectors(new T.Vector3(DOWN.x, DOWN.y, DOWN.z), new T.Vector3(dx / L, dy / L, dz / L));
+    parent.add(m); return m;
+  }
+  // làm méo bề mặt cầu cho giống da thịt / đá (nhiễu theo vị trí, liền mạch ở đường nối UV)
+  function bumpy(key, base, amt, freq) {
+    return G3(key, () => {
+      const g = base.clone(), p = g.attributes.position, v = new T.Vector3();
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i);
+        const n = Math.sin(v.x * freq + 1.3) * Math.sin(v.y * freq * 1.3 + 0.7) * Math.sin(v.z * freq * 0.9 + 2.1)
+          + 0.5 * Math.sin(v.x * freq * 2.7 + v.z * freq * 1.9);
+        const len = v.length() || 1;
+        v.multiplyScalar(1 + n * amt / len);
+        p.setXYZ(i, v.x, v.y, v.z);
+      }
+      g.computeVertexNormals(); return g;
+    });
+  }
+  const skinMat = (c, o) => std(c, Object.assign({ own: true, rough: 0.78 }, o || {}));
+
   /* ================= MODEL: NHÂN VẬT HUNTER ================= */
   function buildGun(id) {
-    const g = new T.Group(), dark = std(0x1d2224, { rough: 0.5, metal: 0.4 }), mid = std(0x3c474b, { rough: 0.5, metal: 0.3 });
+    const g = new T.Group(), dark = std(0x1d2224, { rough: 0.45, metal: 0.5 }), mid = std(0x3c474b, { rough: 0.45, metal: 0.4 });
     const orange = std(0xf2a33a), wood = std(0x7a4f2a);
+    const barrel = (r, len, x, y) => { const b = mesh(cyl(r, r, len, 10), mid, x, y, 0); b.rotation.z = Math.PI / 2; return b; };
     if (id === 'shotgun') {
-      g.add(mesh(box(26, 7, 6), dark, 13, 0, 0), mesh(box(12, 5, 5), mid, 31, 0.5, 0), mesh(box(10, 8, 7), wood, 20, -0.5, 0), mesh(box(9, 6, 5), wood, -3, -1, 0));
+      g.add(mesh(box(24, 6.5, 5.5), dark, 12, 0, 0), barrel(2.4, 14, 30, 1), barrel(2.4, 14, 30, -1.6), mesh(cap(3.4, 6), wood, 20, -1.5, 0), mesh(box(9, 6, 5), wood, -3, -1.5, 0));
+      g.children[3].rotation.z = Math.PI / 2;
       g.userData.tip = 38;
     } else if (id === 'smg') {
-      g.add(mesh(box(19, 6, 5), dark, 9.5, 0, 0), mesh(box(6, 3, 3), mid, 22, 0.5, 0), mesh(box(4, 10, 4), mid, 6, -7, 0), mesh(box(6, 1.6, 5.4), glowMat(0x4fd6ff, 1.2), 12, 3, 0));
+      g.add(mesh(box(19, 6, 5), dark, 9.5, 0, 0), barrel(1.6, 8, 22, 0.5), mesh(box(4, 11, 4), mid, 6, -7.5, 0), mesh(box(7, 1.6, 5.4), glowMat(0x4fd6ff, 1.4), 12, 3.2, 0));
       g.userData.tip = 26;
     } else {
-      g.add(mesh(box(27, 6, 5), dark, 13.5, 0, 0), mesh(box(9, 3, 3), mid, 31, 0.5, 0), mesh(box(5, 8, 4), mid, 10, -6, 0), mesh(box(3, 6.4, 5.4), orange, 20, 0, 0), mesh(box(9, 2.5, 3), mid, 12, 4, 0));
-      g.userData.tip = 36;
+      g.add(mesh(box(27, 6, 5), dark, 13.5, 0, 0), barrel(1.7, 12, 32, 0.6), mesh(box(5, 9, 4), mid, 10, -6.5, 0), mesh(box(3, 6.4, 5.4), orange, 20, 0, 0),
+        mesh(cyl(2, 2, 9, 10), mid, 13, 5, 0), mesh(box(8, 5, 4), dark, -3, -1, 0));
+      g.children[4].rotation.z = Math.PI / 2;
+      g.userData.tip = 38;
     }
     return g;
   }
 
   function buildHero() {
     const g = new T.Group();
-    const boot = std(0x1a2226), orange = std(0xf2a33a);
+    const armor = std(0x3f6b73, { rough: 0.5, metal: 0.15 }), dark = std(0x223238, { rough: 0.7 }), orange = std(0xf2a33a, { rough: 0.6 });
+    const boot = std(0x161d20, { rough: 0.6 }), pad = std(0x5b8f98, { rough: 0.45, metal: 0.2 });
     const legs = new T.Group(); g.add(legs);
     const mkLeg = (z) => {
-      const piv = new T.Group(); piv.position.set(0, 17, z);
-      piv.add(mesh(box(6, 15, 6), std(0x263a3f), 0, -7.5, 0), mesh(box(11, 5, 7.5), boot, 2, -15, 0), mesh(box(2, 4, 7.8), orange, 6.5, -14, 0));
-      legs.add(piv); return piv;
+      const hip = joint(legs, 0, 17, z, 3.6, 3.1, 8.5, dark);
+      const knee = joint(hip.userData.end, 0, 0, 0, 3.1, 2.7, 7, dark);
+      knee.add(mesh(sph(2.9, 10), pad, 1.6, 0.5, 0));
+      const b = mesh(cap(3.1, 6), boot, 2.5, -7.2, 0); b.rotation.z = Math.PI / 2; b.scale.set(1, 1, 1.15); knee.userData.end.add(b);
+      knee.userData.end.add(mesh(box(2, 3, 6.6), orange, 7.5, -0.4, 0));
+      return { hip, knee };
     };
-    const L = mkLeg(-5.5), R = mkLeg(5.5);
+    const L = mkLeg(-5.2), R = mkLeg(5.2);
     const upper = new T.Group(); upper.position.y = 17; g.add(upper);
-    const bodyMat = std(0x3a5f66, { own: true, rough: 0.6 });
+    const bodyMat = std(0x3a5f66, { own: true, rough: 0.55, metal: 0.1 });
     const body = mesh(cap(9, 9), bodyMat, 0, 10, 0); body.scale.set(0.95, 1, 1.25); upper.add(body);
-    upper.add(mesh(box(4, 14, 13), std(0x4f828b), 8, 10, 0), mesh(box(4.4, 15, 2.6), orange, 8.4, 10, 0));
-    upper.add(mesh(box(8, 17, 14), std(0x1f2f34), -11, 11, 0));
-    upper.add(mesh(cyl(3, 3, 13, 10), glowMat(0x7dff9b, 1.6), -15.5, 11, 0));
-    for (const z of [-12.5, 12.5]) { upper.add(mesh(sph(6.2, 10), std(0x4f7f87), 0, 19, z), mesh(box(7, 2, 2), orange, 0, 23.5, z)); }
-    const armMat = std(0x263a3f);
-    const aL = mesh(box(17, 5, 5), armMat, 7, 15, -8); aL.rotation.y = 0.45; upper.add(aL);
-    const aR = mesh(box(17, 5, 5), armMat, 9, 14, 7); aR.rotation.y = -0.3; upper.add(aR);
+    const plate = mesh(cap(5.5, 7), armor, 5.5, 11, 0); plate.scale.set(0.6, 1, 1.5); upper.add(plate);
+    upper.add(mesh(box(2.4, 15, 2.6), orange, 8.8, 11, 0));
+    upper.add(mesh(cap(3.2, 6), dark, 0, 2, 0));
+    // bình lọc sinh học
+    const pack = mesh(cap(6, 8), std(0x1f2f34, { rough: 0.6 }), -11, 12, 0); pack.scale.set(0.75, 1, 1.15); upper.add(pack);
+    upper.add(mesh(cyl(3, 3, 13, 14), glowMat(0x7dff9b, 1.7), -16, 12, 0));
+    upper.add(mesh(cyl(3.6, 3.6, 1.6, 14), std(0x9aa9ad, { metal: 0.6, rough: 0.3 }), -16, 18.8, 0), mesh(cyl(3.6, 3.6, 1.6, 14), std(0x9aa9ad, { metal: 0.6, rough: 0.3 }), -16, 5.2, 0));
+    for (const z of [-12, 12]) {
+      const sh = mesh(sph(6, 14), pad, -0.5, 19, z); sh.scale.set(1.1, 0.8, 1); upper.add(sh);
+      upper.add(mesh(box(8, 1.6, 1.6), orange, -0.5, 22.5, z));
+    }
+    const armMat = std(0x263a3f, { rough: 0.7 }), glove = std(0x151c1f, { rough: 0.6 });
+    // tay ôm súng
+    limbBetween(upper, [0, 19, -12], [7, 13, -8], 2.8, 2.5, armMat);
+    limbBetween(upper, [7, 13, -8], [13, 14, -1.5], 2.5, 2.2, armMat);
+    limbBetween(upper, [0, 19, 12], [8, 13, 9], 2.8, 2.5, armMat);
+    limbBetween(upper, [8, 13, 9], [20, 14, 2.5], 2.5, 2.2, armMat);
+    upper.add(mesh(sph(2.6, 8), glove, 13, 14, -1.5), mesh(sph(2.6, 8), glove, 20, 14, 2.5));
+    upper.add(mesh(sph(2.5, 8), armMat, 7, 13, -8), mesh(sph(2.5, 8), armMat, 8, 13, 9));
     const gunHolder = new T.Group(); gunHolder.position.set(12, 14, 1.5); upper.add(gunHolder);
     const head = new T.Group(); head.position.set(0, 29, 0); upper.add(head);
-    head.add(mesh(sph(8.5, 16), std(0x2a4247, { rough: 0.45 }), 0, 0, 0));
-    const visor = new T.Mesh(G3('visor', () => new T.SphereGeometry(7.9, 18, 12, Math.PI - 0.95, 1.9, 0.95, 1.05)), glowMat(0x86f6ff, 1.8));
-    visor.position.x = 0.8; head.add(visor);
-    head.add(mesh(box(13, 2, 2.4), orange, -1, 8, 0));
+    head.add(mesh(cyl(3.4, 3.8, 4, 12), dark, 0, -6.5, 0));
+    const helm = mesh(sph(8.5, 22), std(0x2a4247, { rough: 0.35, metal: 0.25 }), 0, 0, 0); helm.scale.set(1.05, 1, 1); head.add(helm);
+    const visor = new T.Mesh(G3('visor', () => new T.SphereGeometry(8.1, 22, 14, Math.PI - 0.95, 1.9, 0.95, 1.05)), std(0x3fc8e0, { emissive: 0x2fb8d8, ei: 0.75, rough: 0.12, metal: 0.4 }));
+    visor.position.x = 0.9; head.add(visor);
+    head.add(mesh(box(14, 1.8, 2.6), orange, -1, 8.3, 0), mesh(cyl(0.6, 0.6, 9, 6), dark, -6, 10, 4));
     const muzzle = glowSprite(0xffd27a, 34, 1); muzzle.visible = false; upper.add(muzzle);
-    const ring = new T.Mesh(G3('ring', () => new T.RingGeometry(23, 26.5, 40)), new T.MeshBasicMaterial({ color: 0x7ef3ff, transparent: true, opacity: 0.55, depthWrite: false }));
+    const ring = new T.Mesh(G3('ring', () => new T.RingGeometry(23, 26.5, 48)), new T.MeshBasicMaterial({ color: 0x7ef3ff, transparent: true, opacity: 0.55, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.9; g.add(ring);
-    g.userData = { legs: [L, R], legGroup: legs, upper, bodyMat, gunHolder, muzzle, ring, gunId: null };
+    g.userData = { legs: [L, R], legGroup: legs, upper, bodyMat, gunHolder, muzzle, ring, head, gunId: null };
     const outer = new T.Group(); g.scale.setScalar(1.3); outer.add(g); outer.userData = g.userData; return outer;
   }
   function animHero(p, m, G) {
@@ -119,14 +179,14 @@
     m.position.set(p.x, 0, p.y);
     const sp = Math.hypot(p.vx, p.vy);
     d.legGroup.rotation.y = -p.moveAng;
-    const sw = sp > 25 ? Math.sin(p.walk) * Math.min(0.75, 0.25 + sp / 380) : 0;
-    d.legs[0].rotation.z = sw; d.legs[1].rotation.z = -sw;
+    const sw = sp > 25 ? Math.sin(p.walk) * Math.min(0.7, 0.25 + sp / 380) : 0;
+    d.legs[0].hip.rotation.z = sw; d.legs[1].hip.rotation.z = -sw;
+    d.legs[0].knee.rotation.z = -Math.max(0, -sw) * 1.2; d.legs[1].knee.rotation.z = -Math.max(0, sw) * 1.2;
     d.upper.rotation.y = -p.aim;
-    d.upper.position.y = 17 + (sp > 25 ? Math.abs(Math.sin(p.walk)) * 1.6 : Math.sin(t * 3) * 0.4);
+    d.upper.position.y = 17 + (sp > 25 ? Math.abs(Math.sin(p.walk)) * 1.4 : Math.sin(t * 3) * 0.4);
+    d.head.rotation.z = Math.sin(t * 1.3) * 0.04;
     const w = MB.Weapons.current(p);
-    if (d.gunId !== w.id) {
-      d.gunHolder.clear(); d.gunHolder.add(buildGun(w.id)); d.gunId = w.id;
-    }
+    if (d.gunId !== w.id) { d.gunHolder.clear(); d.gunHolder.add(buildGun(w.id)); d.gunId = w.id; }
     const s = MB.Weapons.DEFS[w.id];
     const reloadK = w.reloading > 0 ? 1 - w.reloading / (s.reload * (1 - 0.12 * p.mods.mag)) : 0;
     d.gunHolder.position.x = 12 - p.recoil * 0.8;
@@ -147,48 +207,90 @@
     }
   }
 
-  /* ================= MODEL: QUÁI ================= */
+  /* ================= MODEL: ZOMBIE ================= */
   function buildZombie() {
-    const g = new T.Group(), skin = std(0x5f7f58, { own: true }), dark = std(0x3f5a3b);
+    const g = new T.Group();
+    const skin = skinMat(0x8b9b78), cloth = std(0x46525c, { rough: 0.95 }), shirt = std(0x7a735a, { own: true, rough: 0.95 });
     const legs = [];
-    for (const z of [-5, 5]) { const piv = new T.Group(); piv.position.set(0, 16, z); piv.add(mesh(box(6, 16, 6), dark, 0, -8, 0)); g.add(piv); legs.push(piv); }
-    const up = new T.Group(); up.position.y = 16; g.add(up);
-    const body = mesh(cap(8.5, 9), skin, 0, 9, 0); body.scale.set(0.9, 1, 1.2); up.add(body);
-    up.add(mesh(box(3, 6, 15), std(0x4b6545), 4, 6, 0));
+    for (const z of [-4.6, 4.6]) {
+      const hip = joint(g, 0, 19, z, 3.5, 3, 10, cloth);
+      const knee = joint(hip.userData.end, 0, 0, 0, 3, 2.3, 9, skin, skin);
+      const foot = mesh(cap(2.3, 4.5), skin, 2.3, -9.3, 0); foot.rotation.z = Math.PI / 2; knee.userData.end.add(foot);
+      legs.push({ hip, knee });
+    }
+    const torso = new T.Group(); torso.position.y = 19; torso.rotation.z = -0.32; g.add(torso);
+    const pelvis = mesh(sph(6, 14), cloth, 0, 1, 0); pelvis.scale.set(0.9, 0.7, 1.25); torso.add(pelvis);
+    const chest = mesh(bumpy('zchest', new T.SphereGeometry(8, 22, 16), 0.5, 0.9), shirt, 0, 10, 0); chest.scale.set(0.85, 1.15, 1.15); torso.add(chest);
+    // vết thương hở + xương sườn
+    torso.add(mesh(sph(3.2, 10), std(0x5a1414, { emissive: 0x3a0505, rough: 0.4 }), 6, 10, 3));
+    for (let i = 0; i < 3; i++) { const r = mesh(cyl(0.5, 0.5, 6, 6), std(0xe0d4bc), 6.6, 8 + i * 2, 3); r.rotation.x = Math.PI / 2; torso.add(r); }
+    const pm = glowMat(0xaaff5a, 1.4);
+    torso.add(mesh(sph(2.2, 8), pm, -6, 13, 5), mesh(sph(1.7, 8), pm, -5, 17, -6), mesh(sph(1.5, 8), pm, -3, 7, -8));
     const arms = [];
-    for (const z of [-9, 9]) { const a = mesh(box(19, 5, 5), std(0x8fa483), 9, 15, z); up.add(a); arms.push(a); }
-    up.add(mesh(sph(8, 12), std(0xb9b190), 3, 26, 0));
-    up.add(mesh(sph(1.8, 6), glowMat(0xe9ff9a, 2), 10, 27, -3), mesh(sph(1.8, 6), glowMat(0xe9ff9a, 2), 10, 27, 3));
-    const pm = glowMat(0xaaff5a, 1.3);
-    up.add(mesh(sph(2.6, 6), pm, -6, 12, 7), mesh(sph(2, 6), pm, -3, 18, -9), mesh(sph(2.2, 6), pm, -1, 30, 4));
-    g.userData = { legs, up, arms, h: 42 };
+    for (const z of [-8.8, 8.8]) {
+      torso.add(mesh(sph(3.3, 10), skin, 0, 16, z));
+      const sh = joint(torso, 0, 16, z, 2.8, 2.3, 10, skin);
+      sh.rotation.z = 1.35; sh.rotation.x = z > 0 ? -0.15 : 0.15;
+      const el = joint(sh.userData.end, 0, 0, 0, 2.3, 1.8, 9, skin, skin); el.rotation.z = 0.2;
+      const hand = el.userData.end;
+      hand.add(mesh(sph(2.4, 10), skin, 0, -1, 0));
+      for (let f = -1; f <= 1; f++) { const fi = limb(0.7, 0.45, 4.2, skin); fi.position.set(0, -2.4, f * 1.3); fi.rotation.x = f * 0.35; hand.add(fi); }
+      arms.push({ sh, el });
+    }
+    torso.add(mesh(cyl(2.4, 2.8, 4, 10), skin, 1, 19.5, 0));
+    const head = new T.Group(); head.position.set(2.5, 25.5, 0); torso.add(head);
+    const skull = mesh(bumpy('zskull', new T.SphereGeometry(6.4, 22, 16), 0.45, 1.2), skin, 0, 0, 0); skull.scale.set(1.05, 1.1, 0.95); head.add(skull);
+    const jaw = new T.Mesh(G3('zjaw', () => new T.SphereGeometry(4.6, 16, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)), skin);
+    jaw.position.set(2.2, -2.6, 0); jaw.scale.set(1.1, 0.9, 0.85); head.add(jaw);
+    head.add(mesh(sph(2.6, 10), std(0x2a0808, { rough: 0.3 }), 4.6, -2.4, 0));
+    for (const z of [-2.3, 2.3]) {
+      head.add(mesh(sph(1.9, 10), std(0x1a1a14, { rough: 0.3 }), 5, 1.2, z));
+      head.add(mesh(sph(1.1, 8), glowMat(0xe9ff9a, 2.4), 5.9, 1.2, z));
+    }
+    const hair = std(0x2b2620);
+    for (let i = 0; i < 5; i++) head.add(mesh(sph(1.6, 6), hair, -2 + i * 1.2, 5.6 - Math.abs(i - 2) * 0.4, (i % 2 ? 1 : -1) * 1.5));
+    g.userData = { legs, torso, arms, head, h: 46 };
     return g;
   }
   function animZombie(e, m, G) {
-    const d = m.userData, t = G.time;
-    const sp = Math.hypot(e.vx, e.vy), sw = sp > 10 ? Math.sin(t * 6 + e.t) * 0.55 : 0;
-    d.legs[0].rotation.z = sw; d.legs[1].rotation.z = -sw;
-    d.up.rotation.z = -0.18 + Math.sin(t * 3 + e.t) * 0.04;
-    d.arms[0].position.x = 9 + sw * 3; d.arms[1].position.x = 9 - sw * 3;
+    const d = m.userData, t = G.time, ph = t * 5.5 + e.t;
+    const moving = Math.hypot(e.vx, e.vy) > 10, sw = moving ? Math.sin(ph) * 0.5 : 0;
+    d.legs[0].hip.rotation.z = sw; d.legs[1].hip.rotation.z = -sw;
+    d.legs[0].knee.rotation.z = -Math.max(0, -sw) * 1.3; d.legs[1].knee.rotation.z = -Math.max(0, sw) * 1.3;
+    d.torso.rotation.z = -0.32 + Math.sin(ph * 0.5) * 0.05;
+    d.torso.rotation.x = Math.sin(ph * 0.5) * 0.08;
+    d.arms[0].sh.rotation.z = 1.35 + Math.sin(ph) * 0.15; d.arms[1].sh.rotation.z = 1.35 - Math.sin(ph) * 0.15;
+    d.head.rotation.x = Math.sin(t * 1.7 + e.t) * 0.2;
+    d.head.rotation.z = -0.1 + Math.sin(t * 2.3 + e.t) * 0.08;
   }
 
+  /* ================= MODEL: NHỆN / NỮ HOÀNG NHỆN ================= */
   function buildSpiderLike(o) {
     const g = new T.Group(), s = o.scale || 1;
-    const bodyM = std(o.body, { own: true }), legM = std(o.leg);
+    const bodyM = skinMat(o.body, { rough: 0.5, metal: 0.05 }), headM = skinMat(o.head, { rough: 0.45 }), legM = std(o.leg, { rough: 0.55 });
     const core = new T.Group(); core.scale.setScalar(s); g.add(core);
-    const ab = mesh(sph(9, 14), bodyM, -7, 9, 0); ab.scale.set(1.2, 0.8, 1); core.add(ab);
-    const ce = mesh(sph(6, 12), std(o.head, { own: true }), 5, 8, 0); core.add(ce);
-    for (const z of [-2.2, 2.2]) core.add(mesh(sph(1.3, 6), glowMat(o.eye, 2.2), 10.5, 9.5, z));
-    if (o.mark) { const mk = mesh(G3('oct', () => new T.OctahedronGeometry(3.4)), glowMat(o.mark, 1.6), -7, 15.5, 0); mk.scale.set(1.6, 0.5, 1); core.add(mk); }
+    const ab = mesh(bumpy('sab', new T.SphereGeometry(9, 24, 18), 0.35, 1.1), bodyM, -9, 10, 0); ab.scale.set(1.3, 0.85, 1.05); core.add(ab);
+    core.add(mesh(sph(2.4, 10), legM, -1, 9, 0));
+    const ce = mesh(sph(6.3, 20), headM, 4.5, 9, 0); ce.scale.set(1.15, 0.72, 1); core.add(ce);
+    if (o.mark) {
+      const mk = mesh(G3('oct', () => new T.OctahedronGeometry(3.4, 1)), glowMat(o.mark, 1.8), -9, 17.2, 0); mk.scale.set(1.8, 0.4, 0.9); core.add(mk);
+      for (let i = 0; i < 4; i++) core.add(mesh(sph(1.1, 8), glowMat(o.mark, 1.6), -16 + i * 3, 15.5 - Math.abs(i - 1.5) * 0.6, (i % 2 ? 3.5 : -3.5)));
+    }
+    const eyeB = std(0x0c0c0c, { rough: 0.15, metal: 0.4 });
+    for (const z of [-1.9, 1.9]) { core.add(mesh(sph(1.6, 10), eyeB, 9.6, 10.6, z)); core.add(mesh(sph(0.5, 6), glowMat(o.eye, 3), 10.9, 11, z)); }
+    for (const z of [-3.3, -1, 1, 3.3]) core.add(mesh(sph(0.8, 6), glowMat(o.eye, 2.5), 8.6, 12.2, z));
+    for (const z of [-1.5, 1.5]) { const f = limb(1.3, 0.4, 5, std(0x241414, { rough: 0.3 })); f.position.set(10.5, 8, z); f.rotation.z = 0.5; core.add(f); }
+    if (o.sacs) for (const z of [-8.5, 8.5]) for (let i = 0; i < 3; i++) core.add(mesh(sph(2.2, 10), glowMat(0x7fd63a, 1.2), -13 + i * 4, 9, z * (0.9 + i * 0.05)));
+    if (o.spikes) for (let i = 0; i < 5; i++) { const c = mesh(G3('spk', () => new T.ConeGeometry(1.2, 5, 6)), legM, -15 + i * 3.4, 17.5 - Math.abs(i - 2) * 0.6, 0); c.rotation.z = 0.4; core.add(c); }
     const legs = [];
     for (const side of [-1, 1]) for (let k = 0; k < 4; k++) {
-      const a = side * (Math.PI / 2 + (k - 1.5) * 0.5);
-      const lg = new T.Group(); lg.position.set(1, 8, side * 2.5); lg.rotation.y = -a;
-      const u = mesh(box(11, 2, 2), legM, 5, 2.5, 0); u.rotation.z = 0.5; lg.add(u);
-      const l = mesh(box(13, 2, 2), legM, 14, -1.8, 0); l.rotation.z = -0.95; lg.add(l);
-      core.add(lg); legs.push({ g: lg, a, k, side });
+      const a = side * (Math.PI / 2 + (k - 1.5) * 0.48);
+      const lg = new T.Group(); lg.position.set(5.5 - k * 2.2, 9, side * 3.5); lg.rotation.y = -a; core.add(lg);
+      const lw = o.legW || 1.3;
+      const femur = joint(lg, 0, 0, 0, 1.5 * lw, 1.15 * lw, 12, legM, legM); femur.rotation.z = 2.1;
+      const tibia = joint(femur.userData.end, 0, 0, 0, 1.15 * lw, 0.45 * lw, 14, legM, legM); tibia.rotation.z = -1.9;
+      legs.push({ g: lg, femur, a, k, side });
     }
-    if (o.fangs) for (const z of [-2, 2]) { const f = mesh(box(5, 1.2, 1.2), std(0xd9cfb8), 12, 6, z); f.rotation.y = z > 0 ? -0.4 : 0.4; core.add(f); }
     const stars = new T.Group(); stars.visible = false; stars.position.y = 30 * s; g.add(stars);
     for (let i = 0; i < 3; i++) stars.add(mesh(sph(3, 6), glowMat(0xffd56a, 2), 0, 0, 0, false));
     g.userData = { core, legs, stars, h: 18 * s };
@@ -198,36 +300,55 @@
     const d = m.userData, t = G.time;
     const moving = Math.hypot(e.vx, e.vy) > 15;
     const f = e.boss ? (e.state === 'dash' ? 22 : 9) : 18;
-    for (const L of d.legs) L.g.rotation.y = -L.a + (moving ? Math.sin(t * f + e.t + L.k * 1.7 + (L.side > 0 ? 1.5 : 0)) * 0.28 : 0);
-    d.core.position.y = (e.state === 'leap' ? 12 : 0) + (moving ? Math.abs(Math.sin(t * f)) * 0.8 : 0);
-    d.core.scale.y = (e.state === 'crouch' ? 0.75 : 1) * d.core.scale.x;
+    for (const L of d.legs) {
+      const ph = t * f + e.t + L.k * 1.6 + (L.side > 0 ? Math.PI : 0) + (L.k % 2 ? Math.PI : 0);
+      L.g.rotation.y = -L.a + (moving ? Math.sin(ph) * 0.3 : 0);
+      L.femur.rotation.z = 2.1 + (moving ? Math.max(0, Math.cos(ph)) * 0.35 : 0) - (e.state === 'crouch' ? 0.35 : 0);
+    }
+    d.core.position.y = (e.state === 'leap' ? 12 : 0) + (moving ? Math.abs(Math.sin(t * f)) * 0.6 : 0);
     d.stars.visible = e.state === 'stunned';
     if (d.stars.visible) d.stars.children.forEach((c, i) => { const a = t * 5 + i * 2.1; c.position.set(Math.cos(a) * 40, 0, Math.sin(a) * 40); });
-    if (e.boss && e.phase === 3 && !d.p3) { d.p3 = true; ownMats(m)[0].color.setHex(0x7d2a2a); }
+    if (e.boss && e.phase === 3 && !d.p3) { d.p3 = true; ownMats(m)[0].color.setHex(0x6e2222); }
   }
 
+  /* ================= MODEL: LICKER ================= */
   function buildLicker() {
-    const g = new T.Group(), skin = std(0x8d3434, { own: true }), dark = std(0x5a2020);
+    const g = new T.Group();
+    const muscle = skinMat(0xa8383a, { rough: 0.45 }), sinew = std(0x6a1d1f, { rough: 0.5 }), bone = std(0xe8d8c0, { rough: 0.6 });
     const up = new T.Group(); g.add(up);
-    const body = mesh(cap(7, 16), skin, 0, 12, 0); body.rotation.z = Math.PI / 2; body.scale.set(1, 1, 1.25); up.add(body);
-    for (let i = -8; i <= 8; i += 4) up.add(mesh(box(1.6, 3, 16), dark, i, 18, 0));
-    up.add(mesh(sph(6, 12), std(0xf0b3b3, { rough: 0.4 }), 13, 16, 0));
+    const body = mesh(bumpy('lbody', new T.CapsuleGeometry(6.5, 18, 6, 16), 0.35, 1.1), muscle, -1, 13, 0); body.rotation.z = Math.PI / 2; body.scale.set(0.85, 1, 1.15); up.add(body);
+    for (let i = -9; i <= 7; i += 4) { const r = mesh(G3('lrib', () => new T.TorusGeometry(6.4, 0.7, 6, 18)), sinew, i, 13, 0); r.rotation.y = Math.PI / 2; r.scale.set(1.15, 0.85, 1); up.add(r); }
+    for (let i = -10; i <= 8; i += 3) up.add(mesh(sph(1.3, 6), bone, i, 18.8, 0));
+    const head = new T.Group(); head.position.set(14, 14, 0); up.add(head);
+    const skull = mesh(sph(5.4, 18), muscle, 0, 0, 0); skull.scale.set(1.3, 0.85, 1); head.add(skull);
+    const brain = mesh(bumpy('brain', new T.IcosahedronGeometry(4.3, 3), 0.55, 2.4), std(0xf0a3a8, { rough: 0.35 }), -0.5, 3.6, 0); brain.scale.set(1.2, 0.8, 1); head.add(brain);
+    const jaw = new T.Mesh(G3('ljaw', () => new T.SphereGeometry(4, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)), sinew); jaw.position.set(3.5, -1.5, 0); jaw.scale.set(1.4, 0.8, 0.85); head.add(jaw);
+    const tooth = std(0xf4ecd8, { rough: 0.3 });
+    for (let i = 0; i < 6; i++) { const c = mesh(G3('tooth', () => new T.ConeGeometry(0.5, 2, 5)), tooth, 6 + (i % 3) * 0.9, -1, (i < 3 ? -1 : 1) * (1.4 + (i % 3) * 0.6)); c.rotation.z = Math.PI; head.add(c); }
+    const tongue = limb(1.4, 0.6, 22, std(0xd24b5a, { emissive: 0x4a0a10, rough: 0.3 })); tongue.position.set(7, -1, 0); tongue.rotation.z = Math.PI / 2 + 0.05; tongue.visible = false; head.add(tongue);
     const limbs = [];
-    for (const [x, z] of [[-7, -9], [-7, 9], [7, -9], [7, 9]]) {
-      const piv = new T.Group(); piv.position.set(x, 12, z);
-      const l = mesh(box(4, 4, 16), dark, 0, -5, Math.sign(z) * 6); l.rotation.x = Math.sign(z) * 0.7; piv.add(l);
-      up.add(piv); limbs.push(piv);
+    for (const [x, side, front] of [[8, -1, 1], [8, 1, 1], [-9, -1, 0], [-9, 1, 0]]) {
+      const yawG = new T.Group(); yawG.position.set(x, 12, side * 6); yawG.rotation.y = -(side * (Math.PI / 2 - (front ? 0.55 : -0.55))); up.add(yawG);
+      const sh = joint(yawG, 0, 0, 0, 2.7, 2.1, 10, muscle, sinew); sh.rotation.z = 1.45;
+      const el = joint(sh.userData.end, 0, 0, 0, 2.1, 1.4, 11, muscle, sinew); el.rotation.z = -1.55;
+      for (let c = -1; c <= 1; c++) { const cl = mesh(G3('claw', () => new T.ConeGeometry(0.6, front ? 5 : 3.5, 5)), bone, 1.5, -11, c * 1.1); cl.rotation.z = -Math.PI / 2 - 0.4; el.add(cl); }
+      limbs.push({ sh, el, side, front });
     }
-    const tongue = mesh(box(10, 2.5, 3), glowMat(0xff6b6b, 1), 22, 13, 0); tongue.visible = false; up.add(tongue);
-    g.userData = { up, limbs, tongue, h: 26 };
+    g.userData = { up, limbs, tongue, head, h: 26 };
     return g;
   }
   function animLicker(e, m, G) {
-    const d = m.userData, t = G.time;
-    const sw = Math.hypot(e.vx, e.vy) > 10 ? Math.sin(t * 10 + e.t) * 0.5 : 0;
-    d.limbs.forEach((l, i) => { l.rotation.z = (i % 2 ? sw : -sw); });
+    const d = m.userData, t = G.time, moving = Math.hypot(e.vx, e.vy) > 10;
+    d.limbs.forEach((l, i) => {
+      const ph = t * 11 + e.t + (i === 0 || i === 3 ? 0 : Math.PI);
+      l.sh.rotation.z = 1.45 + (moving ? Math.max(0, Math.sin(ph)) * 0.4 : 0);
+      l.sh.rotation.x = moving ? Math.cos(ph) * 0.25 * l.side : 0;
+    });
+    d.up.position.y = moving ? Math.abs(Math.sin(t * 11 + e.t)) * 1 : 0;
     d.up.position.x = e.state === 'aim' ? -3 : 0;
+    d.head.rotation.z = e.state === 'aim' ? 0.25 : Math.sin(t * 3 + e.t) * 0.08;
     d.tongue.visible = e.state === 'aim';
+    if (d.tongue.visible) d.tongue.scale.y = 0.4 + Math.abs(Math.sin(t * 20)) * 0.3;
   }
 
   function buildGeneric(e) {
@@ -239,9 +360,9 @@
 
   const MODELS = {
     zombie: { build: buildZombie, anim: animZombie, base: 19 },
-    spider: { build: () => buildSpiderLike({ body: 0x7c4a37, head: 0x9a5c44, leg: 0x6e4a38, eye: 0xffdf8c, mark: 0xaaff5a }), anim: animSpiderLike, base: 14 },
+    spider: { build: () => buildSpiderLike({ body: 0x6b3b2b, head: 0x8a5040, leg: 0x4e3226, eye: 0xff5040, mark: 0xaaff5a }), anim: animSpiderLike, base: 14 },
     licker: { build: buildLicker, anim: animLicker, base: 18 },
-    spiderQueen: { build: () => buildSpiderLike({ scale: 3.9, body: 0x3a1c1c, head: 0x5b2b2b, leg: 0x3d1f1f, eye: 0xffdf8c, mark: 0xbeff6e, fangs: true }), anim: animSpiderLike, base: 54 },
+    spiderQueen: { build: () => buildSpiderLike({ scale: 3.9, legW: 1.25, body: 0x4a2020, head: 0x6b3030, leg: 0x4a2424, eye: 0xffdf8c, mark: 0x6fcf2a, sacs: true, spikes: true }), anim: animSpiderLike, base: 54 },
   };
 
   /* ================= VẬT CẢN ================= */
@@ -314,16 +435,28 @@
       const c = new T.Color(MB.Weapons.MODS[it.id].color).getHex();
       const b = mesh(box(12, 12, 12), std(0x121a1d, { emissive: c, ei: 0.9, rough: 0.3 })); b.rotation.set(0.6, 0, 0.6); inner.add(b);
       g.add(glowSprite(c, 46, 0.65));
+    } else if (it.kind === 'grenade') {
+      inner.add(mesh(sph(6, 12), std(0x3e5a36, { rough: 0.5 })), mesh(cyl(2, 2, 4, 8), std(0xffb347), 0, 6.5, 0));
+      g.add(glowSprite(0xffb347, 36, 0.45));
     } else if (it.kind === 'weapon') {
       const gun = buildGun(it.id); gun.scale.setScalar(1.5); gun.position.x = -24; inner.add(gun);
       g.add(glowSprite(0xffd56a, 80, 0.6));
     }
     g.userData.inner = inner;
+    if (it.aid) {
+      const ch = new T.Group(); ch.position.y = 34;
+      const canopy = new T.Mesh(G3('chute', () => new T.SphereGeometry(15, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2.4)), std(0xe9f2e6, { rough: 0.9 }));
+      canopy.material.side = T.DoubleSide; ch.add(canopy);
+      ch.add(mesh(box(3, 8, 3), glowMat(0x3fbf5a, 1), 0, 14, 0, false), mesh(box(8, 3, 3), glowMat(0x3fbf5a, 1), 0, 14, 0, false));
+      for (const [x, z] of [[-10, -10], [10, -10], [-10, 10], [10, 10]]) limbBetween(ch, [x * 0.9, 3, z * 0.9], [0, -30, 0], 0.3, 0.3, std(0xcfd8cc));
+      g.add(ch); g.userData.chute = ch;
+    }
     return g;
   }
 
   /* ================= RENDERER ================= */
   const R3 = MB.R3 = {
+    debug: { buildHero: () => buildHero(), animHero: (p, m, G) => animHero(p, m, G), MODELS },
     ready: false,
     async load() {
       if (T) return;
@@ -579,14 +712,21 @@
         if (e.spawnT > 0) { const mx = e.boss ? 1.4 : 0.6, kk = 1 - e.spawnT / mx; u.g.position.y = -(1 - kk) * u.h; }
         else u.g.position.y = e.fly ? 26 + Math.sin(G.time * 6 + e.t) * 4 : 0;
         if (u.md) u.md.anim(e, u.g, G);
-        const fl = e.flash > 0;
-        for (const mt of u.mats) { mt.emissive.setHex(fl ? 0xffffff : 0x000000); mt.emissiveIntensity = fl ? 0.7 : 1; }
+        const fl = e.flash > 0, st = e.stunT > 0;
+        for (const mt of u.mats) { mt.emissive.setHex(fl ? 0xffffff : st ? 0x2a7cff : 0x000000); mt.emissiveIntensity = fl ? 0.7 : st ? 0.45 : 1; }
         if (u.ring) u.ring.material.opacity = 0.45 + Math.sin(G.time * 6) * 0.25;
       });
 
+      // lựu đạn đang bay
+      this.sync('gren', G.grenades, () => {
+        const gg = new T.Group(); gg.add(mesh(sph(5, 12), std(0x3e5a36, { rough: 0.5 }), 0, 0, 0));
+        const led = mesh(sph(1.6, 6), std(0x330000, { own: true, emissive: 0xff3b3b, ei: 2 }), 3, 3, 0, false); gg.add(led); gg.userData.led = led; return gg;
+      }, (gr, m) => { m.position.set(gr.x, 6 + gr.h, gr.y); m.rotation.z -= 0.3; m.userData.led.visible = Math.floor(t * 12) % 2 === 0; });
+
       // vật phẩm
       this.sync('pick', G.pickups, buildPickup, (it, m) => {
-        m.position.set(it.x, 12 + Math.sin(t * 4 + it.x) * 3 + it.z * 0.5, it.y);
+        if (m.userData.chute) m.userData.chute.visible = it.z > 2;
+        m.position.set(it.x, 12 + (it.z > 2 ? 0 : Math.sin(t * 4 + it.x) * 3) + it.z * 0.6, it.y);
         m.userData.inner.rotation.y = t * 1.8;
         m.visible = !(it.life < 4 && Math.floor(t * 8) % 2);
       });
@@ -643,7 +783,8 @@
     // vẽ vạch cảnh báo, vòng xung kích, vùng thử thách lên lớp phủ mặt đất
     drawGroundOverlay(G, cx, cy) {
       const ov = this.ov, ctx = ov.ctx, S = ov.size, px = ov.cv.width;
-      const tele = G.enemies.some((e) => e.def.tele && e.state === 'aim');
+      const lock = G.lockE && !G.lockE.dead && MB.Input.mode !== 'kb' ? G.lockE : null;
+      const tele = lock || G.enemies.some((e) => e.def.tele && e.state === 'aim');
       const zones = G.challenges.some((c) => c.type === 'hold' && U.dist(c.zone.x, c.zone.y, cx, cy) < S);
       if (!G.fx.length && !tele && !zones) { if (ov.dirty) { ctx.clearRect(0, 0, px, px); this.ovTex.needsUpdate = true; ov.dirty = false; } return; }
       ov.dirty = true;
@@ -666,6 +807,11 @@
       }
       for (const f of G.fx) f.draw(ctx, f, G);
       for (const e of G.enemies) if (e.def.tele && !e.dead) e.def.tele(ctx, e, G);
+      if (lock) {
+        const r = (lock.r || lock.br) + 12;
+        ctx.strokeStyle = 'rgba(255,80,80,.95)'; ctx.lineWidth = 4;
+        ctx.beginPath(); for (let i = 0; i < 4; i++) { const a = t * 2 + i * Math.PI / 2; ctx.moveTo(lock.x + Math.cos(a) * r, lock.y + Math.sin(a) * r); ctx.arc(lock.x, lock.y, r, a, a + 0.8); } ctx.stroke();
+      }
       this.ovTex.needsUpdate = true;
     },
 

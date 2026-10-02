@@ -66,11 +66,11 @@
         if (any) this.setMode('pad');
         const P = this.pad;
         P.move.x = mx; P.move.y = my; P.aim.x = rx; P.aim.y = ry;
-        P.fire = b(7) || b(5);
+        P.fire = b(7);
         P.sprint = b(4) || b(10) || b(6);
         const edge = (i, name) => { const now = b(i); if (now && !P.prev[i]) this.press(name); P.prev[i] = now; };
         if (this.mode === 'pad') {
-          edge(0, 'dodge'); edge(1, 'dodge'); edge(2, 'reload'); edge(3, 'swap');
+          edge(0, 'dodge'); edge(1, 'nova'); edge(2, 'reload'); edge(3, 'swap'); edge(5, 'grenade');
           const st = b(9); if (st && !P.prev[9] && MB.App) MB.App.togglePause(); P.prev[9] = st;
         }
       }
@@ -125,6 +125,8 @@
           if (c === 'Space') this.press('dodge');
           if (c === 'KeyR') this.press('reload');
           if (c === 'KeyQ') this.press('swap');
+          if (c === 'KeyG') this.press('grenade');
+          if (c === 'KeyF' || c === 'KeyE') this.press('nova');
           if (c === 'Digit1' || c === 'Digit2' || c === 'Digit3') this.press('slot' + c.slice(5));
           if ((c === 'Escape' || c === 'KeyP') && MB.App) MB.App.togglePause();
         }
@@ -144,6 +146,7 @@
           this.mouse.x = e.clientX; this.mouse.y = e.clientY;
           if (e.button === 0) this.mouse.down = true;
           if (e.button === 2) this.press('dodge');
+          if (e.button === 1) { e.preventDefault(); this.press('grenade'); }
           return;
         }
         e.preventDefault();

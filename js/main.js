@@ -187,13 +187,21 @@
       const st = MB.Save.data.settings;
       const rows = [
         ['sfx', 'Hiệu ứng âm thanh'], ['music', 'Nhạc nền'], ['shake', 'Rung màn hình'],
-        ['aimAssist', 'Hỗ trợ ngắm (cảm ứng / tay cầm)'], ['dmgNum', 'Hiện số sát thương'],
+        ['dmgNum', 'Hiện số sát thương'],
       ];
       $('settingsList').innerHTML = rows.map(([k, label]) => `<label class="row"><span>${label}</span><input type="checkbox" data-set="${k}" ${st[k] ? 'checked' : ''}></label>`).join('') +
         `<label class="row"><span>Đồ hoạ</span><select data-set="quality">
           <option value="auto"${st.quality === 'auto' ? ' selected' : ''}>Tự động</option>
           <option value="high"${st.quality === 'high' ? ' selected' : ''}>Cao</option>
           <option value="low"${st.quality === 'low' ? ' selected' : ''}>Thấp (máy yếu)</option></select></label>
+        <label class="row"><span>Ngắm trên điện thoại / tay cầm</span><select data-set="aimMode">
+          <option value="auto"${st.aimMode === 'auto' ? ' selected' : ''}>Tự động (tự khoá + tự bắn)</option>
+          <option value="assist"${st.aimMode === 'assist' ? ' selected' : ''}>Hỗ trợ (hút nhẹ về quái)</option>
+          <option value="manual"${st.aimMode === 'manual' ? ' selected' : ''}>Thủ công</option></select></label>
+        <label class="row"><span>Tốc độ xoay người khi ngắm</span><select data-set="aimSpeed">
+          <option value="slow"${st.aimSpeed === 'slow' ? ' selected' : ''}>Chậm (dễ ngắm)</option>
+          <option value="normal"${st.aimSpeed === 'normal' || !st.aimSpeed ? ' selected' : ''}>Vừa</option>
+          <option value="fast"${st.aimSpeed === 'fast' ? ' selected' : ''}>Nhanh</option></select></label>
         <label class="row"><span>Góc nhìn</span><select data-set="view">
           <option value="2d"${st.view !== '3d' ? ' selected' : ''}>2D từ trên xuống</option>
           <option value="3d"${st.view === '3d' ? ' selected' : ''}>3D (thử nghiệm)</option></select></label>`;

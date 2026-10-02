@@ -155,7 +155,7 @@ window.MB = window.MB || {};
     unlocked: 1,
     gates: {},
     armory: ['rifle'],
-    settings: { view: '3d', sfx: true, music: true, shake: true, aimAssist: true, dmgNum: true, quality: 'auto' },
+    settings: { view: '3d', aimMode: 'auto', aimSpeed: 'normal', sfx: true, music: true, shake: true, dmgNum: true, quality: 'auto' },
   });
   MB.Save = {
     data: defaults(),

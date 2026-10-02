@@ -72,6 +72,10 @@ body.playing[data-input="kb"] #input { cursor: none; }
 #reloadFill { background: var(--gold); }
 .wfoot { display: flex; gap: 8px; justify-content: center; align-items: center; font-size: 10.5px; color: var(--muted); flex-wrap: wrap; }
 .mods { display: inline-flex; gap: 4px; }
+.skills { display: flex; gap: 10px; justify-content: center; margin-top: 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; }
+.sk { color: var(--text); } .sk.off { color: var(--muted); opacity: .6; }
+.sk i { font-style: normal; color: #0a130c; background: var(--muted); border-radius: 4px; padding: 0 4px; margin-left: 2px; }
+body[data-input="touch"] .skills { display: none; }
 .mod { font-weight: 900; font-size: 10.5px; color: var(--c); border: 1px solid var(--c); border-radius: 6px; padding: 1px 4px; }
 
 .boss { position: absolute; left: 50%; transform: translateX(-50%); top: calc(12px + var(--sat)); width: min(560px, 56vw); padding: 7px 12px; text-align: center; }
@@ -100,13 +104,18 @@ body:not([data-input="touch"]) #touchUI { display: none; }
 .tzone { position: absolute; bottom: calc(18px + var(--sab)); font-size: 10px; letter-spacing: .2em; color: rgba(255,255,255,.22); }
 .tzone { animation: fadeLbl 1s 7s forwards; }
 @keyframes fadeLbl { to { opacity: 0; } }
-.tzone.tl { left: calc(18px + var(--sal)); } .tzone.tr { right: calc(230px + var(--sar)); }
-.tbtns { position: absolute; right: calc(14px + var(--sar)); bottom: calc(14px + var(--sab)); width: 200px; height: 170px; }
+.tzone.tl { left: calc(18px + var(--sal)); } .tzone.tr { right: calc(250px + var(--sar)); }
+.tbtns { position: absolute; right: calc(14px + var(--sar)); bottom: calc(14px + var(--sab)); width: 230px; height: 165px; }
 .tbtn { position: absolute; pointer-events: auto; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); background: rgba(9, 22, 14, .55);
   color: #eef7ef; font-weight: 900; font-size: 11px; width: 58px; height: 58px; touch-action: none; }
 .tbtn.big { width: 82px; height: 82px; right: 0; bottom: 0; font-size: 15px; background: rgba(126, 243, 255, .2); border-color: rgba(126, 243, 255, .55); }
-.tbtn[data-act="reload"] { right: 94px; bottom: 4px; }
-.tbtn[data-act="swap"] { right: 22px; bottom: 96px; }
+.tbtn[data-act="reload"] { right: 96px; bottom: 0; }
+.tbtn[data-act="swap"] { right: 10px; bottom: 94px; }
+.tbtn.sk1 { right: 84px; bottom: 70px; background: rgba(255,179,71,.18); border-color: rgba(255,179,71,.55); }
+.tbtn.sk2 { right: 160px; bottom: 44px; background: rgba(126,243,255,.14); border-color: rgba(126,243,255,.5); }
+.tbtn b { display: block; font-size: 12px; color: var(--gold); line-height: 1; }
+.tbtn.sk2 b { color: var(--cyan); }
+.tbtn.off { opacity: .45; }
 .tbtn.on { transform: scale(.9); background: rgba(215, 255, 159, .45); }
 
 /* ---------- màn hình ---------- */
@@ -196,5 +205,5 @@ body:not([data-input="touch"]) .touch-only { display: none; }
   .hero-card h1 { font-size: 30px; margin: 6px 0 12px; }
   .hero-card #iosHint { display: block; }
 }
-body[data-input="touch"] .weapon { left: auto; right: calc(230px + var(--sar)); transform: none; }
-@media (max-width: 760px) { body[data-input="touch"] .weapon { right: calc(214px + var(--sar)); } }
+body[data-input="touch"] .weapon { left: auto; right: calc(250px + var(--sar)); transform: none; }
+@media (max-width: 760px) { body[data-input="touch"] .weapon { right: calc(244px + var(--sar)); } }

@@ -52,6 +52,8 @@
       if (!p.weapons.length) p.weapons.push(MB.Weapons.make('rifle'));
       p.aim = 0;
 
+      MB.Skills.init(p);
+      this.aidT = 0; this.lockE = null; this.grenades = [];
       MB.Challenges.init(this, def.challenges);
       this.buildGround();
       this.mmDirty = true;
@@ -251,10 +253,11 @@
       this.burst(e.x, e.y, e.def.gore || '#a8e07a', e.boss ? 60 : 16, e.boss ? 260 : 150);
       MB.Audio.play('kill');
       if (!e.boss) {
-        if (e.elite) MB.Items.drop(this, 'mod', e.x, e.y, MB.Items.randomMod(this.player));
+        if (e.elite) { MB.Items.drop(this, 'mod', e.x, e.y, MB.Items.randomMod(this.player)); if (Math.random() < 0.35) MB.Items.drop(this, 'grenade', e.x, e.y); }
         else {
           const r = Math.random();
-          if (r < 0.055) MB.Items.drop(this, 'med', e.x, e.y);
+          const low = this.player.hp < this.player.maxHp * 0.4;
+          if (r < (low ? 0.14 : 0.055)) MB.Items.drop(this, 'med', e.x, e.y);
           else if (r < 0.085) MB.Items.drop(this, 'armor', e.x, e.y);
         }
       }
@@ -374,36 +377,74 @@
 
     /* ================== aim ================== */
     computeAim(dt) {
-      const I = MB.Input, p = this.player;
+      const I = MB.Input, p = this.player, st = MB.Save.data.settings;
       if (p.dead) { this.wantFire = false; return; }
+      // tốc độ xoay tối đa (rad/giây): tránh xoay giật, dễ ngắm hơn
+      let rate = { slow: 5, normal: 8, fast: 14 }[st.aimSpeed] || 8;
+      let want = null, fire = I.fire();
       if (I.mode === 'kb') {
-        if (this.r3on) { const w = MB.R3.screenToGround(I.mouse.x, I.mouse.y, this); p.aim = Math.atan2(w.y - p.y, w.x - p.x); }
-        else { const wx = I.mouse.x / this.zoom + this.cam.x, wy = I.mouse.y / this.zoom + this.cam.y; p.aim = Math.atan2(wy - p.y, wx - p.x); }
+        rate *= 2.2;
+        let wx, wy;
+        if (this.r3on) { const w = MB.R3.screenToGround(I.mouse.x, I.mouse.y, this); wx = w.x; wy = w.y; }
+        else { wx = I.mouse.x / this.zoom + this.cam.x; wy = I.mouse.y / this.zoom + this.cam.y; }
+        // chuột quá sát nhân vật thì giữ hướng cũ (tránh xoay vòng loạn)
+        if (U.dist(wx, wy, p.x, p.y) > 34) want = Math.atan2(wy - p.y, wx - p.x);
+        this.lockE = null;
       } else {
-        const v = I.aimVec();
-        if (v) {
-          let a = Math.atan2(v.y, v.x);
-          if (MB.Save.data.settings.aimAssist) a = this.assist(a);
-          p.aim = a;
-        } else if (Math.hypot(I.move.x, I.move.y) > 0.2) {
-          p.aim += U.angDiff(p.aim, Math.atan2(I.move.y, I.move.x)) * Math.min(1, dt * 8);
+        const v = I.aimVec(), mode = st.aimMode || 'auto';
+        const stickA = v ? Math.atan2(v.y, v.x) : null;
+        if (mode === 'auto') {
+          const tg = this.autoTarget(stickA);
+          this.lockE = tg;
+          if (tg) {
+            want = Math.atan2(tg.y - p.y, tg.x - p.x);
+            // tự bắn khi đã quay gần đúng hướng mục tiêu
+            if (Math.abs(U.angDiff(p.aim, want)) < 0.3) fire = true;
+          } else if (stickA != null) want = stickA;
+        } else if (stickA != null) {
+          want = mode === 'assist' ? this.assist(stickA) : stickA;
         }
+        if (want == null && Math.hypot(I.move.x, I.move.y) > 0.2) { want = Math.atan2(I.move.y, I.move.x); rate *= 0.7; }
       }
-      this.wantFire = I.fire();
+      if (want != null) { const d = U.angDiff(p.aim, want), mx = rate * dt; p.aim += U.clamp(d, -mx, mx); }
+      this.wantFire = fire;
+    },
+    // ngắm tự động: chọn quái gần nhất trong tầm nhìn, ưu tiên hướng gậy ngắm và mục tiêu đang khoá
+    autoTarget(prefA) {
+      const p = this.player;
+      let best = null, bs = 1e9;
+      for (const e of this.enemies) {
+        if (e.dead || e.spawnT > 0) continue;
+        const d = U.dist(e.x, e.y, p.x, p.y);
+        if (d > 540) continue;
+        let sc = d;
+        if (prefA != null) { const da = Math.abs(U.angDiff(prefA, Math.atan2(e.y - p.y, e.x - p.x))); if (da > 1.1) continue; sc += da * 320; }
+        if (e === this.lockE) sc -= 140;
+        if (e.boss) sc -= 60;
+        if (sc < bs && this.los(p.x, p.y, e.x, e.y)) { bs = sc; best = e; }
+      }
+      if (!best) for (const o of this.obstacles) {
+        // không có quái: tự bắn mục tiêu thử thách / thùng ở gần
+        if (o.dead || !o.hp) continue;
+        const d = U.dist(o.x, o.y, p.x, p.y);
+        if (d < 300 && d < bs && (prefA == null || Math.abs(U.angDiff(prefA, Math.atan2(o.y - p.y, o.x - p.x))) < 0.8)) { bs = d; best = o; }
+      }
+      return best;
     },
     assist(a) {
       const p = this.player;
-      let best = null, bd = 0.32;
+      let best = null, bd = 0.42;
       for (const e of this.enemies) {
         if (e.dead || e.spawnT > 0) continue;
         const d = U.dist(e.x, e.y, p.x, p.y);
         if (d > 560) continue;
         const da = Math.abs(U.angDiff(a, Math.atan2(e.y - p.y, e.x - p.x)));
-        const score = da + d / 4000;
+        const score = da + d / 4000 - (e === this.lockE ? 0.15 : 0);
         if (score < bd && this.los(p.x, p.y, e.x, e.y)) { bd = score; best = e; }
       }
+      this.lockE = best;
       if (!best) return a;
-      return a + U.angDiff(a, Math.atan2(best.y - p.y, best.x - p.x)) * 0.75;
+      return a + U.angDiff(a, Math.atan2(best.y - p.y, best.x - p.x)) * 0.85;
     },
 
     /* ================== update ================== */
@@ -433,6 +474,8 @@
       }
 
       MB.Weapons.update(p, this, dt);
+      MB.Skills.update(this, dt);
+      this.updateAid(dt);
       if (!this.over) this.updateWaves(dt);
       this.updateEnemies(dt);
       this.updateObstacles(dt);
@@ -461,13 +504,33 @@
       MB.HUD.update(this);
     },
 
+    // thả tiếp tế y tế khi máu thấp
+    updateAid(dt) {
+      const p = this.player;
+      this.aidT = (this.aidT || 0) - dt;
+      if (p.dead || this.over || this.state === 'won' || this.state === 'intro' || this.aidT > 0 || p.hp > p.maxHp * 0.35) return;
+      this.aidT = 40;
+      let x = p.x, y = p.y;
+      for (let i = 0; i < 12; i++) {
+        const a = U.rnd(0, U.TAU), d = U.rnd(150, 230);
+        const tx = U.clamp(p.x + Math.cos(a) * d, 80, this.world.w - 80), ty = U.clamp(p.y + Math.sin(a) * d, 80, this.world.h - 80);
+        if (!this.obstacles.some((o) => !o.dead && !o.noMove && MB.Col.overlap(o, tx, ty, 30))) { x = tx; y = ty; break; }
+      }
+      const drop = (kind) => this.pickups.push({ kind, x: x + U.rnd(-40, 40), y: y + U.rnd(-40, 40), vx: 0, vy: 0, z: 280, vz: 0, t: 0, life: 45, aid: true });
+      drop('med'); drop('med');
+      if (Math.random() < 0.6) drop('armor'); else drop('grenade');
+      MB.HUD.toast('<b>TIẾP TẾ Y TẾ</b> đang rơi xuống gần bạn (mũi tên xanh)', '#9dff8a');
+      MB.Audio.play('heal');
+    },
+
     updateEnemies(dt) {
       const p = this.player, list = this.enemies;
       for (const e of list) {
         if (e.dead) continue;
         e.flash -= dt;
         if (e.spawnT > 0) { e.spawnT -= dt; continue; }
-        if (!p.dead && !this.over) e.def.update(e, this, dt);
+        if (e.stunT > 0) { e.stunT -= dt; MB.Enemies.stop(e, dt, 8); }
+        else if (!p.dead && !this.over) e.def.update(e, this, dt);
         else MB.Enemies.stop(e, dt, 4);
         e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
         const kd = Math.exp(-9 * dt); e.kx *= kd; e.ky *= kd;
@@ -653,12 +716,18 @@
         ctx.fillStyle = b.color; U.circle(ctx, b.x, b.y, b.r); ctx.fill();
       }
 
+      if (this.lockE && !this.lockE.dead && MB.Input.mode !== 'kb') {
+        const L = this.lockE, r = (L.r || L.br) + 10;
+        ctx.strokeStyle = 'rgba(255,90,90,.85)'; ctx.lineWidth = 2;
+        ctx.beginPath(); for (let i = 0; i < 4; i++) { const a = this.time * 2 + i * Math.PI / 2; ctx.moveTo(L.x + Math.cos(a) * r, L.y + Math.sin(a) * r); ctx.arc(L.x, L.y, r, a, a + 0.8); } ctx.stroke();
+      }
       for (const e of this.enemies) if (!e.dead && this.inView(e.x, e.y, e.r + 80)) this.drawEnemy(ctx, e);
 
       if (MB.Input.mode !== 'kb') MB.Hero.drawAimLine(ctx, this.player, this);
       MB.Hero.draw(ctx, this.player, this);
 
       for (const b of this.ebullets) this.drawEnemyBullet(ctx, b);
+      MB.Skills.draw2D(ctx, this);
       for (const f of this.fx) if (f.layer !== 'ground') f.draw(ctx, f, this);
 
       for (const q of this.particles) {
@@ -707,6 +776,10 @@
       }
       if (def.tele) def.tele(ctx, e, this);
       def.draw(ctx, e, this);
+      if (e.stunT > 0) {
+        ctx.fillStyle = '#7ef3ff';
+        for (let i = 0; i < 3; i++) { const a = this.time * 6 + i * 2.1; U.circle(ctx, e.x + Math.cos(a) * (e.r + 4), e.y - e.r - 4 + Math.sin(a) * 4, 2.6); ctx.fill(); }
+      }
       if (e.flash > 0) {
         ctx.globalAlpha = Math.min(1, e.flash * 9) * 0.55;
         ctx.fillStyle = '#ffffff'; U.circle(ctx, e.x, e.y, e.r * 0.95); ctx.fill();

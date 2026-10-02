@@ -7,13 +7,15 @@
     init() {
       ['hud', 'hpFill', 'armorFill', 'hpText', 'stFill', 'waveText', 'enemyText', 'scoreText', 'objTitle', 'objText',
         'chList', 'chHead', 'weaponSlots', 'ammoText', 'magText', 'reloadFill', 'modList', 'bossHud', 'bossName', 'bossFill',
-        'toasts', 'banner', 'bannerT', 'bannerS', 'dodgeBtn', 'powerText'].forEach((k) => { this.el[k] = $(k); });
+        'toasts', 'banner', 'bannerT', 'bannerS', 'dodgeBtn', 'powerText', 'gText', 'nText', 'gBtn', 'nBtn', 'gCount', 'nCd'].forEach((k) => { this.el[k] = $(k); });
       this.el.chHead.addEventListener('click', () => document.getElementById('challenges').classList.toggle('collapsed'));
     },
     set(key, el, prop, val) {
       if (this.last[key] === val) return;
       this.last[key] = val;
+      if (!el) return;
       if (prop === 'text') el.textContent = val;
+      else if (prop === 'className') el.className = val;
       else if (prop === 'html') el.innerHTML = val;
       else el.style[prop] = val;
     },
@@ -81,6 +83,15 @@
           .map((k) => { const m = W.MODS[k]; return `<span class="mod" title="${m.name}" style="--c:${m.color}">${m.glyph}${p.mods[k]}</span>`; }).join('');
       }
       if (e.dodgeBtn) this.set('dg', e.dodgeBtn, 'opacity', p.dashCd > 0 || p.stamina < 18 ? '.45' : '1');
+      const SK = MB.Skills;
+      this.set('gt', e.gText, 'text', `LỰU ĐẠN ${p.grenades}/${SK.GRENADE.max}` + (p.grenades < SK.GRENADE.max ? ` (+1 sau ${Math.ceil(p.gRegen)}s)` : ''));
+      this.set('gtc', e.gText, 'className', p.grenades > 0 ? 'sk' : 'sk off');
+      this.set('gc', e.gCount, 'text', String(p.grenades));
+      this.set('gb', e.gBtn, 'className', 'tbtn sk1' + (p.grenades > 0 ? '' : ' off'));
+      this.set('nt', e.nText, 'text', p.novaCd > 0 ? `XUNG KÍCH ${Math.ceil(p.novaCd)}s` : 'XUNG KÍCH SẴN SÀNG');
+      this.set('ntc', e.nText, 'className', p.novaCd > 0 ? 'sk off' : 'sk');
+      this.set('nc', e.nCd, 'text', p.novaCd > 0 ? String(Math.ceil(p.novaCd)) : '✓');
+      this.set('nb', e.nBtn, 'className', 'tbtn sk2' + (p.novaCd > 0 ? ' off' : ''));
 
       // thử thách
       const chSig = G.challenges.map((c) => c.id + (c.done ? 'D' : MB.Challenges.label(c)) + (c.active ? 'A' : '')).join('|');
