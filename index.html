@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#050b07">
+<meta name="description" content="Monster Breakout — game bắn súng sinh tồn vượt ải chống virus quái vật. Chơi trên máy tính và điện thoại.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Monster Breakout">
+<meta property="og:title" content="Monster Breakout">
+<meta property="og:description" content="Vượt 10 cửa ải, chiến đấu virus quái vật. Chơi ngay trên trình duyệt.">
+<title>Monster Breakout</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-input="kb">
+<div id="app">
+  <canvas id="game"></canvas>
+  <div id="input"></div>
+
+  <!-- ===== HUD ===== -->
+  <div id="hud" class="hidden">
+    <div class="hud-tl panel">
+      <div class="hp-row">
+        <span class="lbl">HP</span>
+        <div class="bar hp"><div id="hpFill"></div><div id="armorFill"></div></div>
+        <span id="hpText" class="hpnum">100</span>
+      </div>
+      <div class="bar st"><div id="stFill"></div></div>
+      <div class="meta"><span id="waveText">WAVE 1/3</span><span id="enemyText"></span><span class="score">★ <b id="scoreText">0</b></span></div>
+    </div>
+
+    <div id="challenges" class="panel challenges">
+      <div id="chHead" class="ch-head">THỬ THÁCH</div>
+      <div id="chList"></div>
+    </div>
+
+    <div class="objective panel"><b id="objTitle"></b><span id="objText"></span></div>
+    <button class="pause-btn" data-act="pause" aria-label="Tạm dừng">❚❚</button>
+
+    <div class="weapon panel">
+      <div id="weaponSlots" class="slots"></div>
+      <div class="ammo"><b id="ammoText">30</b><small id="magText">/30</small></div>
+      <div class="bar rl"><div id="reloadFill"></div></div>
+      <div class="wfoot"><span id="powerText"></span><span id="modList" class="mods"></span></div>
+    </div>
+
+    <div id="bossHud" class="boss panel hidden"><div id="bossName" class="bname"></div><div class="bar"><div id="bossFill"></div></div></div>
+    <div id="toasts"></div>
+    <div id="banner" class="banner hidden"><b id="bannerT"></b><span id="bannerS"></span></div>
+  </div>
+
+  <!-- ===== Điều khiển cảm ứng ===== -->
+  <div id="touchUI" class="hidden">
+    <div id="stickL" class="stick"><div class="knob"></div></div>
+    <div id="stickR" class="stick aim"><div class="knob"></div></div>
+    <div class="tzone tl">DI CHUYỂN</div>
+    <div class="tzone tr">NGẮM &amp; BẮN</div>
+    <div class="tbtns">
+      <button id="dodgeBtn" data-act="dodge" class="tbtn big">NÉ</button>
+      <button data-act="reload" class="tbtn">NẠP</button>
+      <button data-act="swap" class="tbtn">ĐỔI</button>
+    </div>
+  </div>
+
+  <!-- ===== Màn hình ===== -->
+  <section id="menu" class="screen">
+    <div class="card hero-card">
+      <div class="badge">GATE 01 – 02 · PROTOTYPE v4</div>
+      <h1>MONSTER<br><span>BREAKOUT</span></h1>
+      <p>Đặc nhiệm <b>Hunter</b> vượt qua 10 cửa ải bị virus chiếm đóng. Phá thùng tiếp tế, hoàn thành thử thách để nâng cấp súng và hạ boss mỗi Gate.</p>
+      <div class="btns">
+        <button id="btnPlay" class="primary">CHƠI</button>
+        <button id="btnHelp">HƯỚNG DẪN</button>
+        <button id="btnSettings">CÀI ĐẶT</button>
+        <button id="btnFull" class="touch-only">TOÀN MÀN HÌNH</button>
+        <button id="btnInstall" class="hidden">CÀI ĐẶT APP</button>
+      </div>
+      <p id="iosHint" class="hint hidden">iPhone/iPad: bấm <b>Chia sẻ → Thêm vào MH chính</b> để chơi như app.</p>
+    </div>
+  </section>
+
+  <section id="gates" class="screen hidden">
+    <div class="card wide">
+      <div class="head"><h2>CHỌN CỬA ẢI</h2><button data-back="menu" class="ghost">← Menu</button></div>
+      <div id="gateGrid" class="grid"></div>
+      <p id="armoryText" class="hint"></p>
+    </div>
+  </section>
+
+  <section id="help" class="screen hidden">
+    <div class="card wide scroll">
+      <div class="head"><h2>HƯỚNG DẪN</h2><button data-back="menu" class="ghost">← Menu</button></div>
+      <div class="cols">
+        <div>
+          <h3>Máy tính</h3>
+          <table>
+            <tr><td>W A S D / mũi tên</td><td>Di chuyển</td></tr>
+            <tr><td>Chuột</td><td>Ngắm</td></tr>
+            <tr><td>Giữ chuột trái</td><td>Bắn</td></tr>
+            <tr><td>Space / chuột phải</td><td>Lộn né (bất tử ngắn)</td></tr>
+            <tr><td>Giữ Shift</td><td>Chạy nhanh (tốn thể lực)</td></tr>
+            <tr><td>R</td><td>Nạp đạn</td></tr>
+            <tr><td>Q / 1 2 3 / cuộn chuột</td><td>Đổi súng</td></tr>
+            <tr><td>Esc / P</td><td>Tạm dừng</td></tr>
+          </table>
+        </div>
+        <div>
+          <h3>Điện thoại</h3>
+          <table>
+            <tr><td>Chạm nửa trái</td><td>Gậy di chuyển (đẩy hết cỡ = chạy nhanh)</td></tr>
+            <tr><td>Chạm nửa phải</td><td>Gậy ngắm, kéo ra là tự bắn</td></tr>
+            <tr><td>NÉ / NẠP / ĐỔI</td><td>Lộn né · nạp đạn · đổi súng</td></tr>
+          </table>
+          <h3>Tay cầm</h3>
+          <table>
+            <tr><td>Cần trái / phải</td><td>Di chuyển / ngắm</td></tr>
+            <tr><td>RT · A · X · Y · LB</td><td>Bắn · né · nạp · đổi súng · chạy</td></tr>
+          </table>
+        </div>
+      </div>
+      <h3>Tăng sức mạnh súng</h3>
+      <ul>
+        <li><b>Thùng tiếp tế</b> (thùng gỗ có dấu ★): bắn vỡ để nhặt linh kiện, bộ máu hoặc giáp.</li>
+        <li><b>Quái tinh nhuệ</b> (viền tím): luôn rơi 1 linh kiện.</li>
+        <li><b>Thử thách</b> mỗi Gate: thưởng súng mới hoặc linh kiện hiếm. Súng mới được giữ lại trong kho cho các Gate sau.</li>
+        <li>Linh kiện: <b style="color:#ff8a5c">D</b> sát thương · <b style="color:#ffd56a">F</b> tốc độ bắn · <b style="color:#7ad7ff">M</b> băng đạn · <b style="color:#c79bff">P</b> xuyên mục tiêu · <b style="color:#9dff8a">S</b> chia tia.</li>
+      </ul>
+      <h3>Mẹo</h3>
+      <ul>
+        <li>Vạch đỏ nét đứt = sắp bị tấn công. Lộn né đúng lúc để xuyên qua đòn.</li>
+        <li>Boss và Brute khi lao tới mà đâm vào đá/cây sẽ bị choáng và nhận thêm sát thương.</li>
+        <li>Hồ virus xanh làm mất máu và đi chậm. Mạng nhện làm chậm rất mạnh.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="settings" class="screen hidden">
+    <div class="card">
+      <div class="head"><h2>CÀI ĐẶT</h2><button data-back="menu" class="ghost">← Menu</button></div>
+      <div id="settingsList"></div>
+      <button id="btnReset" class="danger">Xoá tiến trình</button>
+    </div>
+  </section>
+
+  <section id="pause" class="screen hidden">
+    <div class="card">
+      <h2>TẠM DỪNG</h2>
+      <p id="pauseInfo" class="hint"></p>
+      <div class="btns">
+        <button id="btnResume" class="primary">TIẾP TỤC</button>
+        <button id="btnRestart">CHƠI LẠI GATE</button>
+        <button id="btnQuit">THOÁT RA MENU</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="screen hidden">
+    <div class="card">
+      <h2 id="resTitle"></h2>
+      <div id="resStars" class="stars big"></div>
+      <div id="resStats" class="stats"></div>
+      <div class="btns">
+        <button id="btnNext" class="primary">GATE TIẾP THEO →</button>
+        <button id="btnAgain">CHƠI LẠI</button>
+        <button id="btnMenu">CHỌN GATE</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="loading" class="screen hidden"><div class="card"><div class="spinner"></div><p id="loadingText">Đang tải cửa ải…</p></div></section>
+
+  <div id="rotateHint" class="hidden">↻ Xoay ngang điện thoại để chơi tốt hơn</div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/props.js"></script>
+<script src="js/input.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/hero.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/items.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/game.js"></script>
+<script src="js/gates/index.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

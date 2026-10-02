@@ -1,0 +1,17 @@
+{
+  "name": "Monster Breakout",
+  "short_name": "MBreakout",
+  "description": "Game bắn súng sinh tồn vượt ải chống virus quái vật.",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#050b07",
+  "theme_color": "#050b07",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
