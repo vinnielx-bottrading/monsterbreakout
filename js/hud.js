@@ -7,7 +7,7 @@
     init() {
       ['hud', 'hpFill', 'armorFill', 'hpText', 'stFill', 'waveText', 'enemyText', 'scoreText', 'objTitle', 'objText',
         'chList', 'chHead', 'weaponSlots', 'ammoText', 'magText', 'reloadFill', 'modList', 'bossHud', 'bossName', 'bossFill',
-        'toasts', 'banner', 'bannerT', 'bannerS', 'dodgeBtn', 'powerText', 'gText', 'nText', 'gBtn', 'nBtn', 'gCount', 'nCd'].forEach((k) => { this.el[k] = $(k); });
+        'toasts', 'banner', 'bannerT', 'bannerS', 'dodgeBtn', 'powerText', 'gText', 'nText', 'gBtn', 'nBtn', 'gCount', 'nCd', 'sText', 'sBtn', 'sPct', 'bossStag', 'bossTip'].forEach((k) => { this.el[k] = $(k); });
       this.el.chHead.addEventListener('click', () => document.getElementById('challenges').classList.toggle('collapsed'));
     },
     set(key, el, prop, val) {
@@ -79,7 +79,7 @@
       const sig = p.weapons.map((w) => w.id).join(',') + '|' + p.wi;
       if (this.last.slots !== sig) {
         this.last.slots = sig;
-        const compact = p.weapons.length > 4 && (MB.Input.mode === 'touch' || innerWidth < 900);
+        const compact = (p.weapons.length > 4 && (MB.Input.mode === 'touch' || innerWidth < 900)) || p.weapons.length > 8;
         e.weaponSlots.innerHTML = compact
           ? `<span class="slot on">${p.wi + 1}·${W.DEFS[p.weapons[p.wi].id].short}</span><span class="slot">${p.weapons.length} súng</span>`
           : p.weapons.map((w, i) => `<span class="slot${i === p.wi ? ' on' : ''}">${i + 1}·${W.DEFS[w.id].short}</span>`).join('');
@@ -88,7 +88,7 @@
       this.set('ammo', e.ammoText, 'text', w.reloading ? '···' : String(w.ammo == null ? s.mag : w.ammo));
       this.set('mag', e.magText, 'text', '/' + s.mag);
       this.set('rl', e.reloadFill, 'width', w.reloading ? ((1 - w.reloading / s.reload) * 100).toFixed(0) + '%' : '0%');
-      this.set('pw', e.powerText, 'text', `PWR ${W.power(p)} · ${Math.round(s.dmg)} DMG · ${Math.round(60000 / s.rate)} RPM`);
+      this.set('pw', e.powerText, 'text', `PWR ${W.power(p)} · ${Math.round(s.dmg || (s.explode ? s.explode.dmg * s.dmgK : 0))} DMG · ${Math.round(60000 / s.rate)} RPM`);
       const modSig = JSON.stringify(p.mods);
       if (this.last.mods !== modSig) {
         this.last.mods = modSig;
@@ -105,6 +105,13 @@
       this.set('ntc', e.nText, 'className', p.novaCd > 0 ? 'sk off' : 'sk');
       this.set('nc', e.nCd, 'text', p.novaCd > 0 ? String(Math.ceil(p.novaCd)) : '✓');
       this.set('nb', e.nBtn, 'className', 'tbtn sk2' + (p.novaCd > 0 ? ' off' : ''));
+      // thanh nộ / siêu chiêu
+      const rage = Math.floor(p.rage || 0), ready = MB.Super.ready(G), T = p.superType && MB.Super.TYPES[p.superType];
+      const kb = MB.Input.mode === 'kb' ? ' <i>X</i>' : '';
+      this.set('stx', e.sText, 'html', G.sup ? `${T.icon} ${T.name.toUpperCase()}…` : T ? (ready ? `${T.icon} SIÊU CHIÊU SẴN SÀNG${kb}` : `${T.icon} NỘ ${rage}%`) : (rage >= 100 ? 'NỘ ĐẦY · chờ boss' : `NỘ ${rage}%`));
+      this.set('stc', e.sText, 'className', ready ? 'sk rdy' : 'sk' + (T ? '' : ' off'));
+      this.set('sb', e.sBtn, 'className', 'tbtn sk3' + (T ? '' : ' hidden') + (ready ? ' rdy' : ' off'));
+      this.set('sp', e.sPct, 'text', ready ? '✓' : G.sup ? '…' : rage + '%');
 
       // thử thách
       const chSig = G.challenges.map((c) => c.id + (c.done ? 'D' : MB.Challenges.label(c)) + (c.active ? 'A' : '')).join('|');
@@ -118,7 +125,13 @@
         }).join('');
       }
 
-      if (G.boss && !G.boss.dead) this.set('boss', e.bossFill, 'width', (G.boss.hp / G.boss.maxHp * 100).toFixed(1) + '%');
+      if (G.boss && !G.boss.dead) {
+        const b = G.boss;
+        this.set('boss', e.bossFill, 'width', (b.hp / b.maxHp * 100).toFixed(1) + '%');
+        this.set('bstg', e.bossStag, 'width', (b.stagT > 0 ? b.stagT / 4 * 100 : Math.min(100, (b.stag || 0) / (b.stagMax || 1) * 100)).toFixed(0) + '%');
+        this.set('bstc', e.bossStag, 'className', b.stagT > 0 ? 'on' : '');
+        this.set('btip', e.bossTip, 'text', MB.Boss.tip(b));
+      }
     },
   };
 })(window.MB);

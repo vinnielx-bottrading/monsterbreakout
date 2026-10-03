@@ -39,8 +39,34 @@
       name: 'Tempest MG', short: 'TEMP', dmg: 9, rate: 42, mag: 140, reload: 2.6, spread: 0.13,
       speed: 950, life: 0.7, pellets: 1, kick: 1.5, shake: 0.5, knock: 18, sound: 'shot_smg', color: '#ffe39b', tip: 44, br: 3,
     },
+    // ----- v6.4: 5 súng mới (nhận khi hạ boss Gate 3/5/7/9/11 hoặc mua bằng xu) -----
+    cryo: {
+      name: 'Cryo Frost', short: 'CRYO', dmg: 9, rate: 55, mag: 80, reload: 1.6, spread: 0.12,
+      speed: 640, life: 0.42, pellets: 1, kick: 0.8, shake: 0.2, knock: 10, sound: 'shot_flame', color: '#9be8ff', tip: 38, br: 4.5, pierce: 1, chill: true, bk: 'ice',
+      desc: 'Phun băng: làm chậm, đủ lạnh thì đóng băng quái; boss bị chậm 25%',
+    },
+    bolt: {
+      name: 'Bolt X Crossbow', short: 'BOLT', dmg: 70, rate: 700, mag: 5, reload: 1.5, spread: 0.008,
+      speed: 1350, life: 0.7, pellets: 1, kick: 6, shake: 1.6, knock: 60, sound: 'shot_sniper', color: '#ffb347', tip: 36, br: 3.5, stick: { r: 85, dmg: 110, delay: 0.5 }, bk: 'bolt',
+      desc: 'Nỏ tên nổ: tên cắm vào mục tiêu rồi phát nổ sau 0,5 giây',
+    },
+    hornet: {
+      name: 'Hornet ML', short: 'HORNET', dmg: 0, rate: 750, mag: 4, reload: 1.8, spread: 0.55,
+      speed: 380, maxSp: 820, life: 1.6, pellets: 3, kick: 6, shake: 1.8, knock: 0, sound: 'shot_gl', color: '#ff8a5c', tip: 40, br: 4, homing: true, explode: { r: 55, dmg: 50, knock: 160 }, bk: 'missile',
+      desc: 'Mỗi phát 3 tên lửa tự dẫn, ưu tiên boss và mục tiêu đang khoá',
+    },
+    beam: {
+      name: 'Lumen Beam', short: 'BEAM', dmg: 11, rate: 60, mag: 120, reload: 2, spread: 0.006, range: 560,
+      speed: 0, life: 0, pellets: 1, kick: 0.5, shake: 0.15, knock: 14, sound: 'shot_plasma', color: '#7ef3ff', tip: 40, br: 3, beam: true,
+      desc: 'Tia laser liên tục, trúng ngay, xuyên mọi quái trên đường bắn',
+    },
+    ripper: {
+      name: 'Ripper Disc', short: 'RIPPER', dmg: 34, rate: 380, mag: 8, reload: 1.5, spread: 0.01,
+      speed: 700, life: 1.35, pellets: 1, kick: 3, shake: 0.8, knock: 50, sound: 'shot_smg', color: '#d9e2e6', tip: 34, br: 7, pierce: 99, disc: 3, bk: 'disc',
+      desc: 'Đĩa cưa xuyên đám đông, nảy khỏi tường tối đa 3 lần',
+    },
   });
-  const ORDER = ['rifle', 'shotgun', 'smg', 'sniper', 'flame', 'launcher', 'plasma', 'minigun'];
+  const ORDER = ['rifle', 'shotgun', 'smg', 'sniper', 'flame', 'launcher', 'plasma', 'minigun', 'cryo', 'bolt', 'hornet', 'beam', 'ripper'];
 
   // Linh kiện: nhặt từ thùng tiếp tế, quái tinh nhuệ hoặc phần thưởng thử thách
   const MODS = {
@@ -60,6 +86,7 @@
       return {
         ...d,
         dmg: d.dmg * (1 + 0.15 * m.barrel) * (1 + (B.dmg || 0)),
+        dmgK: (1 + 0.15 * m.barrel) * (1 + (B.dmg || 0)),
         rate: d.rate / (1 + 0.12 * m.trigger) / (1 + (B.rate || 0)),
         mag: Math.round(d.mag * (1 + 0.25 * m.mag) * (1 + (B.mag || 0))),
         reload: d.reload * (1 - 0.12 * m.mag) * Math.max(0.4, 1 - (B.reload || 0)),
@@ -87,7 +114,7 @@
       // đổi súng
       if (I.take('swap') || I.take('next')) this.switchTo(p, (p.wi + 1) % p.weapons.length);
       if (I.take('prev')) this.switchTo(p, (p.wi - 1 + p.weapons.length) % p.weapons.length);
-      for (let k = 1; k <= 8; k++) if (I.take('slot' + k)) this.switchTo(p, k - 1);
+      for (let k = 1; k <= 10; k++) if (I.take('slot' + k)) this.switchTo(p, k - 1);
 
       const w = p.weapons[p.wi], s = this.stats(p, w);
       if (w.ammo == null) w.ammo = s.mag;
@@ -109,6 +136,7 @@
       if (p.fireCd < -40) p.fireCd = 0;
       p.fireCd += s.rate;
       w.ammo--;
+      if (s.beam) { MB.Super.fireBeam(p, G, w, s); if (w.ammo <= 0) this.startReload(p, w, s); return; }
       const a0 = p.aim;
       const tx = p.x + Math.cos(a0) * s.tip * 1.28, ty = p.y + Math.sin(a0) * s.tip * 1.28;
       const shots = [];
@@ -134,7 +162,8 @@
         G.bullets.push({
           x: sx, y: sy, px: sx, py: sy, vx: Math.cos(sh.a) * sp, vy: Math.sin(sh.a) * sp,
           life: s.life * U.rnd(0.9, 1.1), dmg: sh.dmg, pierce: s.pierce, hits: [], r: s.br, color: s.color, knock: s.knock,
-          flame: s.flame, burn: s.burn, explode: s.explode, chain: s.chain, max0: s.life,
+          flame: s.flame, burn: s.burn, explode: s.explode && { ...s.explode, dmg: s.explode.dmg * s.dmgK }, chain: s.chain, max0: s.life, wid: w.id,
+          kind: s.bk, homing: s.homing, maxSp: s.maxSp, stick: s.stick && { ...s.stick, dmg: s.stick.dmg * s.dmgK }, chill: s.chill, disc: s.disc ? { left: s.disc } : null, noFalloff: !!s.disc,
         });
       }
       G.stats.shots++;
@@ -176,6 +205,35 @@
         ctx.fillStyle = '#1d2224'; U.rr(ctx, 4, -5, 22, 10, 3); ctx.fill();
         ctx.fillStyle = '#3c474b'; for (const yy of [-3, 0, 3]) ctx.fillRect(24, yy - 1, 20, 2);
         ctx.fillStyle = '#ffd56a'; ctx.fillRect(10, 5, 8, 4);
+      } else if (id === 'cryo') {
+        ctx.fillStyle = '#2a3a44'; U.rr(ctx, 6, -3.5, 24, 7, 2); ctx.fill();
+        ctx.fillStyle = '#9be8ff'; U.rr(ctx, 10, 3, 11, 6, 3); ctx.fill();
+        ctx.fillStyle = '#cfefff'; ctx.fillRect(29, -2.5, 9, 5);
+        ctx.fillStyle = 'rgba(190,240,255,.8)'; U.circle(ctx, 38.5, 0, 1.8); ctx.fill();
+      } else if (id === 'bolt') {
+        ctx.fillStyle = '#3a2c22'; U.rr(ctx, 2, -2.5, 28, 5, 2); ctx.fill();
+        ctx.strokeStyle = '#1d2224'; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.moveTo(22, -12); ctx.quadraticCurveTo(31, 0, 22, 12); ctx.stroke();
+        ctx.strokeStyle = '#cfd6d8'; ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(21.5, -11.5); ctx.lineTo(13 - recoil, 0); ctx.lineTo(21.5, 11.5); ctx.stroke();
+        if (showMag) { ctx.fillStyle = '#6a4a2a'; ctx.fillRect(13 - recoil, -0.9, 22, 1.8); ctx.fillStyle = '#ffb347'; ctx.fillRect(34 - recoil, -1.6, 3, 3.2); }
+      } else if (id === 'hornet') {
+        ctx.fillStyle = '#2d3a2a'; U.rr(ctx, 4, -5.5, 32, 11, 3); ctx.fill();
+        ctx.fillStyle = '#c0471f'; ctx.fillRect(12, -5.5, 3, 11);
+        ctx.fillStyle = '#111'; for (const yy of [-3, 0, 3]) { U.circle(ctx, 35, yy, 1.5); ctx.fill(); }
+        ctx.fillStyle = '#1b1f22'; ctx.fillRect(18, 5.5, 4, 5);
+      } else if (id === 'beam') {
+        ctx.fillStyle = '#22262e'; U.rr(ctx, 6, -3.5, 28, 7, 3); ctx.fill();
+        ctx.fillStyle = '#3a4250'; for (const xx of [14, 19, 24]) ctx.fillRect(xx, -4.5, 2.4, 9);
+        ctx.shadowColor = '#7ef3ff'; ctx.shadowBlur = 8; ctx.fillStyle = '#9ff6ff'; U.circle(ctx, 36, 0, 3); ctx.fill(); ctx.shadowBlur = 0;
+      } else if (id === 'ripper') {
+        ctx.fillStyle = '#2c2f31'; U.rr(ctx, 4, -3.5, 20, 7, 2); ctx.fill();
+        if (showMag) {
+          ctx.save(); ctx.translate(27, 0); ctx.rotate((MB.G ? MB.G.time : 0) * 6);
+          ctx.fillStyle = '#c9d1d4'; ctx.beginPath();
+          for (let i = 0; i < 12; i++) { const a = i / 12 * U.TAU, r = i % 2 ? 4.6 : 6.4; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+          ctx.closePath(); ctx.fill(); ctx.fillStyle = '#444'; U.circle(ctx, 0, 0, 1.8); ctx.fill(); ctx.restore();
+        }
       } else if (id === 'shotgun') {
         ctx.fillStyle = '#1b1f22'; U.rr(ctx, 6, -3.5, 26, 7, 2); ctx.fill();
         ctx.fillStyle = '#2b3236'; ctx.fillRect(30, -2.5, 12, 5);

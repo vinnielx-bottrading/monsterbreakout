@@ -312,10 +312,30 @@
     },
 
     /* ---------- thẻ nâng cấp sau wave ---------- */
+    // siêu chiêu: chọn 1 trong 3 khi boss xuất hiện
+    offerSuper() {
+      const p = G.player, T = MB.Super.TYPES, ids = Object.keys(T);
+      G.paused = true; MB.Input.clear();
+      $('perkTitle').textContent = 'CHỌN SIÊU CHIÊU';
+      $('perkHint').textContent = 'Tung khi thanh NỘ đầy (nút SIÊU / phím X) · nộ tăng khi gây sát thương và hạ quái';
+      $('perkList').innerHTML = ids.map((id, i) => `<button class="perk sup${p.superType === id ? ' last' : ''}" data-sup="${id}"><i>${T[id].icon}</i><b>${T[id].name}</b><span>${T[id].desc}</span>
+        <em>${p.superType === id ? 'Lần trước' : 'Siêu chiêu'}</em><kbd>${i + 1}</kbd></button>`).join('');
+      const pick = (id) => {
+        removeEventListener('keydown', key, true);
+        p.superType = id; MB.Audio.play('mod'); MB.haptic(20);
+        G.paused = false; MB.Input.clear(); this.show(null);
+        MB.HUD.toast(`${T[id].icon} <b>${T[id].name}</b> · ${(p.rage || 0) >= 100 ? 'nộ đã đầy, tung ngay được!' : 'tung khi thanh nộ đầy'}`, '#ffd56a');
+      };
+      const key = (e) => { const n = +e.key; if (n >= 1 && n <= ids.length) { e.preventDefault(); e.stopPropagation(); pick(ids[n - 1]); } };
+      addEventListener('keydown', key, true);
+      $('perkList').querySelectorAll('[data-sup]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.sup)));
+      this.show('perks');
+    },
     offerPerks() {
       const p = G.player, cards = MB.Perks.roll(p);
       if (!cards.length) return;
       G.paused = true; MB.Input.clear();
+      $('perkTitle').textContent = 'CHỌN NÂNG CẤP'; $('perkHint').textContent = 'Hiệu lực đến hết trận này';
       $('perkList').innerHTML = cards.map((k, i) => `<button class="perk" data-perk="${k.id}"><i>${k.icon}</i><b>${k.name}</b><span>${k.desc}</span>
         <em>${(p.perks[k.id] || 0) ? 'Cấp ' + (p.perks[k.id] + 1) : 'Mới'}</em><kbd>${i + 1}</kbd></button>`).join('');
       const pick = (id) => {
@@ -343,6 +363,21 @@
       }).join('');
       $('shopList').querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
         if (MB.Shop.buy(b.dataset.buy)) { MB.Audio.play('pickup'); MB.Cloud.push(); this.openShop(); }
+      }));
+      // kho súng: mua súng mới bằng xu
+      const W = MB.Weapons;
+      $('gunList').innerHTML = MB.Boss.GUNS.map((g) => {
+        const d = W.DEFS[g.id], owned = sv.armory.includes(g.id), open = (sv.unlocked || 1) >= g.gate - 2;
+        const label = owned ? 'ĐÃ CÓ' : !open ? `Mở bán ở Gate ${g.gate - 2}` : g.price.toLocaleString('vi-VN') + ' xu';
+        const dis = owned || !open || (sv.coins || 0) < g.price;
+        return `<div class="item gun"><canvas class="gunic" data-gun="${g.id}" width="96" height="48"></canvas><div><b>${d.name}</b><span>${d.desc}</span><span class="gfree">Miễn phí khi hạ boss Gate ${g.gate}</span></div>
+          <button data-gun-buy="${g.id}" class="${owned ? 'ghost' : 'primary'} sm" ${dis ? 'disabled' : ''}>${label}</button></div>`;
+      }).join('');
+      $('gunList').querySelectorAll('canvas[data-gun]').forEach((cv) => {
+        const c = cv.getContext('2d'); c.translate(14, 24); c.scale(1.7, 1.7); W.drawGun(c, cv.dataset.gun, 0, 0);
+      });
+      $('gunList').querySelectorAll('[data-gun-buy]').forEach((b) => b.addEventListener('click', () => {
+        if (MB.Shop.buyGun(b.dataset.gunBuy)) { MB.Audio.play('weapon'); MB.Cloud.push(); this.openShop(); MB.HUD.toast(`Đã mua <b>${W.DEFS[b.dataset.gunBuy].name}</b> · có trong mọi trận`, '#ffd56a'); }
       }));
       this.show('shop');
     },

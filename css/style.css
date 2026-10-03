@@ -424,3 +424,31 @@ body[data-input="touch"] .combo { right: auto; left: calc(14px + var(--sal)); to
 .story-text .sp { width: clamp(52px, 9vw, 84px); height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 10px; border: 1px solid rgba(126,243,255,.45); box-shadow: 0 0 14px rgba(126,243,255,.2); flex: 0 0 auto; }
 .comm .av.img { padding: 0; overflow: hidden; border: 1px solid rgba(126,243,255,.5); }
 .comm .av.img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---------- v6.4: boss gục choáng, siêu chiêu, kho súng ---------- */
+.boss .bar.stag { height: 4px; margin-top: 3px; background: rgba(255,255,255,.08); }
+#bossStag { height: 100%; width: 0; background: #ffd56a; border-radius: inherit; transition: width .15s; }
+#bossStag.on { background: #fff4c0; box-shadow: 0 0 8px #ffd56a; }
+.btip { margin-top: 3px; font-size: 9.5px; letter-spacing: .14em; font-weight: 800; color: #9dff8a; min-height: 11px; }
+body[data-input="touch"] .boss .bar.stag { height: 3px; }
+body[data-input="touch"] .btip { font-size: 8.5px; margin-top: 2px; }
+.sk.rdy { color: #ffd56a; text-shadow: 0 0 8px rgba(255,213,106,.7); animation: rdy 1s ease-in-out infinite; }
+@keyframes rdy { 50% { opacity: .55; } }
+.tbtn.sk3 { right: 176px; bottom: 120px; background: rgba(255,213,106,.14); border-color: rgba(255,213,106,.55); font-weight: 900; }
+.tbtn.sk3 b { color: var(--gold); font-size: 10px; }
+.tbtn.sk3.rdy { background: rgba(255,213,106,.4); border-color: #ffd56a; box-shadow: 0 0 18px rgba(255,213,106,.75); animation: rdy 1s ease-in-out infinite; opacity: 1; }
+.tbtn.sk3.hidden { display: none; }
+body[data-input="touch"] .tbtn.sk3 { right: 78px; bottom: 118px; background: rgba(255,213,106,.14); }
+body[data-input="touch"] .tbtn.sk3.rdy { background: rgba(255,213,106,.42); }
+.card button.perk.sup { background: rgba(255,213,106,.06); border-color: rgba(255,213,106,.4); }
+.card button.perk.sup i { color: var(--gold); }
+.card button.perk.sup.last { border-color: #ffd56a; }
+.shop .item.gun .gunic { width: 96px; height: 48px; flex: 0 0 auto; border-radius: 8px; background: rgba(255,255,255,.04); }
+.shop .gfree { display: block; color: var(--gold) !important; font-size: 11px; }
+#gunList { margin-top: 8px; }
+@media (max-width: 560px) {
+  .shop .item.gun { flex-wrap: wrap; }
+  .shop .item.gun .gunic { width: 72px; height: 36px; }
+  .shop .item.gun > div { flex: 1 1 calc(100% - 90px); }
+  .shop .item.gun button { margin-left: auto; }
+}

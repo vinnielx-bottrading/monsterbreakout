@@ -70,6 +70,8 @@
         }
         G.stats.mods++;
         MB.Audio.play('mod'); G.burst(p.x, p.y, m.color, 18);
+      } else if (it.kind === 'heavy') {
+        MB.Super.collectHeavy(G); G.addScore(25); return;
       } else if (it.kind === 'weapon') {
         const owned = p.weapons.some((w) => w.id === it.id);
         if (!owned) {
@@ -104,7 +106,13 @@
           ctx.fillStyle = '#e9f2e6'; ctx.beginPath(); ctx.arc(0, -26, 16, Math.PI, 0); ctx.closePath(); ctx.fill();
           ctx.fillStyle = '#3fbf5a'; ctx.fillRect(-2, -38, 4, 10);
         }
-        if (it.kind === 'grenade') {
+        if (it.kind === 'heavy') {
+          ctx.shadowColor = '#ffd56a'; ctx.shadowBlur = 14;
+          ctx.fillStyle = '#2a2a24'; U.rr(ctx, -13, -10, 26, 20, 3); ctx.fill(); ctx.shadowBlur = 0;
+          ctx.fillStyle = '#ffd56a'; for (let i = -12; i < 12; i += 7) { ctx.beginPath(); ctx.moveTo(i, -10); ctx.lineTo(i + 3.5, -10); ctx.lineTo(i - 1.5, 10); ctx.lineTo(i - 5, 10); ctx.closePath(); ctx.fill(); }
+          ctx.fillStyle = '#1a1a16'; U.rr(ctx, -9, -5.5, 18, 11, 2); ctx.fill();
+          ctx.fillStyle = '#ffd56a'; ctx.font = 'bold 9px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('AP', 0, 0.5);
+        } else if (it.kind === 'grenade') {
           ctx.fillStyle = '#3e5a36'; U.circle(ctx, 0, 0, 8); ctx.fill();
           ctx.fillStyle = '#6b8f5c'; U.circle(ctx, -2, -2, 3.5); ctx.fill();
           ctx.fillStyle = '#ffb347'; ctx.fillRect(-2, -12, 4, 5);

@@ -30,6 +30,12 @@
       sv.coins -= c; sv.upg = sv.upg || {}; sv.upg[id] = l + 1; sv.ts = Date.now(); MB.Save.save();
       return true;
     },
+    buyGun(id) {
+      const sv = MB.Save.data, g = MB.Boss.GUNS.find((x) => x.id === id);
+      if (!g || sv.armory.includes(id) || (sv.unlocked || 1) < g.gate - 2 || (sv.coins || 0) < g.price) return false;
+      sv.coins -= g.price; sv.armory.push(id); sv.ts = Date.now(); MB.Save.save();
+      return true;
+    },
     // áp dụng vào nhân vật khi bắt đầu trận
     apply(p) {
       const L = (id) => this.level(id);

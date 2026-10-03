@@ -78,7 +78,7 @@
         P.sprint = b(4) || b(10) || b(6);
         const edge = (i, name) => { const now = b(i); if (now && !P.prev[i]) this.press(name); P.prev[i] = now; };
         if (this.mode === 'pad') {
-          edge(0, 'dodge'); edge(1, 'nova'); edge(2, 'reload'); edge(3, 'swap'); edge(5, 'grenade');
+          edge(0, 'dodge'); edge(1, 'nova'); edge(2, 'reload'); edge(3, 'swap'); edge(5, 'grenade'); edge(8, 'super'); edge(11, 'super');
           const st = b(9); if (st && !P.prev[9] && MB.App) MB.App.togglePause(); P.prev[9] = st;
         }
       }
@@ -135,7 +135,8 @@
           if (c === 'KeyQ') this.press('swap');
           if (c === 'KeyG') this.press('grenade');
           if (c === 'KeyF' || c === 'KeyE') this.press('nova');
-          if (/^Digit[1-8]$/.test(c)) this.press('slot' + c.slice(5));
+          if (/^Digit[0-9]$/.test(c)) this.press('slot' + (c === 'Digit0' ? 10 : c.slice(5)));
+          if (c === 'KeyX') this.press('super');
           if ((c === 'Escape' || c === 'KeyP') && MB.App) MB.App.togglePause();
         }
         this.keys[c] = true;

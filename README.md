@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v6.4** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 21) |
+| README cập nhật | 2026-10-02 (rev 22) |
 
 ---
 
@@ -89,6 +89,7 @@ js/hero.js               Nhân vật Hunter: di chuyển, thể lực, lộn né
 js/enemies.js            Quái dùng chung: Zombie, Spider, Licker + AI lái hướng + khuôn hành vi (bắn xa, tự nổ, đào đất, dịch chuyển, khiên)
 js/items.js              Vật phẩm rơi và hệ thống thử thách
 js/skills.js             Kỹ năng giải vây: lựu đạn, xung kích
+js/arsenal.js            v6.4: cơ chế boss (điểm yếu, gục choáng, khắc hệ), siêu chiêu + thanh nộ, tiếp tế đạn hạng nặng, hiệu ứng 5 súng mới
 js/story.js              Cốt truyện: cảnh chuyển (canvas), bộ đàm trong trận, manh mối của GS. Ted
 js/cloud.js              Đăng nhập Google (Supabase), đồng bộ tiến trình, bảng xếp hạng
 js/progress.js           Xu & cửa hàng nâng cấp vĩnh viễn, thẻ nâng cấp trong trận, combo, rung điện thoại
@@ -151,6 +152,7 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
 | Đổi súng | Q / phím 1–8 / cuộn chuột | Chạm vào **ô súng** (góc dưới, có ký hiệu ⇄) | Y |
 | Lựu đạn | G / chuột giữa | Nút **LỰU** (ném vào quái đang khoá) | RB |
 | Xung kích | F hoặc E | Nút **XUNG** | B |
+| Siêu chiêu (v6.4) | X | Nút **SIÊU** (hiện sau khi chọn siêu chiêu) | Back / R3 |
 | Tạm dừng | Esc / P | Nút ❚❚ | Start |
 | Bật / tắt âm thanh | M hoặc nút loa | Nút loa (góc trên phải; trong trận nằm cạnh nút ❚❚) | — |
 
@@ -233,7 +235,44 @@ Súng nhận từ thử thách được lưu vào **kho vũ khí** và mang theo
 | Arc Plasma | Thử thách Gate 06 | 34, xuyên 1, **sét lan** sang 2 quái gần (50%) | 170 ms | 26 | 1,3 s | ~200 + sét lan |
 | Tempest MG (súng máy) | Thử thách Gate 07 | 9 | 42 ms | 140 | 2,6 s | ~214, băng rất lớn |
 
+**5 súng mới (v6.4)** — nhận miễn phí khi **hạ boss** Gate tương ứng (ở Chiến dịch), hoặc mua bằng xu ở *NÂNG CẤP NHÂN VẬT → KHO SÚNG* khi đã mở tới Gate trước đó 2 cửa (`MB.Boss.GUNS`, `MB.Shop.buyGun`):
+
+| Súng | Hệ | Hạ boss Gate | Giá xu | Sát thương | Tốc độ bắn | Băng | Đặc điểm |
+|---|---|---|---|---|---|---|---|
+| Cryo Frost | Băng | 3 | 600 | 9, xuyên 1 | 55 ms | 80 | Làm chậm 50% (boss 25%); tích đủ lạnh thì **đóng băng** quái 1,6 s |
+| Bolt X Crossbow | Nổ | 5 | 800 | 70 + nổ 110 (bán kính 85) | 700 ms | 5 | Tên **cắm vào mục tiêu rồi nổ** sau 0,5 s |
+| Hornet ML | Nổ | 7 | 1.000 | 3 tên lửa × nổ 50 (bán kính 55) | 750 ms | 4 | **Tự dẫn**, ưu tiên mục tiêu đang khoá và boss |
+| Lumen Beam | Điện | 9 | 1.200 | 11 / 60 ms (~183 DPS) | liên tục | 120 | Tia laser **trúng ngay**, tầm 560, xuyên mọi quái |
+| Ripper Disc | — | 11 | 1.400 | 34, xuyên không giới hạn (không giảm sát thương) | 380 ms | 8 | Đĩa cưa **nảy khỏi tường** tối đa 3 lần |
+
+Sát thương nổ (Boomer, Bolt, Hornet) giờ cũng được nhân theo linh kiện Nòng Tăng Lực và thẻ sát thương. Phím 1–9 và 0 chọn súng 1–10; súng thứ 11 trở đi dùng Q / cuộn chuột. Kho súng nhiều hơn 8 khẩu thì HUD hiện dạng gọn.
+
 Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 lần). Muốn đạt mức đó phải tích cực phá thùng và làm thử thách. Gate 08–10 thưởng linh kiện hiếm thay vì súng.
+
+## 6c. Trận boss: điểm yếu, gục choáng, khắc hệ, siêu chiêu (v6.4)
+
+Mục tiêu: trận boss còn khoảng 45–75 giây thay vì 2–3 phút "bắn tạch tạch".
+
+- **Điểm yếu:** cứ khoảng 5 giây boss lộ một vòng đỏ ở mép thân (lệch 30–70° khỏi hướng Hunter, kéo dài 6 giây). Đạn trúng phía đó gây **×2**. Hiện chữ "ĐIỂM YẾU ×2".
+- **Gục choáng:** thanh vàng mảnh dưới thanh máu boss. Đủ sát thương (13% máu boss, lần sau +20%) → boss **choáng 4 giây**, không di chuyển/tấn công, nhận **+50%** sát thương.
+- **Khắc hệ (×1,5):** Lửa (Pyro) · Băng (Cryo) · Điện (Arc Plasma, Lumen Beam) · Nổ (Boomer, Bolt X, Hornet). Thanh boss ghi "KHẮC CHẾ: SÚNG …".
+
+| Boss | Khắc | Boss | Khắc |
+|---|---|---|---|
+| Spider Queen (1) | Lửa | Assembler Mech (7) | Điện |
+| Stone Behemoth (2) | Nổ | Abomination (8) | Lửa |
+| Toad King (3) | Lửa | Specimen Omega (9) | Băng |
+| Cryo Wyrm (4) | Lửa | The Origin (10) | Điện |
+| Magma Titan (5) | Băng | Sát Thủ Bóng Đêm (11) | Nổ |
+| Kraken (6) | Điện | Mãng Xà Đèn Lồng (12) | Băng |
+
+- **Tiếp tế đạn hạng nặng:** trong trận boss, giây 12 rồi cứ 22 giây thả 1 thùng (dù, sọc vàng "AP") gần Hunter: +40 nộ, nạp đầy mọi súng, **đạn xuyên giáp 10 giây** (+40% sát thương lên boss).
+- Các hệ số nhân với nhau nhưng tối đa ×4.
+- **Thanh NỘ & siêu chiêu:** nộ tăng khi gây sát thương (1,8% sát thương, tối đa 6/lần) và hạ quái (+1,5; tinh nhuệ +6), tích suốt trận. Khi boss xuất hiện, game dừng để **chọn 1 trong 3 siêu chiêu** (mỗi lần gặp boss chọn lại, kể cả đấu lại boss và Sinh tồn). Nộ đầy → nút **SIÊU** (cảm ứng) / phím **X** / nút Back hoặc R3 (tay cầm):
+  - **Pháo kích vệ tinh:** 5 cột pháo trong ~2,5 giây (3 phát nhắm boss), mỗi phát ~3% máu boss + 280 sát thương diện rộng.
+  - **Laser quét:** 3 giây, theo hướng ngắm, ~12% máu boss, 600 sát thương/giây lên quái thường.
+  - **Drone tự bắn:** 10 giây, 8 phát/giây, ~12% máu boss.
+- Đấu lại boss: thanh nộ được nạp đầy.
 
 ## 6a. Nâng cấp nhân vật, thẻ nâng cấp, combo (v5.3)
 
@@ -509,6 +548,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-02 | **v6.4** · README rev 22 | Trận boss mới: điểm yếu ×2, gục choáng (+50%), khắc hệ ×1,5, tiếp tế đạn hạng nặng; thanh nộ + 3 siêu chiêu chọn khi boss xuất hiện; 5 súng mới (Cryo, Bolt X, Hornet, Lumen Beam, Ripper) nhận khi hạ boss Gate 3/5/7/9/11 hoặc mua bằng xu; sát thương nổ nhân theo linh kiện |
 | 2026-10-02 | **v6.3** · README rev 21 | Hunter đổi ngoại hình theo ảnh concept "Operator" (2D + 3D): áo đen than, giáp nâu ô liu, ba lô, tóc nâu, súng giảm thanh + ống ngắm; phù hiệu cánh-kiếm phát sáng làm điểm nhận diện. Key art ở menu, khẩu hiệu + phù hiệu, màn Hồ sơ Hunter, chân dung trong thoại/bộ đàm |
 | 2026-10-02 | **v6.2.2** · README rev 20 | Hunter quay đầu nhanh khi đổi hướng / quái sau lưng (~0,15 giây thay vì ~0,5 giây); ngắm Tự động ưu tiên quái đang áp sát thay vì giữ khoá quái ở xa |
 | 2026-10-02 | **v6.2.1** · README rev 19 | Máy tính có nút **NGẮM** (Chuột / Hỗ trợ / Tự động) + phím T + mục cài đặt riêng; chế độ Tự động trên máy tính tự khoá và tự bắn |

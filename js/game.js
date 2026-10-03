@@ -44,6 +44,7 @@
       this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
       this.enemies = []; this.bullets = []; this.ebullets = []; this.pickups = []; this.particles = [];
       this.decals = []; this.texts = []; this.fx = []; this.obstacles = []; this.hazards = [];
+      this.sfx = []; this.sup = null; this.superOfferT = 0; this.heavyT = 0; this.weakTold = false; this.elemTold = false;
       this.bossRetryUsed = false; this.retryOffer = false;
       this.boss = null; this.score = 0; this.hurtFlash = 0; this.wantFire = false;
       this.stats = { shots: 0, bhits: 0, kills: 0, mods: 0, dmgTaken: 0, hitsTaken: 0 };
@@ -57,11 +58,11 @@
       const armory = MB.Save.data.armory;
       for (const id of MB.Weapons.ORDER) if (armory.includes(id)) p.weapons.push(MB.Weapons.make(id));
       if (!p.weapons.length) p.weapons.push(MB.Weapons.make('rifle'));
-      p.aim = 0;
+      p.aim = 0; p.rage = 0; p.superType = null; p.apT = 0; p.beam = null;
       const carry = opts.carry;
       if (carry) {
         // chuỗi Bất tận: mang trạng thái Hunter sang khu vực mới (không áp lại nâng cấp cửa hàng)
-        for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'weapons', 'wi', 'mods', 'perks', 'bonus', 'gMax', 'grenades', 'speed', 'magnet', 'dashCdMax']) if (carry.p[k] !== undefined) p[k] = carry.p[k];
+        for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'weapons', 'wi', 'mods', 'perks', 'bonus', 'gMax', 'grenades', 'speed', 'magnet', 'dashCdMax', 'rage']) if (carry.p[k] !== undefined) p[k] = carry.p[k];
         for (const w of p.weapons) w.reloading = 0;
       } else MB.Shop.apply(p);
       MB.Combo.reset(this); this.comboBest = carry ? carry.comboBest : 0;
@@ -235,7 +236,8 @@
         if (e.dead || e === o.source) continue;
         const d = U.dist(e.x, e.y, x, y);
         if (d > r + e.r) continue;
-        this.damageEnemy(e, dmg * (1 - Math.min(1, d / r) * 0.5), Math.atan2(e.y - y, e.x - x), e.boss ? 0 : (o.knock == null ? 380 : o.knock));
+        const dd = e.boss && o.bossPct ? e.maxHp * o.bossPct : dmg * (1 - Math.min(1, d / r) * 0.5);
+        this.damageEnemy(e, dd, Math.atan2(e.y - y, e.x - x), e.boss ? 0 : (o.knock == null ? 380 : o.knock), false, o.src || (o.wid ? { wid: o.wid, fx: x, fy: y } : null));
       }
       if (o.obstacles !== false) for (const ob of this.obstacles) if (!ob.dead && ob.hp && U.dist(ob.x, ob.y, x, y) < r + ob.br) this.damageObstacle(ob, o.objDmg || dmg);
       if (o.player) { const p = this.player; if (!p.dead && U.dist(p.x, p.y, x, y) < r + p.r) this.hurtPlayer(o.player, { x, y }); }
@@ -264,6 +266,7 @@
       this.enemies.push(e);
       if (e.boss) {
         this.boss = e;
+        MB.Boss.init(this, e);
         MB.HUD.bossShow(def.name || type);
       }
       return e;
@@ -284,21 +287,25 @@
       return U.pick(list);
     },
 
-    damageEnemy(e, dmg, ang, knock, quiet) {
+    damageEnemy(e, dmg, ang, knock, quiet, src) {
       if (e.dead || e.invuln) return;
       if (e.def.armorFn) dmg = e.def.armorFn(e, dmg, this, ang);
+      if (e.boss) dmg = MB.Boss.hit(this, e, dmg, src);
+      MB.Super.onDamage(this, e, dmg, src);
       e.hp -= dmg; if (!quiet) e.flash = 0.08;
       if (quiet) { if (e.hp <= 0) this.killEnemy(e); return; }
-      if (MB.Save.data.settings.dmgNum && !this.lowFx || (MB.Save.data.settings.dmgNum && Math.random() < 0.5)) {
+      const silent = src && src.noText;
+      if (!silent && (MB.Save.data.settings.dmgNum && !this.lowFx || (MB.Save.data.settings.dmgNum && Math.random() < 0.5))) {
         this.text(e.x + U.rnd(-8, 8), e.y - e.r - 6, Math.round(dmg), dmg >= 30 ? '#ffd56a' : '#ffffff', dmg >= 30 ? 15 : 12);
       }
       if (!e.boss && knock) { const k = knock * (e.def.knockMul == null ? 1 : e.def.knockMul); e.kx += Math.cos(ang) * k; e.ky += Math.sin(ang) * k; }
-      MB.Audio.play('hit');
+      if (!silent) MB.Audio.play('hit');
       if (e.hp <= 0) this.killEnemy(e);
     },
     killEnemy(e) {
       e.dead = true;
       const mul = e.boss ? 1 : MB.Combo.kill(this);
+      MB.Super.onKill(this, e);
       this.addScore(e.score * mul);
       this.stats.kills++;
       const P = this.player, B = P.bonus;
@@ -332,6 +339,14 @@
       if (this.mode === 'survival') return this.survivalBossDown(e);
       for (let i = 0; i < 6; i++) setTimeout(() => { if (this.running) this.burst(e.x + U.rnd(-60, 60), e.y + U.rnd(-60, 60), '#ffd56a', 30, 300); }, i * 120);
       MB.HUD.bossHide();
+      this.sup = null; this.superOfferT = 0;
+      // súng mới khi hạ boss ở Gate 3 / 5 / 7 / 9 / 11
+      const gun = MB.Boss.gunForGate(this.def.id), sv = MB.Save.data;
+      if (gun && !sv.armory.includes(gun)) {
+        sv.armory.push(gun); sv.ts = Date.now(); MB.Save.save(); this.newGun = gun;
+        setTimeout(() => { if (this.running) { this.banner('VŨ KHÍ MỚI', MB.Weapons.DEFS[gun].name + ' đã vào kho súng', 2.2); MB.Audio.play('weapon'); } }, 1300);
+        MB.HUD.toast(`Mở khoá <b>${MB.Weapons.DEFS[gun].name}</b> · ${MB.Weapons.DEFS[gun].desc}`, '#ffd56a');
+      }
       this.state = 'won'; this.stateT = 2.8;
       this.banner('GATE CLEARED', `${e.def.name} đã bị tiêu diệt`, 2.8);
       MB.Audio.play('win'); MB.Audio.intensity(0.1);
@@ -342,7 +357,7 @@
 
     // sinh tồn: hạ boss chưa phải hết — nghỉ, chọn thẻ rồi đánh tiếp
     survivalBossDown(e) {
-      MB.HUD.bossHide();
+      MB.HUD.bossHide(); this.sup = null; this.superOfferT = 0;
       this.banner('BOSS BỊ HẠ', `Wave ${this.waveIdx + 1} · quái sẽ mạnh hơn nữa`, 2.6);
       MB.Audio.play('win'); MB.Audio.intensity(0.3);
       for (const o of this.enemies) if (!o.dead && o !== e) { o.dead = true; this.burst(o.x, o.y, '#a8e07a', 8); }
@@ -356,7 +371,7 @@
     // trạng thái mang sang khu vực mới (chuỗi Bất tận)
     carry() {
       const p = this.player, keep = {};
-      for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'weapons', 'wi', 'mods', 'perks', 'bonus', 'gMax', 'grenades', 'speed', 'magnet', 'dashCdMax']) keep[k] = p[k];
+      for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'weapons', 'wi', 'mods', 'perks', 'bonus', 'gMax', 'grenades', 'speed', 'magnet', 'dashCdMax', 'rage']) keep[k] = p[k];
       keep.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.25); // nghỉ chân giữa 2 khu vực: hồi 25% máu
       return { p: keep, score: this.score, stats: this.stats, time: this.time, waveIdx: this.waveIdx, comboBest: this.comboBest || 0, stage: (this.stage || 1) + 1 };
     },
@@ -429,6 +444,7 @@
       p.burnT = 0; p.slow = 0; p.vx = 0; p.vy = 0; p.iframes = 3; p.reviveT = 3;
       for (const w of p.weapons) { w.ammo = null; w.reloading = 0; }
       p.grenades = Math.max(p.grenades, p.gMax || 3); p.novaCd = 0; MB.Combo.break(this);
+      p.rage = 100; this.sup = null; this.superOfferT = 0; this.sfx.length = 0;
       for (const e of this.enemies) e.dead = true;
       this.boss = null; MB.HUD.bossHide();
       this.ebullets.length = 0; this.fx.length = 0;
@@ -662,6 +678,7 @@
 
       MB.Weapons.update(p, this, dt);
       MB.Skills.update(this, dt);
+      MB.Super.update(this, dt);
       this.updateAid(dt);
       this.updateNav(dt);
       if (!this.over) { this.updateWaves(dt); MB.Story.update(this, dt); }
@@ -777,7 +794,11 @@
         if (e.stunT > 0) { e.stunT -= dt; MB.Enemies.stop(e, dt, 8); }
         else if (!p.dead && !this.over) e.def.update(e, this, dt);
         else MB.Enemies.stop(e, dt, 4);
-        e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
+        let sm = 1;
+        if (e.slowT > 0) { e.slowT -= dt; sm = e.boss ? 0.75 : 0.5; }
+        if (e.frozenT > 0) e.frozenT -= dt;
+        if (e.chill > 0) e.chill = Math.max(0, e.chill - 25 * dt);
+        e.x += (e.vx * sm + e.kx) * dt; e.y += (e.vy * sm + e.ky) * dt;
         const kd = Math.exp(-9 * dt); e.kx *= kd; e.ky *= kd;
         e.bumped = null;
         this.collide(e);
@@ -834,10 +855,12 @@
       for (let i = list.length - 1; i >= 0; i--) {
         const b = list[i];
         b.px = b.x; b.py = b.y;
+        if (b.homing) MB.Super.steer(this, b, dt);
         b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
         if (b.flame) { b.r += dt * 26; b.vx *= Math.pow(0.2, dt); b.vy *= Math.pow(0.2, dt); }
         if (b.life <= 0 || b.x < -50 || b.y < -50 || b.x > this.world.w + 50 || b.y > this.world.h + 50) {
-          if (b.explode && b.life <= 0) this.explosion(b.x, b.y, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true });
+          if (b.explode && b.life <= 0) this.explosion(b.x, b.y, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true, wid: b.wid });
+          if (b.stick && b.life <= 0) this.explosion(b.x, b.y, b.stick.r * 0.7, b.stick.dmg * 0.5, { knock: 200, small: true, wid: b.wid });
           list.splice(i, 1); continue;
         }
         let removed = false;
@@ -847,12 +870,14 @@
           if (Col.segCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r + b.r)) {
             b.hits.push(e);
             this.stats.bhits++;
-            if (b.explode) { this.explosion(b.x, b.y, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true }); list.splice(i, 1); removed = true; break; }
-            this.damageEnemy(e, b.dmg, ang, b.knock, b.flame);
+            if (b.explode) { this.explosion(b.x, b.y, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true, wid: b.wid }); list.splice(i, 1); removed = true; break; }
+            this.damageEnemy(e, b.dmg, ang, b.knock, b.flame, { wid: b.wid, fx: b.px, fy: b.py, sup: b.sup });
             if (b.burn) e.burnT = 2.2;
+            if (b.chill && !e.dead) MB.Super.chill(this, e);
+            if (b.stick) MB.Super.stick(this, b, e, b.x, b.y);
             if (b.chain) this.chainZap(e, b.chain, b.dmg);
             if (!b.flame) this.sparks(b.x, b.y, ang + Math.PI, e.def.gore || '#c9f59a', 3);
-            if (b.pierce > 0) { b.pierce--; b.dmg *= 0.8; }
+            if (b.pierce > 0) { b.pierce--; if (!b.noFalloff) b.dmg *= 0.8; }
             else { list.splice(i, 1); removed = true; break; }
           }
         }
@@ -860,7 +885,9 @@
         const hit = Col.raycast(this.obstacles, b.px, b.py, b.x, b.y, (o) => !o.noShot);
         if (hit) {
           const hx = b.px + (b.x - b.px) * hit.t, hy = b.py + (b.y - b.py) * hit.t;
-          if (b.explode) { this.explosion(hx, hy, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true }); list.splice(i, 1); continue; }
+          if (b.explode) { this.explosion(hx, hy, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true, wid: b.wid }); list.splice(i, 1); continue; }
+          if (b.stick) { this.explosion(hx, hy, b.stick.r * 0.8, b.stick.dmg * 0.6, { knock: 220, small: true, wid: b.wid }); if (hit.o.hp) this.damageObstacle(hit.o, b.dmg); list.splice(i, 1); continue; }
+          if (b.disc && b.disc.left > 0) { if (hit.o.hp) this.damageObstacle(hit.o, b.dmg); MB.Super.bounce(this, b, hit.o, hx, hy); continue; }
           if (!b.flame) this.sparks(hx, hy, ang + Math.PI, hit.o.hp ? '#ffe3a8' : '#d4c7a1', 3);
           if (hit.o.hp) this.damageObstacle(hit.o, b.dmg);
           if (hit.o.onShot) hit.o.onShot(this, hit.o, b);
@@ -1021,6 +1048,7 @@
       // đạn người chơi (vệt sáng)
       ctx.lineCap = 'round';
       for (const b of this.bullets) {
+        if (b.kind) { MB.Super.drawBullet(ctx, b, this); continue; }
         if (b.flame) {
           const k = Math.max(0, b.life / b.max0);
           ctx.globalAlpha = 0.25 + k * 0.5; ctx.fillStyle = k > 0.5 ? '#ffd27a' : '#ff7a2c';
@@ -1047,6 +1075,7 @@
 
       if (MB.Input.mode !== 'kb') MB.Hero.drawAimLine(ctx, this.player, this);
       MB.Hero.draw(ctx, this.player, this);
+      MB.Super.draw(ctx, this, (x, h, y) => ({ x, y }), 1);
 
       for (const b of this.ebullets) this.drawEnemyBullet(ctx, b);
       MB.Skills.draw2D(ctx, this);

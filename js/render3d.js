@@ -154,6 +154,26 @@
       g.add(mesh(box(20, 10, 9), dark, 8, 0, 0)); for (const [y, z] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) g.add(barrel(1.2, 22, 28, y)), g.children[g.children.length - 1].position.z = z;
       g.add(mesh(box(8, 5, 5), std(0xffd56a), 6, -6, 0));
       g.userData.tip = 40;
+    } else if (id === 'cryo') {
+      g.add(mesh(box(24, 7, 6), std(0x2a3a44, { rough: 0.4, metal: 0.4 }), 12, 0, 0), mesh(cap(3.2, 7), glowMat(0x9be8ff, 1.1), 15, -6, 0), barrel(2.6, 9, 31, 0));
+      g.children[1].rotation.z = Math.PI / 2;
+      g.userData.tip = 37;
+    } else if (id === 'bolt') {
+      const bow = new T.Mesh(G3('bow', () => new T.TorusGeometry(12, 1.1, 6, 16, Math.PI * 0.9)), dark); bow.rotation.set(Math.PI / 2, 0, -Math.PI * 0.45); bow.position.set(18, 1, 0);
+      g.add(mesh(box(28, 4.6, 4.6), std(0x3a2c22, { rough: 0.7 }), 13, 0, 0), bow, mesh(box(22, 1.6, 1.6), std(0x6a4a2a), 22, 3, 0), mesh(box(3, 3, 3), orange, 33.5, 3, 0));
+      g.userData.tip = 35;
+    } else if (id === 'hornet') {
+      g.add(mesh(box(32, 10, 10), std(0x2d3a2a, { rough: 0.5 }), 16, 0, 0), mesh(box(3, 10.4, 10.4), std(0xc0471f), 10, 0, 0), mesh(box(4, 7, 4), dark, 14, -7, 0));
+      for (const z of [-2.8, 0, 2.8]) { const t = mesh(cyl(1.3, 1.3, 1, 8), std(0x111111), 32.2, 0, z); t.rotation.z = Math.PI / 2; g.add(t); }
+      g.userData.tip = 38;
+    } else if (id === 'beam') {
+      g.add(mesh(box(28, 7, 6), std(0x22262e, { rough: 0.35, metal: 0.5 }), 13, 0, 0));
+      for (const x of [9, 14, 19]) g.add(mesh(box(2.4, 9, 8), std(0x3a4250, { metal: 0.6, rough: 0.3 }), x, 0, 0));
+      g.add(mesh(sph(3, 12), glowMat(0x7ef3ff, 2), 29, 0, 0));
+      g.userData.tip = 34;
+    } else if (id === 'ripper') {
+      g.add(mesh(box(20, 7, 6), std(0x2c2f31, { rough: 0.5, metal: 0.4 }), 10, 0, 0), mesh(cyl(6.5, 6.5, 1.6, 14), std(0xc9d1d4, { metal: 0.8, rough: 0.25 }), 24, 4.6, 0));
+      g.userData.tip = 32;
     } else if (id === 'smg') {
       g.add(mesh(box(19, 6, 5), dark, 9.5, 0, 0), barrel(1.6, 8, 22, 0.5), mesh(box(4, 11, 4), mid, 6, -7.5, 0), mesh(box(7, 1.6, 5.4), glowMat(0x4fd6ff, 1.4), 12, 3.2, 0));
       g.userData.tip = 26;
@@ -611,6 +631,9 @@
     } else if (it.kind === 'grenade') {
       inner.add(mesh(sph(6, 12), std(0x3e5a36, { rough: 0.5 })), mesh(cyl(2, 2, 4, 8), std(0xffb347), 0, 6.5, 0));
       g.add(glowSprite(0xffb347, 36, 0.45));
+    } else if (it.kind === 'heavy') {
+      inner.add(mesh(box(22, 14, 16), std(0x2a2a24, { rough: 0.6 })), mesh(box(22.4, 3, 16.4), glowMat(0xffd56a, 1), 0, 3, 0), mesh(box(22.4, 3, 16.4), glowMat(0xffd56a, 1), 0, -3, 0));
+      g.add(glowSprite(0xffd56a, 70, 0.6));
     } else if (it.kind === 'weapon') {
       const gun = buildGun(it.id); gun.scale.setScalar(1.5); gun.position.x = -24; inner.add(gun);
       g.add(glowSprite(0xffd56a, 80, 0.6));
@@ -967,12 +990,20 @@
         let mm;
         const bright = !!G.def.bright, col = colorOf(G.bulletCol(b.color));
         const shell = (geo) => { const sm = new T.MeshBasicMaterial({ color: 0x140a06, transparent: true, opacity: bright ? 0.6 : 0.35, depthWrite: false }); sm.userData.own = true; const o = new T.Mesh(geo, sm); o.renderOrder = -1; return o; };
+        if (b.kind === 'missile') {
+          mm = new T.Mesh(box(12, 4, 4), new T.MeshBasicMaterial({ color: 0xd8dde0 })); mm.add(mesh(box(4, 4.4, 4.4), std(0xff5b3c), 7, 0, 0, false)); mm.add(glowSprite(0xff9a3c, 26, 0.9)); mm.children[1].position.x = -9;
+          mm.material.userData.own = true; return mm;
+        }
+        if (b.kind === 'disc') { mm = new T.Mesh(cyl(7.5, 7.5, 1.6, 16), new T.MeshStandardMaterial({ color: 0xd9e2e6, metalness: 0.8, roughness: 0.25 })); mm.material.userData.own = true; return mm; }
+        if (b.kind === 'bolt') { mm = new T.Mesh(box(26, 1.8, 1.8), new T.MeshBasicMaterial({ color: 0x6a4a2a })); mm.add(mesh(box(5, 3.4, 3.4), std(0xffb347), 13, 0, 0, false)); mm.material.userData.own = true; return mm; }
+        if (b.kind === 'ice') { mm = new T.Mesh(G3('oct1', () => new T.OctahedronGeometry(1)), new T.MeshBasicMaterial({ color: 0xe0faff, transparent: true, opacity: 0.85 })); mm.add(glowSprite(0x9be8ff, 4, 0.7)); mm.material.userData.own = true; return mm; }
         if (b.flame) { mm = new T.Mesh(sph(1, 8), new T.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.8, blending: bright ? T.NormalBlending : T.AdditiveBlending, depthWrite: false })); }
         else if (b.explode || b.chain) { mm = new T.Mesh(sph(1, 10), new T.MeshBasicMaterial({ color: col })); const sh = shell(sph(1, 10)); sh.scale.setScalar(1.45); mm.add(sh); if (!bright) mm.add(glowSprite(col, 5, 0.8)); }
         else { mm = new T.Mesh(box(22, 3.4, 3.4), new T.MeshBasicMaterial({ color: col })); mm.add(shell(box(26, 6, 6))); const hot = new T.Mesh(box(8, 2, 2), new T.MeshBasicMaterial({ color: 0xfffbe8 })); hot.material.userData.own = true; hot.position.x = 7; mm.add(hot); }
         mm.material.userData.own = true; return mm;
       }, (b, m) => {
         m.position.set(b.x, 30, b.y); m.rotation.y = -Math.atan2(b.vy, b.vx);
+        if (b.kind) { if (b.kind === 'disc') m.rotation.y = t * 30; else if (b.kind === 'ice') { m.scale.setScalar(b.r * 1.3); m.rotation.x = t * 8; } return; }
         if (b.flame) { m.scale.setScalar(b.r); const k = Math.max(0, b.life / b.max0); m.material.color.setHex(k > 0.5 ? 0xffd27a : 0xff6a20); m.material.opacity = 0.3 + k * 0.6; }
         else if (b.explode || b.chain) m.scale.setScalar(b.r);
       });
@@ -1082,6 +1113,8 @@
         ctx.fillStyle = tx.color; ctx.fillText(tx.txt, s.x, s.y);
       }
       ctx.globalAlpha = 1;
+      // điểm yếu boss, tia laser, siêu chiêu, drone
+      { const a = this.project(G.player.x, 0, G.player.y, G), b = this.project(G.player.x + 100, 0, G.player.y, G); MB.Super.draw(ctx, G, (x, h, y) => this.project(x, h, y, G), Math.hypot(b.x - a.x, b.y - a.y) / 100); }
       // mũi tên chỉ hướng mục tiêu ngoài màn hình
       const p = G.player, marks = MB.Challenges.markers(G);
       if (G.boss && !G.boss.dead) marks.push({ x: G.boss.x, y: G.boss.y, color: '#ff5b6e' });

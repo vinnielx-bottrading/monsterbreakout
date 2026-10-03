@@ -1,9 +1,9 @@
 /* Service worker: chơi offline sau lần tải đầu. Tăng VERSION mỗi lần deploy để người chơi nhận bản mới. */
-const VERSION = 'mb-v6.3.0';
+const VERSION = 'mb-v6.4.0';
 const CORE = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'assets/icons/icon.svg', 'assets/icons/icon-192.png', 'assets/hunter/body.webp', 'assets/hunter/portrait.webp', 'assets/hunter/dossier.webp',
   'js/core.js', 'js/props.js', 'js/input.js', 'js/audio.js', 'js/weapons.js', 'js/hero.js', 'js/enemies.js',
-  'js/items.js', 'js/skills.js', 'js/progress.js', 'js/cloud.js', 'js/story.js', 'js/hud.js', 'js/game.js', 'js/gates/index.js', 'js/main.js',
+  'js/items.js', 'js/skills.js', 'js/arsenal.js', 'js/progress.js', 'js/cloud.js', 'js/story.js', 'js/hud.js', 'js/game.js', 'js/gates/index.js', 'js/main.js',
   'js/gates/gate01-jungle.js', 'js/gates/gate02-mountain.js', 'js/gates/gate03-swamp.js', 'js/gates/gate04-snow.js',
   'js/gates/gate05-volcano.js', 'js/gates/gate06-ocean.js', 'js/gates/gate07-industrial.js', 'js/gates/gate08-city.js',
   'js/gates/gate09-lab.js', 'js/gates/gate10-apocalypse.js', 'js/gates/gate11-hanoi.js', 'js/gates/gate12-hoian.js',
