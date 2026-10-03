@@ -4,7 +4,7 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v7.5** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v7.5.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
@@ -650,6 +650,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v7.5.1** | Admin: tách "Bắt buộc đăng nhập" (luôn hoạt động) khỏi công tắc thu phí; mục đổi tên "Đăng nhập & thu phí" |
 | 2026-10-03 | **v7.5** · README rev 36 | Admin **tìm người chơi theo mã MBTT** (dán cả nội dung chuyển khoản), nút **Xác nhận đã tiếp tế** ngay trong hồ sơ (số tiền + mục đích sử dụng); game hiện **ngôi sao cảm ơn sáng rực** kèm mục đích dùng tiền, ★ sáng cạnh tên |
 | 2026-10-03 | **v7.4** · README rev 35 | **Tiếp tế:** màn "Trạm tiếp tế" lồng cốt truyện (1 lần sau Gate 10, khi thua cửa ác mộng), **cửa ác mộng** Gate 11 khi chưa tiếp tế, mã tiếp tế riêng `MBTT…`, huy hiệu ☕ Người tiếp tế (bảng xếp hạng, hồ sơ), thanh chi phí server, trang admin Người tiếp tế |
 | 2026-10-03 | **v7.3.1** · README rev 34 | Mở cửa ải đổi sang **kiểm soát theo từng Màn**: Màn không bật kiểm soát = chơi liên tục như bình thường; Màn bật = chỉ mở các cửa được chọn |

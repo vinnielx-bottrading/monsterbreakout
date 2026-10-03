@@ -174,7 +174,7 @@
   /* ================= các trang ================= */
   const PAGES = {
     overview: { t: 'Tổng quan', r: pOverview }, players: { t: 'Người chơi', r: pPlayers }, gates: { t: 'Thống kê cửa ải', r: pGates },
-    content: { t: 'Mở cửa ải', r: pContent }, paywall: { t: 'Thu phí', r: pPaywall }, donate: { t: 'Tài khoản nhận tiền', r: pDonate }, plans: { t: 'Bảng giá gói', r: pPlans }, orders: { t: 'Đơn hàng', r: pOrders }, grant: { t: 'Cấp quyền thủ công', r: pGrant }, support: { t: 'Người tiếp tế', r: pSupport },
+    content: { t: 'Mở cửa ải', r: pContent }, paywall: { t: 'Đăng nhập & thu phí', r: pPaywall }, donate: { t: 'Tài khoản nhận tiền', r: pDonate }, plans: { t: 'Bảng giá gói', r: pPlans }, orders: { t: 'Đơn hàng', r: pOrders }, grant: { t: 'Cấp quyền thủ công', r: pGrant }, support: { t: 'Người tiếp tế', r: pSupport },
   };
   function render() {
     if (!PAGES[S.page]) S.page = 'overview';
@@ -404,17 +404,20 @@
 
   function pPaywall() {
     const P = S.cfg.paywall;
-    return `<div class="card"><h2>Bật / tắt thu phí</h2><p class="muted">TẮT: người chơi chỉ cần đăng nhập Google là chơi hết. BẬT: từ cửa "Thu phí từ" trở đi cần mua gói.</p>
+    return `<div class="card"><h2>🔑 Bắt buộc đăng nhập</h2><p class="muted"><b>Luôn hoạt động, không phụ thuộc công tắc thu phí.</b> Khách chơi tự do tới trước cửa này; tới cửa này phải đăng nhập Google (miễn phí) mới chơi tiếp.</p>
+      <div class="row"><div><label>Bắt buộc đăng nhập từ Gate</label><input id="pwLogin" type="number" min="2" value="${P.loginFrom || 8}"></div><div></div></div>
+      <p style="margin-top:14px"><button id="lgSave" class="primary">Lưu</button></p><div id="lgMsg" class="msg"></div></div>
+    <div class="card"><h2>💎 Thu phí</h2><p class="muted">TẮT (hiện tại): người chơi đã đăng nhập chơi hết các cửa đang mở. BẬT: từ cửa "Thu phí từ" trở đi cần mua gói. <b>Chỉ bật khi đã cài SePay</b> (hoặc sẵn sàng duyệt tay ở mục Đơn hàng).</p>
       <div class="switch"><label class="toggle"><input type="checkbox" id="pwOn" ${P.enabled ? 'checked' : ''}><span></span></label><b id="pwState">${P.enabled ? 'Đang bật thu phí' : 'Đang tắt thu phí'}</b></div>
-      <div class="row" style="margin-top:6px"><div><label>Bắt buộc đăng nhập từ Gate</label><input id="pwLogin" type="number" min="2" value="${P.loginFrom || 8}"></div>
-      <div><label>Thu phí từ Gate</label><input id="pwPaid" type="number" min="2" value="${P.paidFrom || 11}"></div></div>
-      <p style="margin-top:14px"><button id="pwSave" class="primary">Lưu thay đổi</button></p><div id="pwMsg" class="msg"></div></div>
-      <div class="note">Thu phí tự động cần SePay + Edge Function <code>mb-sepay</code> (README mục 2c). Khi chưa cài, vẫn duyệt tay được ở mục Đơn hàng.</div>`;
+      <div class="row" style="margin-top:6px"><div><label>Thu phí từ Gate</label><input id="pwPaid" type="number" min="2" value="${P.paidFrom || 11}"></div><div></div></div>
+      <p style="margin-top:14px"><button id="pwSave" class="primary">Lưu</button></p><div id="pwMsg" class="msg"></div></div>
+      <div class="note">Đang chưa thu phí? Dùng <b>Mở cửa ải</b> để giữ lại các cửa chưa muốn mở, và <b>Người tiếp tế</b> để kêu gọi ủng hộ + cửa ác mộng.</div>`;
   }
   PAGES.paywall.after = () => {
     $('pwOn').onchange = () => { $('pwState').textContent = ($('pwOn').checked ? 'Sẽ bật' : 'Sẽ tắt') + ' (bấm Lưu)'; };
+    $('lgSave').onclick = () => save('paywall', Object.assign({}, S.cfg.paywall, { loginFrom: +$('pwLogin').value || 8 }), 'lgMsg');
     $('pwSave').onclick = async () => {
-      const v = { enabled: $('pwOn').checked, loginFrom: +$('pwLogin').value || 8, paidFrom: +$('pwPaid').value || 11 };
+      const v = Object.assign({}, S.cfg.paywall, { enabled: $('pwOn').checked, paidFrom: +$('pwPaid').value || 11 });
       if (v.enabled && !confirm('Bật thu phí từ Gate ' + v.paidFrom + '? Người chơi chưa có gói sẽ bị khoá.')) return;
       if (await save('paywall', v, 'pwMsg')) $('pwState').textContent = v.enabled ? 'Đang bật thu phí' : 'Đang tắt thu phí';
     };
