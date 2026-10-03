@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.5** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v6.5.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 23) |
+| README cập nhật | 2026-10-03 (rev 24) |
 
 ---
 
@@ -125,6 +125,8 @@ js/gates/gate12-hoian.js      Màn 2 · Hội An – phố đèn lồng ban đê
 **v6.5 — mô hình 3D thật (có khung xương & hoạt ảnh).** Khi bật 3D, `render3d.js` tải thêm `three-addons.min.js` + `hunter.glb` + `zombie.glb` (~800 KB, chỉ tải 1 lần). Trong lúc tải dùng mô hình dựng sẵn; tải xong tự đổi (`onSkinnedReady`).
 - **Hunter:** lính đặc nhiệm Mixamo, tô lại tông đen than / ô liu, hoạt ảnh idle / walk / run hoà trộn theo tốc độ; cả người quay theo hướng ngắm, chạy lùi thì phát hoạt ảnh ngược. Tay được "bẻ" sang tư thế ôm súng mỗi khung hình (`aimBone`, `POSE_RIFLE`), súng là mô hình dựng sẵn đặt trước ngực; giữ phù hiệu cánh-kiếm phát sáng và vòng cyan dưới chân.
 - **Xác sống thường (`zombie`):** hình nhân Xbot giảm lưới, màu da thối ngẫu nhiên, khớp đỏ sẫm, mắt phát sáng, tay giơ ra trước kiểu xác sống, đầu lắc lư, đi theo tốc độ thật. Tối đa 12 con (điện thoại) / 40 con (máy tính) dùng mô hình thật cùng lúc, còn lại dùng mô hình dựng sẵn; chọn *Chất lượng: Thấp* thì tắt hẳn để nhẹ máy. Các biến thể xác sống riêng của từng Gate, nhện, licker, boss vẫn là mô hình dựng sẵn.
+- **v6.5.1 — giữ đúng tạo hình đã thiết kế:** đầu đội mũ giáp của mô hình gốc (và đầu hình nhân Xbot) được thu nhỏ về 0 rồi thay bằng bộ phận dựng sẵn bám theo xương (`follow`): Hunter có đầu tóc nâu rối + râu + mũ trùm cổ, áo giáp nâu ô liu có túi đạn, ba lô + bình lọc xanh, phù hiệu cánh-kiếm (`heroHeadKit`, `heroChestKit`); xác sống có đầu u nần + hàm + mắt phát sáng, áo rách màu ngẫu nhiên + vết thương, túi độc phát sáng, quần (`zombieHeadKit`, `zombieChestKit`, `zombiePantsKit`), da xanh xám giống bản vẽ. Hunter phóng to (tỉ lệ 38) cho cỡ bằng bản dựng sẵn.
+- Cài đặt → **Nhân vật 3D**: *Mô hình có khung xương* (mặc định) hoặc *Mô hình dựng sẵn* (như trước v6.5, nhẹ máy); đổi giữa trận được (`R3.onSkinnedReady`).
 - Muốn Hunter giống ảnh concept hơn: tạo GLB từ ảnh (Meshy/Tripo…), gắn khung xương Mixamo, xuất GLB có idle/walk/run rồi thay `assets/models/hunter.glb` (giữ tên xương `mixamorig*`).
 
 
@@ -565,6 +567,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v6.5.1** · README rev 24 | Mô hình 3D thật giữ đúng tạo hình đã vẽ: Hunter thay đầu mũ giáp bằng đầu tóc nâu + mũ trùm, thêm áo giáp ô liu, ba lô, phù hiệu; xác sống thêm đầu u nần mắt phát sáng, áo rách, túi độc, da xanh xám; thêm Cài đặt "Nhân vật 3D" (mô hình mới / dựng sẵn) |
 | 2026-10-03 | **v6.5** · README rev 23 | Âm thanh mới dạng file (67 hiệu ứng, 3 bản nhạc lặp: menu / trận / boss) dựng từ mẫu CC0 + tổng hợp offline; mô hình 3D thật có khung xương cho Hunter và xác sống thường (Mixamo qua three.js examples); tiếng quái gầm gừ; âm riêng cho 5 súng mới, siêu chiêu, gục choáng, điểm yếu |
 | 2026-10-02 | **v6.4** · README rev 22 | Trận boss mới: điểm yếu ×2, gục choáng (+50%), khắc hệ ×1,5, tiếp tế đạn hạng nặng; thanh nộ + 3 siêu chiêu chọn khi boss xuất hiện; 5 súng mới (Cryo, Bolt X, Hornet, Lumen Beam, Ripper) nhận khi hạ boss Gate 3/5/7/9/11 hoặc mua bằng xu; sát thương nổ nhân theo linh kiện |
 | 2026-10-02 | **v6.3** · README rev 21 | Hunter đổi ngoại hình theo ảnh concept "Operator" (2D + 3D): áo đen than, giáp nâu ô liu, ba lô, tóc nâu, súng giảm thanh + ống ngắm; phù hiệu cánh-kiếm phát sáng làm điểm nhận diện. Key art ở menu, khẩu hiệu + phù hiệu, màn Hồ sơ Hunter, chân dung trong thoại/bộ đàm |

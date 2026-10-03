@@ -530,8 +530,229 @@
   const KIT = { get T() { return T; }, U, std, glowMat, skinMat, mesh, box, sph, cyl, cap, limb, joint, limbBetween, bumpy, glowSprite, G3, ownMats, radialTex,
     buildZombie, animZombie, buildSpiderLike, animSpiderLike, buildLicker, animLicker, buildBlob, animBlob, buildFlyer, animFlyer, buildGolem, animGolem };
 
+  /* ================= MÔ HÌNH 3D THẬT (v6.5): Hunter + xác sống có khung xương ================= */
+  // hunter.glb: lính đặc nhiệm (Mixamo, qua three.js examples), tô lại tông tối "Operator"
+  // zombie.glb: hình nhân Xbot (Mixamo), giảm lưới, tô màu xác thối + mắt phát sáng
+  const SK = { ready: false, loading: null, hunter: null, zombie: null, A: null, live: 0 };
+  let tmpA = null, tq = null, D = null, POSE_RIFLE = null, POSE_ZOMBIE = null;
+  function loadSkinned() {
+    if (SK.loading) return SK.loading;
+    const url = (f) => new URL(f, document.baseURI).href;
+    SK.loading = import(url('js/vendor/three-addons.min.js')).then(async (A) => {
+      SK.A = A; initPoses();
+      const L = new A.GLTFLoader();
+      const [h, z] = await Promise.all([L.loadAsync(url('assets/models/hunter.glb')), L.loadAsync(url('assets/models/zombie.glb'))]);
+      SK.hunter = h; SK.zombie = z; SK.ready = true;
+      if (MB.R3 && MB.R3.onSkinnedReady) MB.R3.onSkinnedReady();
+    }).catch((err) => { console.warn('[3D] không tải được mô hình thật, dùng mô hình dựng sẵn', err); });
+    return SK.loading;
+  }
+  // xoay 1 xương để đoạn xương (xương → xương con) hướng theo dir (toạ độ của gốc mô hình)
+  function aimBone(root, bone, child, dir, k) {
+    root.updateMatrixWorld(true);
+    const a = bone.getWorldPosition(tmpA[0]), b = child.getWorldPosition(tmpA[1]);
+    const cur = b.sub(a).normalize();
+    const want = tmpA[2].copy(dir).applyQuaternion(root.getWorldQuaternion(tq[2])).normalize();
+    const q = tq[0].setFromUnitVectors(cur, want);
+    if (k != null && k < 1) q.slerp(tq[1].identity(), 1 - k);
+    const bw = bone.getWorldQuaternion(tq[1]);
+    const pw = bone.parent.getWorldQuaternion(new T.Quaternion());
+    bone.quaternion.copy(pw.invert().multiply(q.multiply(bw)));
+  }
+  function skinClone(src, scale, yaw, tint) {
+    const root = SK.A.SkeletonUtils.clone(src.scene);
+    const bones = {}; const mats = [];
+    root.traverse((o) => {
+      if (o.isBone) bones[o.name.replace('mixamorig', '')] = o;
+      if (o.isMesh) {
+        o.castShadow = true; o.frustumCulled = false;
+        o.material = o.material.clone(); o.material.userData.own = true;
+        if (tint) tint(o.material);
+        mats.push(o.material);
+      }
+    });
+    const inner = new T.Group(); inner.add(root); root.scale.setScalar(scale); root.rotation.y = yaw;
+    const mixer = new T.AnimationMixer(root), act = {};
+    for (const c of src.animations) { const a = mixer.clipAction(c); a.play(); a.setEffectiveWeight(0); act[c.name.toLowerCase()] = a; }
+    return { inner, root, bones, mats, mixer, act };
+  }
+  function blend(act, w, rate) {
+    for (const k in act) { const a = act[k], cur = a.getEffectiveWeight(), tg = w[k] || 0; a.setEffectiveWeight(cur + (tg - cur) * rate); }
+  }
+  // hướng trong khung của mô hình: tiến = +Z, phải = -X, lên = +Y (Mixamo)
+  function initPoses() {
+    if (tmpA) return;
+    tmpA = [new T.Vector3(), new T.Vector3(), new T.Vector3()]; tq = [new T.Quaternion(), new T.Quaternion(), new T.Quaternion()];
+    D = (f, r, u) => new T.Vector3(-r, u, f).normalize();       // xác sống (Xbot): tiến = +Z, phải = -X
+    const Dh = (f, r, u) => new T.Vector3(r, u, -f).normalize(); // Hunter (Soldier): tiến = -Z, phải = +X
+    POSE_RIFLE = { RightArm: Dh(0.42, 0.28, -0.78), RightForeArm: Dh(0.9, -0.22, 0.08), LeftArm: Dh(0.62, -0.18, -0.62), LeftForeArm: Dh(0.86, 0.42, 0.1) };
+    POSE_ZOMBIE = { RightArm: D(0.92, 0.18, -0.12), RightForeArm: D(0.95, 0.05, -0.1), LeftArm: D(0.92, -0.18, -0.08), LeftForeArm: D(0.95, -0.05, -0.12) };
+  }
+  const CHILD = { RightArm: 'RightForeArm', RightForeArm: 'RightHand', LeftArm: 'LeftForeArm', LeftForeArm: 'LeftHand' };
+
+  /* ---- bộ phận dựng sẵn gắn lên mô hình thật, để giữ đúng tạo hình đã thiết kế ----
+     (đầu tóc nâu + mũ trùm cổ, áo giáp nâu ô liu + túi đạn, ba lô, phù hiệu cho Hunter;
+      đầu xác sống u nần + mắt phát sáng, áo rách, túi độc cho xác sống) */
+  function heroHeadKit() {
+    const k = new T.Group();
+    const skin = std(0xc0937a, { rough: 0.72 }), hairM = std(0x2a1d15, { rough: 0.95 });
+    const hood = mesh(G3('hood', () => new T.TorusGeometry(6.2, 2.6, 8, 18)), std(0x23272a, { rough: 0.95 }), -0.8, -7, 0); hood.rotation.x = Math.PI / 2; hood.scale.set(1, 1.2, 1); k.add(hood);
+    k.add(mesh(cyl(3.3, 3.7, 5, 12), skin, 0, -6, 0));
+    const face = mesh(sph(7, 20), skin, 0.4, -0.4, 0); face.scale.set(1.08, 1.12, 0.92); k.add(face);
+    const beard = mesh(sph(4.6, 12), std(0x3a3029, { rough: 1 }), 2.4, -4.2, 0); beard.scale.set(0.9, 0.6, 1.05); k.add(beard);
+    k.add(mesh(bumpy('hair', new T.SphereGeometry(7.7, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.6), 0.8, 1.5), hairM, -0.9, 1.2, 0));
+    for (let i = 0; i < 5; i++) { const f = mesh(G3('lock', () => new T.ConeGeometry(1.6, 6, 6)), hairM, 5.4, 4.2, -4.4 + i * 2.2); f.rotation.z = -1.9 - (i % 2) * 0.25; f.rotation.x = (i - 2) * 0.12; k.add(f); }
+    const eyeM = std(0x1a1512, { rough: 0.4 });
+    k.add(mesh(sph(0.85, 6), eyeM, 6.6, 0.6, -2.5), mesh(sph(0.85, 6), eyeM, 6.6, 0.6, 2.5), mesh(box(1, 0.8, 2.8), hairM, 6.7, 2, -2.5), mesh(box(1, 0.8, 2.8), hairM, 6.7, 2, 2.5), mesh(box(1.4, 2.6, 1.1), skin, 7.4, -0.6, 0));
+    return k;
+  }
+  function heroChestKit() {
+    const k = new T.Group();
+    const coyote = std(0x5a4f3a, { rough: 0.85 }), pouch = std(0x4b4432, { rough: 0.9 }), strap = std(0x272219, { rough: 0.9 });
+    k.add(mesh(box(4.4, 13, 15.5), coyote, 6.4, 0, 0), mesh(box(4, 13, 15), coyote, -6.6, 0, 0));
+    for (const z of [-5.2, 5.2]) k.add(mesh(box(13.6, 2, 3.4), coyote, 0, 7.1, z));
+    for (const z of [-5, 0, 5]) { k.add(mesh(box(2.6, 5.4, 4.2), pouch, 9.6, -3.3, z)); k.add(mesh(box(2.8, 1, 4.4), strap, 9.7, -0.5, z)); }
+    const packM = std(0x433d2e, { rough: 0.9 });
+    k.add(mesh(box(7, 14, 12.5), packM, -12, 1, 0), mesh(box(7.6, 3.4, 13), std(0x3a3427, { rough: 0.9 }), -12, 8.1, 0));
+    for (const y of [-2.5, 0.5, 3.5]) k.add(mesh(box(7.2, 0.7, 12.7), strap, -12.1, y, 0));
+    k.add(mesh(box(2.6, 7, 9), pouch, -16.2, -0.5, 0), mesh(cyl(1.7, 1.7, 7, 10), glowMat(0x7dff9b, 1.5), -12, 0.5, -7.6));
+    k.add(mesh(box(3.8, 3.8, 0.6), std(0x5fd8ec, { emissive: 0x4fc8e0, ei: 0.9, rough: 0.4 }), -0.5, 7.5, -12.4));
+    return k;
+  }
+  function zombieHeadKit(eye) {
+    const k = new T.Group();
+    const skin = std(0x8b9b78, { own: true, rough: 0.8 });
+    const skull = mesh(bumpy('zskull', new T.SphereGeometry(6.4, 22, 16), 0.45, 1.2), skin, 0, 0, 0); skull.scale.set(1.05, 1.1, 0.95); k.add(skull);
+    const jaw = new T.Mesh(G3('zjaw', () => new T.SphereGeometry(4.6, 16, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)), skin);
+    jaw.position.set(2.2, -2.6, 0); jaw.scale.set(1.1, 0.9, 0.85); k.add(jaw);
+    k.add(mesh(sph(2.6, 10), std(0x2a0808, { rough: 0.3 }), 4.6, -2.4, 0));
+    for (const z of [-2.3, 2.3]) { k.add(mesh(sph(1.9, 10), std(0x1a1a14, { rough: 0.3 }), 5, 1.2, z)); k.add(mesh(sph(1.1, 8), glowMat(eye || 0xe9ff9a, 2.4), 5.9, 1.2, z)); }
+    const hair = std(0x2b2620);
+    for (let i = 0; i < 5; i++) k.add(mesh(sph(1.6, 6), hair, -2 + i * 1.2, 5.6 - Math.abs(i - 2) * 0.4, (i % 2 ? 1 : -1) * 1.5));
+    k.userData.skinMat = skin;
+    return k;
+  }
+  function zombieChestKit(shirtC) {
+    const k = new T.Group();
+    const shirt = std(shirtC, { own: true, rough: 0.95 });
+    const chest = mesh(bumpy('zchest', new T.SphereGeometry(8, 22, 16), 0.5, 0.9), shirt, 0, 0, 0); chest.scale.set(0.8, 1.05, 1.12); k.add(chest);
+    k.add(mesh(sph(3.2, 10), std(0x5a1414, { emissive: 0x3a0505, rough: 0.4 }), 6, 0, 3));
+    for (let i = 0; i < 3; i++) { const r = mesh(cyl(0.5, 0.5, 6, 6), std(0xe0d4bc), 6.4, -2 + i * 2, 3); r.rotation.x = Math.PI / 2; k.add(r); }
+    const pm = glowMat(0xaaff5a, 1.4);
+    k.add(mesh(sph(2.2, 8), pm, -6, 3, 5), mesh(sph(1.7, 8), pm, -5, 6, -6), mesh(sph(1.5, 8), pm, -3, -3, -8));
+    return k;
+  }
+  function zombiePantsKit() {
+    const p = mesh(sph(6.4, 14), std(0x46525c, { rough: 0.95 }), 0, -1, 0); p.scale.set(0.95, 0.75, 1.3);
+    const k = new T.Group(); k.add(p); return k;
+  }
+  // gắn bộ phận theo vị trí xương (không làm con của xương để tránh hệ số tỉ lệ của mô hình)
+  const _fv = { v: null };
+  function follow(g, list) {
+    if (!_fv.v) _fv.v = new T.Vector3();
+    g.updateMatrixWorld(true);
+    for (const f of list) { f.bone.getWorldPosition(_fv.v); g.worldToLocal(_fv.v); f.obj.position.copy(_fv.v); if (f.dy) f.obj.position.y += f.dy; }
+  }
+
+  function buildHeroSkinned() {
+    const S = skinClone(SK.hunter, 38, 0);
+    const g = new T.Group(); g.add(S.inner);
+    // thay đầu đội mũ giáp của mô hình gốc bằng đầu Hunter (tóc nâu, râu, mũ trùm cổ) + áo giáp, ba lô
+    if (S.bones.Head) S.bones.Head.scale.setScalar(0.001);
+    const head = heroHeadKit(), chest = heroChestKit();
+    head.scale.setScalar(1.32); chest.scale.set(1.2, 1.26, 1.2);
+    const kits = new T.Group(); kits.add(head, chest); g.add(kits);
+    const fol = [];
+    if (S.bones.Head) fol.push({ obj: head, bone: S.bones.Head, dy: 5 });
+    if (S.bones.Spine2) fol.push({ obj: chest, bone: S.bones.Spine2, dy: -1 });
+    const upper = new T.Group(); upper.position.y = 0; g.add(upper);
+    const gunHolder = new T.Group(); gunHolder.position.set(18, 47, 3.5); upper.add(gunHolder);
+    const muzzle = glowSprite(0xffd27a, 34, 1); muzzle.visible = false; upper.add(muzzle);
+    // phù hiệu cánh-kiếm phát sáng trên vai trái (điểm nhận diện)
+    const ring = new T.Mesh(G3('ring', () => new T.RingGeometry(23, 26.5, 48)), new T.MeshBasicMaterial({ color: 0x7ef3ff, transparent: true, opacity: 0.55, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.9; g.add(ring);
+    g.userData = { skin: S, upper, gunHolder, muzzle, ring, bodyMats: S.mats, gunId: null, legs: null, skinned: true, h: 70, kits, fol };
+    const outer = new T.Group(); outer.add(g); outer.userData = g.userData; return outer;
+  }
+  function animHeroSkinned(p, m, G, dt) {
+    const d = m.userData, S = d.skin;
+    m.position.set(p.x, 0, p.y);
+    const sp = Math.hypot(p.vx, p.vy);
+    // cả người quay theo hướng ngắm; chạy lùi thì phát hoạt ảnh ngược
+    S.inner.rotation.y = -p.aim - Math.PI / 2;
+    d.upper.rotation.y = -p.aim;
+    const back = sp > 25 && Math.cos(Math.atan2(p.vy, p.vx) - p.aim) < -0.25;
+    const w = sp < 25 ? { idle: 1 } : sp < 190 ? { walk: 1 } : { run: 1 };
+    blend(S.act, w, Math.min(1, dt * 10));
+    for (const k in S.act) S.act[k].timeScale = back ? -1 : k === 'walk' ? Math.max(0.6, sp / 140) : k === 'run' ? Math.max(0.8, sp / 300) : 1;
+    S.mixer.update(dt);
+    // tư thế ôm súng (đè lên hoạt ảnh)
+    for (const k in POSE_RIFLE) if (S.bones[k] && S.bones[CHILD[k]]) aimBone(S.root, S.bones[k], S.bones[CHILD[k]], POSE_RIFLE[k], 1);
+    if (S.bones.Spine2) S.bones.Spine2.rotation.x += -p.recoil * 0.01;
+    d.kits.rotation.y = 0; for (const c of d.kits.children) c.rotation.y = -p.aim;
+    follow(m.children[0], d.fol);
+    const wpn = MB.Weapons.current(p);
+    if (d.gunId !== wpn.id) { d.gunHolder.clear(); const gun = buildGun(wpn.id); gun.scale.setScalar(0.72); d.gunHolder.add(gun); d.gunId = wpn.id; }
+    const s = MB.Weapons.DEFS[wpn.id];
+    const reloadK = wpn.reloading > 0 ? 1 - wpn.reloading / (s.reload * (1 - 0.12 * p.mods.mag)) : 0;
+    d.gunHolder.position.x = 18 - p.recoil * 0.8;
+    d.gunHolder.rotation.z = -Math.sin(reloadK * Math.PI) * 0.6;
+    const tip = d.gunHolder.children[0] ? d.gunHolder.children[0].userData.tip * 0.72 : 28;
+    d.muzzle.visible = p.muzzle > 0;
+    if (d.muzzle.visible) { d.muzzle.position.set(18 + tip, 48, 3.5); const k = 12 + Math.random() * 9; d.muzzle.scale.set(k, k, 1); }
+    for (const mt of d.bodyMats) { mt.emissive.setHex(p.hurtT > 0 ? 0xff2a2a : 0x000000); mt.emissiveIntensity = p.hurtT > 0 ? 0.6 : 1; }
+    m.visible = !(p.iframes > 0 && !p.dash && !p.dead && Math.floor(G.time * 20) % 2 === 0);
+    S.inner.scale.set(p.dash ? 1.1 : 1, p.dash ? 0.82 : 1, 1);
+    d.ring.material.opacity = 0.35 + Math.sin(G.time * 4) * 0.15;
+    if (p.dead) {
+      const k = Math.min(1, p.deadT * 2.2);
+      m.rotation.set(0, -p.aim, 0); m.rotation.z = k * 1.45; d.ring.visible = false; d.gunHolder.visible = false;
+      for (const c of d.kits.children) c.rotation.y = 0;
+    } else if (m.rotation.z !== 0 || m.rotation.y !== 0) { m.rotation.set(0, 0, 0); d.ring.visible = true; d.gunHolder.visible = true; }
+  }
+
+  function buildZombieSkinned(e) {
+    const r = U.seeded(Math.floor((e && e.t || Math.random()) * 9973));
+    const skinC = new T.Color().setHSL(0.2 + r() * 0.06, 0.13 + r() * 0.1, 0.4 + r() * 0.1, T.SRGBColorSpace);
+    const S = skinClone(SK.zombie, 32 * (0.92 + r() * 0.16), 0, (mt) => {
+      mt.metalness = 0; mt.roughness = 0.92;
+      if (/Joint/i.test(mt.name)) mt.color.setHex(0x3a1412); else mt.color.copy(skinC);
+    });
+    const g = new T.Group(); g.add(S.inner); S.root.scale.x *= 1.18; S.root.scale.z *= 1.18;
+    // đầu xác sống u nần + áo rách + quần: giữ đúng tạo hình xác sống đã thiết kế
+    if (S.bones.Head) S.bones.Head.scale.setScalar(0.001);
+    const shirts = [0x7a735a, 0x5a6470, 0x6e5a4a, 0x4e5a48];
+    const head = zombieHeadKit(), chest = zombieChestKit(shirts[Math.floor(r() * shirts.length)]), pants = zombiePantsKit();
+    head.userData.skinMat.color.copy(skinC); head.scale.setScalar(1.2); chest.scale.setScalar(1.12); pants.scale.setScalar(1.12);
+    g.add(head, chest, pants);
+    const fol = [];
+    if (S.bones.Head) fol.push({ obj: head, bone: S.bones.Head, dy: 3 });
+    if (S.bones.Spine1) fol.push({ obj: chest, bone: S.bones.Spine1, dy: 1 });
+    if (S.bones.Hips) fol.push({ obj: pants, bone: S.bones.Hips, dy: -1 });
+    g.userData = { skin: S, h: 56, skinned: true, zcount: true, phase: r() * 10, gait: 0.55 + r() * 0.25, fol, head };
+    SK.live++;
+    return g;
+  }
+  function animZombieSkinned(e, m, G) {
+    const d = m.userData, S = d.skin, dt = MB.R3.dt || 0.016;
+    S.inner.rotation.y = Math.PI / 2;
+    const sp = Math.hypot(e.vx, e.vy);
+    blend(S.act, sp > 12 ? { walk: 1 } : { idle: 1 }, Math.min(1, dt * 6));
+    S.act.walk.timeScale = Math.max(0.35, Math.min(1.4, sp / 90)) * d.gait * 1.6;
+    S.mixer.update(dt);
+    const t = G.time + d.phase;
+    const lunge = e.atkCd > 0.55 ? 0.6 : 1; // vừa vồ trúng: tay chém xuống
+    for (const k in POSE_ZOMBIE) if (S.bones[k] && S.bones[CHILD[k]]) aimBone(S.root, S.bones[k], S.bones[CHILD[k]], POSE_ZOMBIE[k], 0.85 * lunge);
+    if (S.bones.Spine) S.bones.Spine.rotation.x += 0.22;
+    follow(m, d.fol);
+    d.head.rotation.x = Math.sin(t * 1.7) * 0.2; d.head.rotation.z = -0.15 + Math.sin(t * 2.3) * 0.08;
+  }
+
   const MODELS = {
-    zombie: { build: () => buildZombie(), anim: animZombie, base: 19 },
+    zombie: {
+      build: (e) => (SK.ready && MB.Save.data.settings.model3d !== 'classic' && MB.Save.data.settings.quality !== 'low' && SK.live < (MB.R3.mobile ? 12 : 40) ? buildZombieSkinned(e) : buildZombie()),
+      anim: (e, m, G) => (m.userData.skinned ? animZombieSkinned(e, m, G) : animZombie(e, m, G)), base: 19,
+    },
     spider: { build: () => buildSpiderLike({ body: 0x6b3b2b, head: 0x8a5040, leg: 0x4e3226, eye: 0xff5040, mark: 0xaaff5a }), anim: animSpiderLike, base: 14 },
     licker: { build: () => buildLicker(), anim: animLicker, base: 18 },
     spiderQueen: { build: () => buildSpiderLike({ scale: 3.9, legW: 1.25, body: 0x4a2020, head: 0x6b3030, leg: 0x4a2424, eye: 0xffdf8c, mark: 0x6fcf2a, sacs: true, spikes: true }), anim: animSpiderLike, base: 54 },
@@ -652,13 +873,14 @@
 
   /* ================= RENDERER ================= */
   const R3 = MB.R3 = {
-    debug: { buildHero: () => buildHero(), animHero: (p, m, G) => animHero(p, m, G), MODELS },
+    debug: { buildHero: () => buildHero(), animHero: (p, m, G) => animHero(p, m, G), MODELS, SK, loadSkinned, buildHeroSkinned: () => buildHeroSkinned(), animHeroSkinned: (p, m, G, dt) => animHeroSkinned(p, m, G, dt), buildZombieSkinned: (e) => buildZombieSkinned(e), animZombieSkinned: (e, m, G) => animZombieSkinned(e, m, G) },
     ready: false,
     async load() {
       if (T) return;
       const url = new URL('js/vendor/three.module.min.js', document.baseURI).href;
       T = await import(url);
       this.T = T; this.ready = true;
+      loadSkinned();
     },
 
     init(G) {
@@ -783,10 +1005,26 @@
       if (this.ovTex) this.ovTex.dispose();
       if (this.sun && this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
       if (this.renderer) this.renderer.renderLists.dispose();
-      this.scene = null;
+      this.scene = null; SK.live = 0;
     },
 
     // đồng bộ một danh sách thực thể với mesh (tạo / cập nhật / xoá)
+    dropObj(o) {
+      const m = o.__m3; if (!m) return;
+      this.root.remove(m); disposeOwn(m);
+      let sk = null, z = false; m.traverse((x) => { if (x.userData && x.userData.skin && x.userData.skin.mixer) sk = x.userData.skin; if (x.userData && x.userData.zcount) z = true; });
+      if (sk) sk.mixer.stopAllAction();
+      if (z) SK.live = Math.max(0, SK.live - 1);
+      o.__m3 = null;
+    },
+    // mô hình thật tải xong giữa trận → dựng lại Hunter và xác sống
+    onSkinnedReady() {
+      if (!this.root) return;
+      for (const cat of ['hero', 'enemy']) {
+        const live = this.live[cat]; if (!live) continue;
+        for (const o of Array.from(live)) if (cat === 'hero' || o.type === 'zombie') { this.dropObj(o); live.delete(o); }
+      }
+    },
     sync(cat, list, create, update, keepDead) {
       const f = this.frame, live = this.live[cat] || (this.live[cat] = new Set());
       for (const o of list) {
@@ -799,7 +1037,7 @@
         m.__f = f; update(o, m);
       }
       for (const o of live) {
-        if (o.__m3.__f !== f) { this.root.remove(o.__m3); disposeOwn(o.__m3); o.__m3 = null; live.delete(o); }
+        if (o.__m3.__f !== f) { this.dropObj(o); live.delete(o); }
       }
     },
 
@@ -941,7 +1179,8 @@
       }
 
       // nhân vật
-      this.sync('hero', [p], buildHero, (o, m) => animHero(o, m, G), true);
+      this.dt = dt;
+      this.sync('hero', [p], () => (SK.ready && MB.Save.data.settings.model3d !== 'classic' ? buildHeroSkinned() : buildHero()), (o, m) => (m.userData.skinned ? animHeroSkinned(o, m, G, dt) : animHero(o, m, G)), true);
       this.sync('ghost', p.ghosts, () => { const mm = mesh(cap(9, 12), new T.MeshBasicMaterial({ color: 0x7ef3ff, transparent: true, opacity: 0.4, depthWrite: false }), 0, 18, 0, false); mm.material.userData.own = true; return mm; },
         (gh, m) => { m.position.set(gh.x, 18, gh.y); m.material.opacity = gh.life * 1.6; });
 

@@ -156,7 +156,7 @@ window.MB = window.MB || {};
     gates: {},
     armory: ['rifle'],
     coins: 0, upg: {},
-    settings: { view: '3d', aimMode: 'auto', aimModeKb: 'manual', aimSpeed: 'normal', sfx: true, music: true, shake: true, dmgNum: true, quality: 'auto', vibrate: true, mute: false },
+    settings: { view: '3d', aimMode: 'auto', aimModeKb: 'manual', model3d: 'real', aimSpeed: 'normal', sfx: true, music: true, shake: true, dmgNum: true, quality: 'auto', vibrate: true, mute: false },
   });
   MB.Save = {
     data: defaults(),

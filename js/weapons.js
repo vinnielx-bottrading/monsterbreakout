@@ -42,27 +42,27 @@
     // ----- v6.4: 5 súng mới (nhận khi hạ boss Gate 3/5/7/9/11 hoặc mua bằng xu) -----
     cryo: {
       name: 'Cryo Frost', short: 'CRYO', dmg: 9, rate: 55, mag: 80, reload: 1.6, spread: 0.12,
-      speed: 640, life: 0.42, pellets: 1, kick: 0.8, shake: 0.2, knock: 10, sound: 'shot_flame', color: '#9be8ff', tip: 38, br: 4.5, pierce: 1, chill: true, bk: 'ice',
+      speed: 640, life: 0.42, pellets: 1, kick: 0.8, shake: 0.2, knock: 10, sound: 'shot_cryo', color: '#9be8ff', tip: 38, br: 4.5, pierce: 1, chill: true, bk: 'ice',
       desc: 'Phun băng: làm chậm, đủ lạnh thì đóng băng quái; boss bị chậm 25%',
     },
     bolt: {
       name: 'Bolt X Crossbow', short: 'BOLT', dmg: 70, rate: 700, mag: 5, reload: 1.5, spread: 0.008,
-      speed: 1350, life: 0.7, pellets: 1, kick: 6, shake: 1.6, knock: 60, sound: 'shot_sniper', color: '#ffb347', tip: 36, br: 3.5, stick: { r: 85, dmg: 110, delay: 0.5 }, bk: 'bolt',
+      speed: 1350, life: 0.7, pellets: 1, kick: 6, shake: 1.6, knock: 60, sound: 'shot_bolt', color: '#ffb347', tip: 36, br: 3.5, stick: { r: 85, dmg: 110, delay: 0.5 }, bk: 'bolt',
       desc: 'Nỏ tên nổ: tên cắm vào mục tiêu rồi phát nổ sau 0,5 giây',
     },
     hornet: {
       name: 'Hornet ML', short: 'HORNET', dmg: 0, rate: 750, mag: 4, reload: 1.8, spread: 0.55,
-      speed: 380, maxSp: 820, life: 1.6, pellets: 3, kick: 6, shake: 1.8, knock: 0, sound: 'shot_gl', color: '#ff8a5c', tip: 40, br: 4, homing: true, explode: { r: 55, dmg: 50, knock: 160 }, bk: 'missile',
+      speed: 380, maxSp: 820, life: 1.6, pellets: 3, kick: 6, shake: 1.8, knock: 0, sound: 'shot_missile', color: '#ff8a5c', tip: 40, br: 4, homing: true, explode: { r: 55, dmg: 50, knock: 160 }, bk: 'missile',
       desc: 'Mỗi phát 3 tên lửa tự dẫn, ưu tiên boss và mục tiêu đang khoá',
     },
     beam: {
       name: 'Lumen Beam', short: 'BEAM', dmg: 11, rate: 60, mag: 120, reload: 2, spread: 0.006, range: 560,
-      speed: 0, life: 0, pellets: 1, kick: 0.5, shake: 0.15, knock: 14, sound: 'shot_plasma', color: '#7ef3ff', tip: 40, br: 3, beam: true,
+      speed: 0, life: 0, pellets: 1, kick: 0.5, shake: 0.15, knock: 14, sound: 'shot_beam', color: '#7ef3ff', tip: 40, br: 3, beam: true,
       desc: 'Tia laser liên tục, trúng ngay, xuyên mọi quái trên đường bắn',
     },
     ripper: {
       name: 'Ripper Disc', short: 'RIPPER', dmg: 34, rate: 380, mag: 8, reload: 1.5, spread: 0.01,
-      speed: 700, life: 1.35, pellets: 1, kick: 3, shake: 0.8, knock: 50, sound: 'shot_smg', color: '#d9e2e6', tip: 34, br: 7, pierce: 99, disc: 3, bk: 'disc',
+      speed: 700, life: 1.35, pellets: 1, kick: 3, shake: 0.8, knock: 50, sound: 'shot_disc', color: '#d9e2e6', tip: 34, br: 7, pierce: 99, disc: 3, bk: 'disc',
       desc: 'Đĩa cưa xuyên đám đông, nảy khỏi tường tối đa 3 lần',
     },
   });

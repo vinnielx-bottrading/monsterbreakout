@@ -544,12 +544,16 @@
           <option value="fast"${st.aimSpeed === 'fast' ? ' selected' : ''}>Nhanh</option></select></label>
         <label class="row"><span>Góc nhìn</span><select data-set="view">
           <option value="2d"${st.view !== '3d' ? ' selected' : ''}>2D từ trên xuống</option>
-          <option value="3d"${st.view === '3d' ? ' selected' : ''}>3D (thử nghiệm)</option></select></label>`;
+          <option value="3d"${st.view === '3d' ? ' selected' : ''}>3D (thử nghiệm)</option></select></label>
+        <label class="row"><span>Nhân vật 3D</span><select data-set="model3d">
+          <option value="real"${st.model3d !== 'classic' ? ' selected' : ''}>Mô hình có khung xương (chuyển động thật)</option>
+          <option value="classic"${st.model3d === 'classic' ? ' selected' : ''}>Mô hình dựng sẵn (nhẹ máy)</option></select></label>`;
       $('settingsList').querySelectorAll('[data-set]').forEach((el) => el.addEventListener('change', () => {
         const k = el.dataset.set;
         st[k] = el.type === 'checkbox' ? el.checked : el.value;
         if (k === 'sfx' || k === 'music') MB.Audio.set(k, st[k]);
         if (k === 'quality') G.resize();
+        if (k === 'model3d' && MB.R3 && MB.R3.onSkinnedReady) MB.R3.onSkinnedReady();
         if (k === 'aimMode' || k === 'aimModeKb') this.updateAimBtn();
         MB.Save.save();
       }));
