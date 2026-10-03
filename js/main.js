@@ -217,6 +217,8 @@
 
     renderViewToggle() {
       const v = MB.Save.data.settings.view || '2d';
+      // 3D: tải trước three.js + mô hình nhân vật ngay khi đang ở màn chọn cửa, vào trận không phải chờ
+      if (v === '3d' && !this._pre3d) { this._pre3d = true; setTimeout(() => this.loadScript('js/render3d.js').then(() => MB.R3.load()).catch(() => { this._pre3d = false; }), 300); }
       document.querySelectorAll('#viewToggle [data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
       $('viewNote').textContent = v === '3d'
         ? 'Chế độ 3D: đẹp hơn nhưng nặng. Nếu điện thoại bị đen màn hình hoặc giật, chọn 2D (đổi được cả trong menu Tạm dừng).'
@@ -229,6 +231,8 @@
         $('loadingText').textContent = 'Đang tải đồ hoạ 3D…';
         await this.loadScript('js/render3d.js');
         await MB.R3.load();
+        $('loadingText').textContent = 'Đang tải nhân vật 3D…';
+        await MB.R3.waitSkinned(10000);
         this.view3d = true;
       } catch (err) {
         console.warn('3D không khả dụng, dùng 2D', err);
