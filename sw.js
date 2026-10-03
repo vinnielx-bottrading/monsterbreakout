@@ -1,9 +1,9 @@
 /* Service worker: chơi offline sau lần tải đầu. Tăng VERSION mỗi lần deploy để người chơi nhận bản mới. */
-const VERSION = 'mb-v8.3.0';
+const VERSION = 'mb-v8.3.1';
 const CORE = [
   './', 'index.html', 'css/fonts.css', 'css/style.css', 'assets/fonts/chakra-petch-latin-600-normal.woff2', 'manifest.webmanifest', 'assets/icons/icon.svg', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png', 'assets/icons/icon-maskable-192.png', 'assets/icons/icon-maskable-512.png', 'assets/icons/apple-touch-icon.png', 'assets/icons/favicon-32.png', 'assets/hunter/body.webp', 'assets/hunter/portrait.webp', 'assets/hunter/dossier.webp',
   'js/core.js', 'js/props.js', 'js/input.js', 'js/audio.js', 'js/weapons.js', 'js/hero.js', 'js/enemies.js',
-  'js/items.js', 'js/skills.js', 'js/arsenal.js', 'js/progress.js', 'js/cloud.js', 'js/access.js', 'js/story.js', 'js/ally.js', 'js/hud.js', 'js/game.js', 'js/gates/index.js', 'js/main.js',
+  'js/items.js', 'js/skills.js', 'js/arsenal.js', 'js/progress.js', 'js/cloud.js', 'js/access.js', 'js/story.js', 'js/ally.js', 'js/hud.js', 'js/game.js', 'js/gates/index.js', 'js/main.js', 'js/creepers.js',
   'js/gates/gate01-jungle.js', 'js/gates/gate02-mountain.js', 'js/gates/gate03-swamp.js', 'js/gates/gate04-snow.js',
   'js/gates/gate05-volcano.js', 'js/gates/gate06-ocean.js', 'js/gates/gate07-industrial.js', 'js/gates/gate08-city.js',
   'js/gates/gate09-lab.js', 'js/gates/gate10-apocalypse.js', 'js/gates/gate11-hanoi.js', 'js/gates/gate12-hoian.js', 'js/gates/gate13-halong.js', 'js/gates/gate14-sapa.js', 'js/gates/gate15-hue.js', 'js/gates/gate16-danang.js', 'js/gates/gate17-dalat.js',

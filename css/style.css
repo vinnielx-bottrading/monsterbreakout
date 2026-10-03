@@ -734,3 +734,9 @@ body[data-input="touch"] .qrbox img { width: min(180px, 50vw); }
 @media (max-height: 880px) and (min-width: 521px) { .mn-btn small { display: none; } .mn-btn { padding: 9px 16px 9px 12px !important; } .mn-btn.primary small { display: block; } .mn-wrap { gap: 10px; } .mn-title h1 { font-size: clamp(40px, 5.6vw, 66px); } }
 @media (max-height: 560px) and (min-width: 521px) { .mn-op, .mn-brand, .mn-title small, #menu .acct-hint { display: none; } .mn-title h1 { font-size: 34px; } .mn-title h1 span { display: inline; margin-left: 10px; } .mn-btn { padding: 6px 14px 6px 10px !important; } .mn-btn.primary { padding: 9px 14px 9px 10px !important; } .mn-btn.primary small { display: none; } .mn-wrap { gap: 8px; padding-top: 14px; padding-bottom: 40px; } }
 
+
+/* v8.3.1 — ẩn thanh trượt menu (vẫn cuộn được) */
+.mn-wrap { scrollbar-width: none; -ms-overflow-style: none; }
+.mn-wrap::-webkit-scrollbar { display: none; width: 0; height: 0; }
+#menu .menu-art { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 36%, #000 86%, transparent 100%), linear-gradient(to top, transparent 0, #000 14%); mask-image: linear-gradient(to right, transparent 0, #000 36%, #000 86%, transparent 100%), linear-gradient(to top, transparent 0, #000 14%); }
+@media (max-width: 899px) { #menu .menu-art { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 25%, #000 75%, transparent 100%), linear-gradient(to top, transparent 0, #000 14%); mask-image: linear-gradient(to right, transparent 0, #000 25%, #000 75%, transparent 100%), linear-gradient(to top, transparent 0, #000 14%); } }

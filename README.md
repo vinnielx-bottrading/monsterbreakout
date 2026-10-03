@@ -4,7 +4,7 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v8.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v8.3.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
@@ -160,6 +160,7 @@ js/progress.js           Xu & cửa hàng nâng cấp vĩnh viễn, thẻ nâng 
 js/hud.js                HUD (DOM), chỉ cập nhật khi giá trị thay đổi
 js/game.js               Runtime một Gate: wave, đạn, va chạm, vụ nổ, dẫn đường (flow field), camera, minimap, vẽ
 js/main.js               Menu, chọn Gate, tải file Gate theo yêu cầu, vòng lặp, nút 2D/3D
+js/creepers.js           Nhện bò + dơi ma bay trên Menu / Chọn cửa ải (canvas trang trí, không chặn thao tác)
 js/render3d.js           Bộ vẽ 3D (chỉ tải khi chọn 3D): camera, ánh sáng, Hunter, quái dùng chung, bộ khuôn model (KIT) cho các Gate
 js/vendor/three.module.min.js  Thư viện Three.js r170 (~690 KB, ~170 KB khi nén gzip), chỉ tải khi chơi 3D
 js/gates/index.js        Danh sách 10 Gate (tên, màu, file)
@@ -665,6 +666,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
 | 2026-10-03 | **v8.3** · README rev 42 | **Menu chính mới phong cách game chiến đấu**: chữ quân sự Chakra Petch / Saira Condensed (tự lưu trữ trong `assets/fonts`, giấy phép OFL), tiêu đề MONSTER BREAKOUT cam lửa, khói + tàn lửa + vạch quét, **thẻ chiến binh** (chân dung, cấp bậc theo số cửa đã qua, cửa ải / manh mối / wave sinh tồn / xu), nút dạng mũi tên với dòng phụ, nút VÀO TRẬN gợi ý cửa tiếp theo, thanh trạng thái máy chủ ở chân; nút toàn game bo góc vát |
+| 2026-10-04 | **v8.3.1** · README rev 43 | **Hunter gương mặt Việt**: thay `assets/hunter/body.webp` (ảnh menu, đã xoá chữ trên ảnh gốc), `portrait.webp` (chân dung thẻ chiến binh + hội thoại) và `dossier.webp` (Hồ sơ Hunter) theo bộ hồ sơ mới. **Nhện + dơi ma** (`js/creepers.js`): lớp canvas riêng trên Menu và Chọn cửa ải, thỉnh thoảng nhện bò qua / thả tơ từ trên xuống (né khi chuột/ngón tay lại gần), dơi ma phát sáng bay ngang hoặc lao về phía màn hình; không chặn thao tác, tự tắt khi vào trận hoặc khi máy bật "giảm chuyển động". Ẩn thanh trượt ở cột menu trên laptop (vẫn cuộn được). |
 | 2026-10-03 | **v8.2** · README rev 41 | **Hai thế giới**: thẻ lớn CHIẾN DỊCH / SINH TỒN (/ CHU KỲ+), Sinh tồn thành **Đấu trường** độc lập tông đỏ; bắt buộc đăng nhập; vào thẳng với 10 bản đồ Màn 1; **giới hạn giờ/ngày tính trên máy chủ** (45 phút chưa tiếp tế, 120 phút + **hồi sinh tại chỗ 2 lần** cho người tiếp tế, chỉnh được trong admin); **điểm lưu đầu khu vực** đồng bộ tài khoản; bỏ ☕ khỏi bảng xếp hạng; ghép bản lưu giữ cả manh mối, cảnh truyện, Chu kỳ+. **Cần chạy lại `supabase/schema.sql`** (mục 8) |
 | 2026-10-03 | **v8.1** · README rev 40 | **Khối giới thiệu Chu kỳ+** lấp khoảng trống sau Gate 21 (5 đặc quyền, thanh tiến độ Màn 2, mở khoá → nút VÀO CHU KỲ+, đếm số cửa đã chinh phục); thẻ cửa có **dấu ⟳ vàng** khi qua Chu kỳ+; bỏ chữ "thử nghiệm" ở 3D; **boss khó hơn**: quả tim lộ ít, nhỏ, không còn nhô ra ngoài, boss trâu hơn, khó choáng hơn (chi tiết mục Boss) |
 | 2026-10-03 | **v8.0.3** | Đổi địa chỉ trang quản trị: `admin.html` → **`cancuhunterx.html`** (mở bằng `/cancuhunterx`), `js/admin.js` → `js/cchx.js`, `css/admin.css` → `css/cchx.css`. `/admin` giờ là trang không tồn tại. Cần xoá 3 file cũ trên GitHub và thêm `https://<tên-miền>/cancuhunterx` vào Supabase → Authentication → URL Configuration → Redirect URLs |
