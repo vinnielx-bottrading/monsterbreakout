@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v7.4** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v7.5** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-03 (rev 35) |
+| README cập nhật | 2026-10-03 (rev 36) |
 
 ---
 
@@ -99,6 +99,11 @@ Nhóm **KINH DOANH**:
 - **Ghi nhận người tiếp tế:** huy hiệu **☕** cạnh tên trên bảng xếp hạng (`mb_scores.supporter`), "☕ NGƯỜI TIẾP TẾ" trong Hồ sơ Hunter và Tài khoản; lời cảm ơn 1 lần khi nhận huy hiệu, sau đó thỉnh thoảng 1 dòng cảm ơn ở màn kết quả (≤ 1 lần/ngày, 15% khi thắng). Nút tiếp tế ẩn khỏi menu Tạm dừng và màn kết quả với người đã tiếp tế.
 - **Admin → Người tiếp tế:** tổng tháng / tổng đã nhận / số người tiếp tế; ghi nhận tay theo email (để trống = ẩn danh); **thanh chi phí server** (tên, mục tiêu tháng, số cộng thêm); bật/tắt + danh sách **cửa ác mộng**; danh sách người tiếp tế; lịch sử tiếp tế.
 - **Dữ liệu:** `mb_supporters` (tổng, số lần), `mb_donations` (lịch sử, ref chống trùng), `mb_month_support()` (công khai — tổng tháng), config `starve`, `server`. Cần chạy lại `supabase/schema.sql` (mục 7) và triển khai lại `mb-sepay` nếu đã dùng.
+
+**Xác nhận tiếp tế thủ công (v7.5)** — quy trình khi nhận tiền:
+1. Tin nhắn ngân hàng có mã `MBTTxxxxxx` → admin **Người chơi**, dán cả nội dung chuyển khoản vào ô tìm (hoặc ô "Tìm người chơi theo mã chuyển khoản" ở trang **Người tiếp tế**) — tự tách mã, không phân biệt hoa thường / khoảng trắng.
+2. Mở hồ sơ → khung **☕ Xác nhận người này đã tiếp tế**: nhập số tiền + "Tiền được dùng cho" (hiện cho người chơi) → **✓ Xác nhận đã tiếp tế**.
+3. Lần mở game kế tiếp, người chơi thấy **ngôi sao cảm ơn sáng rực** (tia sáng xoay, lấp lánh) kèm số tiền, mục đích sử dụng, tổng đã tiếp sức — hiện ở màn menu/chọn cửa/kết quả, không chen vào trận; mỗi lần tiếp tế mới hiện 1 lần. Ngôi sao nhỏ sáng ★ luôn hiện cạnh tên tài khoản ở menu. Người chơi đọc được các lần tiếp tế của chính mình (RLS `mb_donations`).
 
 **Khi BẬT thu phí** (từ Gate 11):
 
@@ -645,6 +650,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v7.5** · README rev 36 | Admin **tìm người chơi theo mã MBTT** (dán cả nội dung chuyển khoản), nút **Xác nhận đã tiếp tế** ngay trong hồ sơ (số tiền + mục đích sử dụng); game hiện **ngôi sao cảm ơn sáng rực** kèm mục đích dùng tiền, ★ sáng cạnh tên |
 | 2026-10-03 | **v7.4** · README rev 35 | **Tiếp tế:** màn "Trạm tiếp tế" lồng cốt truyện (1 lần sau Gate 10, khi thua cửa ác mộng), **cửa ác mộng** Gate 11 khi chưa tiếp tế, mã tiếp tế riêng `MBTT…`, huy hiệu ☕ Người tiếp tế (bảng xếp hạng, hồ sơ), thanh chi phí server, trang admin Người tiếp tế |
 | 2026-10-03 | **v7.3.1** · README rev 34 | Mở cửa ải đổi sang **kiểm soát theo từng Màn**: Màn không bật kiểm soát = chơi liên tục như bình thường; Màn bật = chỉ mở các cửa được chọn |
 | 2026-10-03 | **v7.3** · README rev 33 | Admin **chọn cửa mở cho người chơi** theo từng Màn (cửa đóng hiện "Sắp mở"); tài khoản admin chơi được mọi cửa để thử |

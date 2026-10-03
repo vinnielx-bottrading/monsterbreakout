@@ -120,3 +120,4 @@ code { background: var(--line-2); padding: 1px 6px; border-radius: 4px; font-siz
 .gchip.off { opacity: .55; cursor: default; } .gchip.off span { font-weight: 500; color: var(--muted); font-size: 12.5px; }
 .actbox.ctl { background: #fff; border-color: #b9d3f3; }
 .gchip.free { cursor: default; opacity: .8; }
+.supcard { border-color: #f5c46b; background: linear-gradient(180deg, #fffaf0, #fff); }

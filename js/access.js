@@ -111,9 +111,14 @@
           if (!ad.error) { this.admin = !!ad.data; try { localStorage.setItem('mb_adm_' + uid, this.admin ? '1' : '0'); } catch (e) { /* bỏ qua */ } }
           const sp = await C.sb.from('mb_supporters').select('total,times').eq('user_id', uid).maybeSingle();
           if (!sp.error) {
-            const was = this.supporter; this.supporter = !!sp.data; this.support = sp.data || null;
+            this.supporter = !!sp.data; this.support = sp.data || null;
             try { localStorage.setItem('mb_sup_' + uid, this.supporter ? '1' : '0'); } catch (e) { /* bỏ qua */ }
-            if (this.supporter && !was && MB.App.thankSupporter) setTimeout(() => MB.App.thankSupporter(), 600);
+            if (this.supporter) {
+              // lần tiếp tế gần nhất (số tiền + lời nhắn/mục đích admin ghi) → game hiện ngôi sao cảm ơn
+              const ld = await C.sb.from('mb_donations').select('amount,note,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(1).maybeSingle();
+              this.lastDon = (ld && ld.data) || null;
+              if (MB.App.queueThanks) MB.App.queueThanks();
+            }
           }
         } catch (e) { console.warn('[access]', e); }
         this.loading = null;

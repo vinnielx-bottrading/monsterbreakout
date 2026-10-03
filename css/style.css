@@ -531,3 +531,20 @@ body[data-input="touch"] .qrbox img { width: min(180px, 50vw); }
 .thx { color: #ffcf8a; font-size: 13px; }
 .comm.relay { border-color: rgba(255,190,110,.55); } .comm.relay .av { background: rgba(255,190,110,.15); color: #ffcf8a; } .comm.relay b { color: #ffcf8a; }
 @media (max-width: 520px) { .relay-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* ===== ngôi sao cảm ơn người tiếp tế (v7.5) ===== */
+.thxcard { max-width: 480px; text-align: center; border-color: rgba(255,214,90,.5); background: radial-gradient(circle at 50% 22%, rgba(255,200,60,.22), rgba(14,18,14,.97) 62%); }
+.star-wrap { position: relative; width: 170px; height: 170px; margin: 4px auto 6px; }
+.star-wrap .rays { position: absolute; inset: -30px; background: repeating-conic-gradient(from 0deg, rgba(255,220,110,.32) 0 6deg, transparent 6deg 20deg); border-radius: 50%; -webkit-mask: radial-gradient(circle, #000 25%, transparent 70%); mask: radial-gradient(circle, #000 25%, transparent 70%); animation: rays 14s linear infinite; }
+.bigstar { position: absolute; inset: 18px; width: calc(100% - 36px); height: calc(100% - 36px); filter: drop-shadow(0 0 14px rgba(255,210,70,.95)) drop-shadow(0 0 34px rgba(255,170,40,.7)); animation: starpop .9s cubic-bezier(.2,1.6,.4,1) both, starglow 2.2s ease-in-out .9s infinite; }
+.spark { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #fff6c8; box-shadow: 0 0 10px #ffd84a; opacity: 0; animation: spark 2.4s ease-out infinite; }
+.spark.s0 { left: 12%; top: 20%; } .spark.s1 { right: 8%; top: 28%; animation-delay: .4s; } .spark.s2 { left: 20%; bottom: 10%; animation-delay: .8s; }
+.spark.s3 { right: 18%; bottom: 6%; animation-delay: 1.2s; } .spark.s4 { left: 48%; top: -2%; animation-delay: 1.6s; } .spark.s5 { left: -2%; top: 52%; animation-delay: 2s; }
+@keyframes rays { to { transform: rotate(360deg); } }
+@keyframes starpop { from { transform: scale(.2) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes starglow { 50% { filter: drop-shadow(0 0 22px rgba(255,230,120,1)) drop-shadow(0 0 50px rgba(255,170,40,.85)); transform: scale(1.05); } }
+@keyframes spark { 0% { opacity: 0; transform: scale(.3); } 30% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0; transform: scale(.4) translateY(-14px); } }
+.thx-title { color: #ffd84a; letter-spacing: .08em; text-shadow: 0 0 18px rgba(255,200,60,.6); }
+.thx-use { padding: 8px 12px; border-radius: 10px; background: rgba(255,214,90,.08); border: 1px solid rgba(255,214,90,.25); } .thx-use b { color: #ffe08a; }
+.glowstar { color: #ffd84a; text-shadow: 0 0 6px #ffd84a, 0 0 14px rgba(255,170,40,.8); animation: gs 2s ease-in-out infinite; }
+@keyframes gs { 50% { text-shadow: 0 0 10px #fff3b0, 0 0 22px rgba(255,190,60,1); } }

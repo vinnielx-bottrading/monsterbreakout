@@ -218,16 +218,19 @@
     </div>`;
   }
 
+  // tách mã tiếp tế từ nội dung chuyển khoản: "MBTT ab12 cd …" → "MBTTAB12CD"
+  function codeIn(t) { const m = String(t || '').toUpperCase().replace(/[^0-9A-Z]/g, '').match(/MBTT([0-9A-F]{6})/); return m ? 'MBTT' + m[1] : null; }
   function pPlayers() {
-    const q = S.q.toLowerCase();
-    let list = S.players.filter((u) => !q || (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q));
+    const q = S.q.toLowerCase().trim(), code = codeIn(S.q);
+    // tìm theo mã tiếp tế (dán cả nội dung chuyển khoản cũng được) / tên / email / mã gõ dở
+    let list = S.players.filter((u) => !q || (code ? u.code === code : (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || u.code.toLowerCase().includes(q.replace(/\s+/g, ''))));
     if (S.rf) list = list.filter((u) => (S.rf === 'none' ? !u.rate : u.rate && rankOf(u.rate.total)[1] === S.rf));
     const k = S.sort.k, d = S.sort.d;
     const val = (u) => (k === 'name' ? (u.name || '').toLowerCase() : k === 'created' ? Date.parse(u.created_at) : k === 'last' ? Date.parse(u.last || u.last_sign_in_at || 0) : u[k] || 0);
     list.sort((a, b) => (val(a) > val(b) ? d : val(a) < val(b) ? -d : 0));
     const th = (key, label, cls) => `<th class="sortable ${cls || ''}" data-sort="${key}">${label}${k === key ? `<span class="ar"> ${d > 0 ? '↑' : '↓'}</span>` : ''}</th>`;
     return `<div class="card">
-      <div class="toolbar"><input id="q" placeholder="Tìm theo tên hoặc email…" value="${esc(S.q)}">
+      <div class="toolbar"><input id="q" placeholder="Tìm tên, email hoặc mã MBTT… (dán cả nội dung chuyển khoản)" value="${esc(S.q)}" style="max-width:420px">
         <select id="rf"><option value="">Mọi hạng</option>${RANKS.map((r) => `<option ${S.rf === r[1] ? 'selected' : ''}>${r[1]}</option>`).join('')}<option value="none" ${S.rf === 'none' ? 'selected' : ''}>Chưa đủ dữ liệu</option></select>
         <span class="muted">${num(list.length)} người</span><span style="flex:1"></span><button id="csv" class="sm">Tải CSV</button></div>
       <div class="tablewrap"><table><thead><tr>${th('name', 'Người chơi')}${th('created', 'Đăng ký')}${th('last', 'Chơi gần nhất')}${th('top', 'Cửa cao nhất', 'num')}${th('cleared', 'Cửa đã qua', 'num')}${th('nPlays', 'Số trận', 'num')}${th('time', 'Thời gian chơi', 'num')}${th('skill', 'Năng lực')}</tr></thead><tbody>
@@ -257,6 +260,11 @@
     <div class="card"><div class="card-head">${whoHtml(u)}<span style="flex:1"></span>${rankHtml(u)}</div>
       <div class="row muted"><div>Đăng ký: <b style="color:var(--ink)">${dt(u.created_at)}</b></div><div>Đăng nhập gần nhất: <b style="color:var(--ink)">${dt(u.last_sign_in_at)}</b></div><div>Đồng bộ tiến trình: <b style="color:var(--ink)">${dt(u.save_at)}</b></div></div>
       <p class="muted" style="margin:10px 0 0">Mã tiếp tế: <code>${u.code}</code> · ${u.sup ? `<span class="badge b-warn">☕ Người tiếp tế</span> đã ủng hộ ${vnd(u.sup.total)} (${u.sup.times} lần, gần nhất ${dt(u.sup.last_at)})` : 'Chưa tiếp tế'}</p></div>
+    <div class="card supcard"><h2>☕ Xác nhận người này đã tiếp tế</h2>
+      <p class="muted">Khi nhận được chuyển khoản có mã <code>${u.code}</code>. Lần mở game kế tiếp, người chơi sẽ thấy <b>ngôi sao cảm ơn sáng rực</b> kèm số tiền và lời nhắn bên dưới, nhận huy hiệu ☕ trên bảng xếp hạng, và hết gặp "cửa ác mộng".</p>
+      <div class="row"><div><label>Số tiền đã nhận (đ)</label><input id="pAmt" type="number" value="20000" min="1000" step="1000"></div>
+        <div style="grid-column: span 2"><label>Tiền được dùng cho (hiện cho người chơi)</label><input id="pNote" placeholder="Duy trì server tháng ${new Date().getMonth() + 1} và làm màn chơi mới"></div></div>
+      <p style="margin-top:14px"><button id="pSup" class="primary">✓ Xác nhận đã tiếp tế</button></p><div id="pMsg" class="msg"></div></div>
     <div class="kpis">
       <div class="kpi"><span>Số trận</span><b>${num(u.nPlays)}</b><small>${u.nCamp} chiến dịch · ${u.nPlays - u.nCamp} sinh tồn</small></div>
       <div class="kpi"><span>Tỉ lệ thắng</span><b>${u.nCamp ? Math.round(u.wins / u.nCamp * 100) + '%' : '—'}</b><small>${u.wins}/${u.nCamp} lượt chiến dịch</small></div>
@@ -345,7 +353,9 @@
     const sups = S.players.filter((u) => u.sup).sort((a, b) => b.sup.total - a.sup.total);
     const pname = (id) => { const u = S.players.find((x) => x.user_id === id); return u ? `${esc(u.name)} <span class="muted">${esc(u.email)}</span>` : '<span class="muted">Ẩn danh</span>'; };
     const k = sv.goal ? Math.min(1, (month + (sv.extra || 0)) / sv.goal) : 0;
-    return `<div class="kpis">
+    return `<div class="card"><h2>Tìm người chơi theo mã chuyển khoản</h2><p class="muted">Dán nội dung tin nhắn nhận tiền (có mã MBTT…) rồi bấm Tìm → mở hồ sơ → bấm "Xác nhận đã tiếp tế".</p>
+      <div class="toolbar" style="margin:0"><input id="findCode" placeholder="VD: NGUYEN VAN A chuyen tien MBTT3FA9C2" style="max-width:480px"><button id="findGo" class="primary">Tìm</button></div></div>
+    <div class="kpis">
       <div class="kpi"><span>Tiếp tế tháng này</span><b>${vnd(month)}</b><small>${sv.goal ? Math.round(k * 100) + '% mục tiêu server' : 'chưa đặt mục tiêu'}</small></div>
       <div class="kpi"><span>Tổng đã nhận (300 lần gần nhất)</span><b>${vnd(all)}</b><small>${dons.length} lần</small></div>
       <div class="kpi"><span>Người tiếp tế</span><b>${sups.length}</b><small>${S.players.length ? Math.round(sups.length / S.players.length * 100) : 0}% người chơi</small></div>
@@ -486,6 +496,19 @@
     page.querySelectorAll('[data-u]').forEach((tr) => tr.addEventListener('click', () => { S.sel = tr.dataset.u; render(); window.scrollTo(0, 0); }));
     page.querySelectorAll('[data-go]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(a.dataset.go); }));
     const back = $('backList'); if (back) back.onclick = () => { S.sel = null; S.page = 'players'; render(); };
+    const ps = $('pSup');
+    if (ps) ps.onclick = async () => {
+      const u = S.players.find((x) => x.user_id === S.sel), amt = +$('pAmt').value || 0, m = $('pMsg');
+      if (!u || amt <= 0) { m.className = 'msg err'; m.textContent = 'Nhập số tiền đã nhận'; return; }
+      if (!confirm(`Xác nhận ${u.name} đã tiếp tế ${vnd(amt)}?`)) return;
+      ps.disabled = true;
+      const { error } = await sb.rpc('mb_admin_support', { p_email: u.email, p_amount: amt, p_note: $('pNote').value.trim() || $('pNote').placeholder });
+      ps.disabled = false;
+      m.className = 'msg ' + (error ? 'err' : 'ok'); m.textContent = error ? 'Lỗi: ' + error.message : 'Đã xác nhận! Người chơi sẽ thấy ngôi sao cảm ơn khi mở game.';
+      if (!error) { const sel = S.sel; await loadAll(); S.sel = sel; render(); const mm = $('pMsg'); if (mm) { mm.className = 'msg ok'; mm.textContent = 'Đã xác nhận! Người chơi sẽ thấy ngôi sao cảm ơn khi mở game.'; } }
+    };
+    const fc = $('findCode');
+    if (fc) { const goFind = () => { S.q = fc.value; S.rf = ''; go('players'); }; fc.onkeydown = (e) => { if (e.key === 'Enter') goFind(); }; $('findGo').onclick = goFind; }
     page.querySelectorAll('[data-sort]').forEach((th) => th.addEventListener('click', () => { const k = th.dataset.sort; S.sort = { k, d: S.sort.k === k ? -S.sort.d : (k === 'name' ? 1 : -1) }; render(); }));
     const q = $('q'); if (q) { q.oninput = () => { S.q = q.value; const pos = q.selectionStart; render(); const n = $('q'); n.focus(); n.setSelectionRange(pos, pos); }; }
     const rf = $('rf'); if (rf) rf.onchange = () => { S.rf = rf.value; render(); };

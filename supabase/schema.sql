@@ -505,3 +505,8 @@ insert into public.mb_config (key, value) values
   ('starve', '{"enabled": true, "gates": [11]}'),
   ('server', '{"goal": 0, "label": "Chi phí server tháng này", "extra": 0}')
 on conflict (key) do nothing;
+
+-- (v7.5) người chơi xem được các lần tiếp tế của chính mình (để game hiện lời cảm ơn + mục đích sử dụng)
+drop policy if exists "mb_donations: admin xem" on public.mb_donations;
+drop policy if exists "mb_donations: chủ hoặc admin xem" on public.mb_donations;
+create policy "mb_donations: chủ hoặc admin xem" on public.mb_donations for select to authenticated using ((select auth.uid()) = user_id or public.mb_is_admin());

@@ -3,8 +3,8 @@
 (function (MB) {
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
-  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'relay', 'loading'];
-  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'relay', 'result'];
+  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'relay', 'thanks', 'loading'];
+  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'relay', 'thanks', 'result'];
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeImg = (u) => (/^https:\/\//.test(u || '') ? esc(u) : '');
   const loaded = {};
@@ -108,6 +108,7 @@
       $('hud').classList.toggle('hidden', !G.running || name === 'menu' || name === 'gates');
       $('touchUI').classList.toggle('hidden', !inGame);
       document.body.classList.toggle('playing', inGame);
+      if (this.thanksPending && ['menu', 'gates', 'result'].includes(name)) setTimeout(() => { if (this.thanksPending && this.current === name) this.showThanks(); }, 400);
     },
 
     /* ---------- chọn Gate ---------- */
@@ -445,6 +446,7 @@
       }
       $('btnAccount').classList.toggle('in', !!u);
       const bd = $('btnDonate'); if (bd) bd.textContent = MB.Access.supporter ? '☕ NGƯỜI TIẾP TẾ' : '☕ TIẾP TẾ CHO GAME';
+      if (u && MB.Access.supporter) chip.innerHTML += ' <span class="glowstar" title="Người tiếp tế">★</span>';
       if (this.current === 'account') this.openAccount(true);
     },
     openAccount(keep) {
@@ -695,12 +697,28 @@
       el.innerHTML = `<div class="sbar"><div class="sbar-h"><span>${esc(S.label || 'Chi phí server tháng này')}</span><b>${Math.round(k * 100)}%</b></div><div class="sbar-t"><i style="width:${k * 100}%"></i></div><small>${MB.Access.price(v)} / ${MB.Access.price(S.goal)}</small></div>`;
     },
     // lần đầu nhận ra người chơi đã tiếp tế: cảm ơn 1 lần
-    thankSupporter() {
-      const sv = MB.Save.data, fl = sv.flags || (sv.flags = {}), u = MB.Cloud.user;
-      if (!u || fl.thanked === u.id) return;
-      fl.thanked = u.id; MB.Save.save();
-      MB.HUD.toast('<b>☕ CẢM ƠN NGƯỜI TIẾP TẾ!</b> Huy hiệu đã được trao — đoàn tiếp tế luôn sát cánh cùng Hunter.', '#ffd56a');
-      MB.Audio.play('weapon');
+    // người chơi được admin xác nhận tiếp tế (mỗi lần tiếp tế mới) → ngôi sao cảm ơn sáng rực, hiện ở màn menu (không chen vào trận)
+    queueThanks() {
+      const A = MB.Access, u = MB.Cloud.user; if (!u || !A.support) return;
+      const fl = MB.Save.data.flags || (MB.Save.data.flags = {}), seen = (fl.thx || {})[u.id] || 0;
+      if (A.support.times > seen) { this.thanksPending = true; if (['menu', 'gates', 'result', 'account', 'dossier'].includes(this.current)) this.showThanks(); }
+      this.renderAccount();
+    },
+    showThanks() {
+      const A = MB.Access, u = MB.Cloud.user, sp = A.support; if (!u || !sp) return;
+      this.thanksPending = false; this.thanksBack = this.current || 'menu';
+      const fl = MB.Save.data.flags || (MB.Save.data.flags = {}); fl.thx = fl.thx || {}; fl.thx[u.id] = sp.times; MB.Save.save();
+      const d = A.lastDon, use = (d && d.note) || 'duy trì server và phát triển những màn chơi mới';
+      $('thxBody').innerHTML = `<div class="star-wrap"><div class="rays"></div><svg class="bigstar" viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradient id="sg" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#fffbe0"/><stop offset=".55" stop-color="#ffd84a"/><stop offset="1" stop-color="#ff9e1a"/></radialGradient></defs><path d="M50 6l12.6 27.6 30.2 3.4-22.6 20.4 6.4 29.8L50 72.2 23.4 87.2l6.4-29.8L7.2 37l30.2-3.4z" fill="url(#sg)" stroke="#fff3b0" stroke-width="2" stroke-linejoin="round"/></svg>
+        ${[0, 1, 2, 3, 4, 5].map((i) => `<i class="spark s${i}"></i>`).join('')}</div>
+        <h2 class="thx-title">CẢM ƠN NGƯỜI TIẾP TẾ!</h2>
+        <p>${d && d.amount ? `Khoản tiếp tế <b>${A.price(d.amount)}</b> của bạn đã đến nơi.` : 'Khoản tiếp tế của bạn đã đến nơi.'}</p>
+        <p class="thx-use">Đã được dùng cho: <b>${esc(use)}</b></p>
+        <p class="hint">Tổng bạn đã tiếp sức: ${A.price(sp.total)} · ${sp.times} lần. Huy hiệu ☕ Người tiếp tế đã hiện trên bảng xếp hạng và hồ sơ Hunter.</p>
+        <div class="btns"><button id="thxGo" class="primary">TIẾP TỤC CHIẾN ĐẤU</button></div>`;
+      $('thxGo').onclick = () => { MB.Audio.play('ui'); this.show(this.thanksBack === 'thanks' ? 'menu' : this.thanksBack); };
+      MB.Audio.play('weapon'); MB.haptic && MB.haptic([30, 40, 60]);
+      this.show('thanks');
     },
 
     /* ---------- settings ---------- */
