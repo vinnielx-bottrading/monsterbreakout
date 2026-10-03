@@ -3,8 +3,8 @@
 (function (MB) {
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
-  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'loading'];
-  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'result'];
+  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'relay', 'loading'];
+  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'relay', 'result'];
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeImg = (u) => (/^https:\/\//.test(u || '') ? esc(u) : '');
   const loaded = {};
@@ -145,15 +145,17 @@
       const card = (m) => {
         const g = sv.gates[m.id] || { best: 0, done: [], cleared: false };
         const ready = !!m.file;
-        const unlocked = ready && (surv ? !!g.cleared : m.id <= sv.unlocked);
+        const adm = MB.Access.admin || MB.Access.dev, closed = ready && MB.Access.isClosed(m.id);
+        const unlocked = ready && (adm || (!closed && (surv ? !!g.cleared : m.id <= sv.unlocked)));
         const stars = [0, 1, 2].map((i) => `<i class="${i < (g.done || []).length ? 'on' : ''}">★</i>`).join('');
         let status = !ready ? (m.act === 2 ? 'Sắp ra mắt · Màn 2' : 'Sắp ra mắt') : !unlocked ? (surv ? 'Qua Gate này ở Chiến dịch để mở' : `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở`) : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
+        if (closed && !adm) status = '🔒 Sắp mở · đang hoàn thiện';
         if (surv && unlocked) status = g.surv ? `Kỷ lục: Wave ${g.surv.wave} · ${g.surv.score.toLocaleString('vi-VN')}` : 'Chưa có kỷ lục';
         const need = unlocked ? MB.Access.need(m.id, surv ? 'survival' : 'campaign') : null;
         if (need === 'login') status = '🔑 Đăng nhập để chơi tiếp';
         else if (need === 'pay') status = '💎 Cần gói để chơi';
         return `<button class="gate${unlocked ? '' : ' locked'}${need ? ' gated' : ''}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
-          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}${m.ally && unlocked ? '<span class="bally">+ DIAN</span>' : ''}
+          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}${m.ally && unlocked ? '<span class="bally">+ DIAN</span>' : ''}${closed && adm ? '<span class="badm">ĐÓNG · ADMIN</span>' : ''}
           <b>${m.name}</b><small>${m.vi}</small>
           <span class="stars">${unlocked ? stars : '🔒'}</span>
           <em>${status}</em>
@@ -245,7 +247,7 @@
       if (!meta || !meta.file) { this.openGates(); return; }
       MB.Audio.unlock();
       this.show('loading');
-      if (id >= MB.Access.LOGIN_FROM) {
+      {
         $('loadingText').textContent = 'Đang kiểm tra tài khoản…';
         const need = await MB.Access.check(id, this.mode);
         if (need) { G.running = false; this.openWall(need, id); return; }
@@ -260,6 +262,11 @@
         this.lastGate = id;
         MB.Input.clear();
         G.start(def, { mode: this.mode, endless: !!opts.endless });
+        if (G.starve) {
+          G.banner('VÙNG ÁC MỘNG', 'Hunter đang thiếu tiếp tế — quái đông và dữ gấp bội', 3);
+          MB.Story.say('HUNTER', 'Đạn dược gần cạn… đoàn tiếp tế vẫn chưa tới.', 3.2);
+          MB.Story.say('TIẾP TẾ', 'Hunter, trạm tiếp tế thiếu nhiên liệu. Cố cầm cự — lũ quái ở đây dữ hơn bao giờ hết.', 4.2);
+        }
         this.updateAimBtn();
         this.show(null);
       } catch (err) {
@@ -280,6 +287,7 @@
       const d = G.def;
       $('pauseInfo').innerHTML = `${d.title}<br><small>Điểm ${G.score.toLocaleString('vi-VN')} · ${G.challenges.filter((c) => c.done).length}/${G.challenges.length} thử thách · PWR ${MB.Weapons.power(G.player)}</small>`;
       this.updateViewBtn();
+      $('btnDonateP').classList.toggle('hidden', !!MB.Access.supporter);
       this.show('pause');
     },
     // đổi 2D ⇄ 3D ngay giữa trận (từ menu Tạm dừng)
@@ -327,6 +335,8 @@
         ['Kho súng', (sv.armory || []).map((id) => (MB.Weapons.DEFS[id] || {}).short || id).join(', ') || 'AR-7'],
         ['Nâng cấp', upg],
         ['Xu', (sv.coins || 0).toLocaleString('vi-VN')],
+        ...(sv.life ? [['Đã chiến đấu', `${sv.life.plays} trận · ${Math.round(sv.life.time / 60)} phút · hạ ${sv.life.kills.toLocaleString('vi-VN')} quái`]] : []),
+        ...(MB.Access.supporter ? [['Huy hiệu', '<span class="supbadge">☕ NGƯỜI TIẾP TẾ</span> · cảm ơn bạn đã giữ cho server hoạt động']] : []),
       ];
       $('dosStats').innerHTML = rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
       this.show('dossier');
@@ -434,6 +444,7 @@
         hint.textContent = C.status === 'syncing' ? 'Đang đồng bộ tiến trình…' : C.status === 'error' ? 'Chưa đồng bộ được (mất mạng?). Tiến trình vẫn lưu trên máy.' : `Đã đồng bộ tiến trình${t ? ' lúc ' + t : ''}.`;
       }
       $('btnAccount').classList.toggle('in', !!u);
+      const bd = $('btnDonate'); if (bd) bd.textContent = MB.Access.supporter ? '☕ NGƯỜI TIẾP TẾ' : '☕ TIẾP TẾ CHO GAME';
       if (this.current === 'account') this.openAccount(true);
     },
     openAccount(keep) {
@@ -444,6 +455,7 @@
         <div class="who">${safeImg(C.avatar()) ? `<img src="${safeImg(C.avatar())}" alt="" referrerpolicy="no-referrer">` : '<i>👤</i>'}<div><b>${esc(C.name())}</b><span>${esc(u.email || '')}</span></div></div>
         <p class="hint">${C.status === 'syncing' ? 'Đang đồng bộ…' : C.status === 'error' ? 'Lỗi đồng bộ: ' + esc(C.error) : 'Đồng bộ gần nhất: ' + t}</p>
         <ul class="perks-list"><li>Tiến trình, xu và nâng cấp được lưu trên mạng — đổi máy vẫn chơi tiếp.</li><li>Thành tích tự gửi lên bảng xếp hạng sau mỗi trận.</li></ul>
+        ${MB.Access.supporter ? '<p class="plan-line"><span class="supbadge">☕ NGƯỜI TIẾP TẾ</span> · cảm ơn bạn đã tiếp sức cho game!</p>' : `<p class="plan-line">Mã tiếp tế của bạn: <b>${esc(MB.Access.donateCode())}</b> (ghi vào nội dung chuyển khoản để nhận huy hiệu)</p>`}
         ${MB.Access.paywall || MB.Access.active().length ? `<p class="plan-line">${MB.Access.active().length ? '💎 Gói đang dùng: <b>' + esc(MB.Access.active().join(' · ')) + '</b>' : 'Chưa mua gói · Màn 1 (Gate 1–10) miễn phí'}</p>` : ''}
         <div class="btns"><button id="btnSync" class="primary">ĐỒNG BỘ NGAY</button>${MB.Access.paywall ? '<button id="btnPlans">CÁC GÓI</button>' : ''}<button id="btnDonate2">☕ ỦNG HỘ</button>${MB.Access.admin ? '<button id="btnAdmin">⚙ QUẢN TRỊ</button>' : ''}<button id="btnLogout">ĐĂNG XUẤT</button></div>`
         : `
@@ -484,7 +496,7 @@
           const mm = Math.floor(r.time_s / 60), ss = String(Math.floor(r.time_s % 60)).padStart(2, '0');
           const av = safeImg(r.avatar);
           return `<div class="brow${r.user_id === me ? ' me' : ''}"><span class="rk">${i + 1}</span>${av ? `<img src="${av}" alt="" referrerpolicy="no-referrer">` : '<i>👤</i>'}
-            <b>${esc(r.name)}</b><span class="sc">${mode === 'survival' ? 'Wave ' + r.wave + ' · ' : ''}${r.score.toLocaleString('vi-VN')}</span>${mode === 'campaign' ? `<span class="tm">${mm}:${ss}</span>` : ''}</div>`;
+            <b>${esc(r.name)}${r.supporter ? ' <em class="supb" title="Người tiếp tế">☕</em>' : ''}</b><span class="sc">${mode === 'survival' ? 'Wave ' + r.wave + ' · ' : ''}${r.score.toLocaleString('vi-VN')}</span>${mode === 'campaign' ? `<span class="tm">${mm}:${ss}</span>` : ''}</div>`;
         }).join('') : '<p class="hint">Chưa có ai trên bảng này. Hãy là người đầu tiên!</p>';
       } catch (e) {
         if (req === this.boardReq) $('boardList').innerHTML = '<p class="hint err">Không tải được bảng xếp hạng (kiểm tra mạng).</p>';
@@ -514,7 +526,10 @@
       const A = MB.Access, C = MB.Cloud, n = String(id).padStart(2, '0');
       this.wallBack = back || 'gates'; this.wallStop();
       let html;
-      if (kind === 'login') {
+      if (kind === 'closed') {
+        html = `<div class="wall-ico">🔒</div><h2>GATE ${n} SẮP MỞ</h2><p>Cửa này đang được hoàn thiện và sẽ mở cho mọi người trong thời gian tới. Hẹn gặp lại bạn!</p>
+          <div class="btns"><button id="wBack" class="primary">VỀ CHỌN CỬA</button></div>`;
+      } else if (kind === 'login') {
         html = `<div class="wall-ico">🔑</div><h2>ĐĂNG NHẬP ĐỂ CHƠI TIẾP</h2>
           <p>Bạn đã chơi hết <b>${A.LOGIN_FROM - 1} cửa dành cho khách</b>. Đăng nhập Google — <b>miễn phí</b> — để lưu tiến trình và chơi tiếp từ Gate ${n}.</p>
           <ul class="perks-list"><li>Toàn bộ tiến trình, xu, súng, nâng cấp trên máy này được giữ nguyên và gộp vào tài khoản.</li>
@@ -565,17 +580,18 @@
     openDonate(back) {
       const A = MB.Access, C = MB.Cloud, d = A.cfg.donate;
       this.donateBack = back || this.current || 'menu';
-      const who = C.user ? (C.name().split(' ').slice(-1)[0] || '') : '';
-      const info = ('MB UNG HO ' + who.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').replace(/[^A-Za-z0-9 ]/g, '')).trim().slice(0, 25);
+      const info = A.donateCode(), sup = A.supporter;
       const draw = (amt) => {
-        $('donBody').innerHTML = `<div class="wall-ico">☕</div><h2>ỦNG HỘ MONSTER BREAKOUT</h2>
-          <p>${esc(d.note || 'Ủng hộ duy trì server')}. Game được làm bởi một người — mỗi đóng góp giúp server chạy và có thêm màn mới.</p>
+        $('donBody').innerHTML = `<div class="wall-ico">☕</div><h2>${sup ? 'CẢM ƠN NGƯỜI TIẾP TẾ' : 'TIẾP TẾ CHO HUNTER'}</h2>
+          <p>${sup ? 'Bạn đã tiếp sức cho chiến dịch — server vẫn chạy nhờ bạn. Muốn tiếp tế thêm thì quét mã bên dưới.' : esc(d.note || 'Ủng hộ duy trì server') + '. Game do một người làm — miễn phí, không quảng cáo. Mỗi đóng góp giúp server chạy và có thêm màn mới.'}</p>
+          <div id="donBar"></div>
           <div class="amts">${[0, 20000, 50000, 100000, 200000].map((v) => `<button class="sm${v === amt ? ' on' : ''}" data-amt="${v}">${v ? A.price(v) : 'Tuỳ ý'}</button>`).join('')}</div>
-          ${A.qrBox(amt, info, 'Quét mã bằng app ngân hàng hoặc MoMo. Cảm ơn bạn rất nhiều! ❤')}
+          ${A.qrBox(amt, info, C.user ? '<b>Giữ nguyên nội dung chuyển khoản</b> để nhận huy hiệu ☕ Người tiếp tế. Cảm ơn bạn rất nhiều! ❤' : 'Đăng nhập trước khi chuyển để nhận huy hiệu ☕ Người tiếp tế. Cảm ơn bạn rất nhiều! ❤')}
           <div class="btns"><button id="donBack" class="ghost">${this.donateBack === 'pause' ? 'QUAY LẠI TRẬN' : 'ĐÓNG'}</button></div>`;
         A.bindCopy($('donBody'));
+        this.serverBar($('donBar'));
         $('donBody').querySelectorAll('[data-amt]').forEach((el) => el.addEventListener('click', () => { MB.Audio.play('ui'); draw(+el.dataset.amt); }));
-        $('donBack').addEventListener('click', () => { MB.Audio.play('ui'); this.show(this.donateBack); });
+        $('donBack').addEventListener('click', () => { MB.Audio.play('ui'); if (C.user) MB.Access.refresh(); this.show(this.donateBack); });
       };
       draw(0);
       this.show('donate');
@@ -605,7 +621,9 @@
       } else { newBest = sum.score > g.best; if (newBest) g.best = sum.score; }
       const coins = MB.Shop.earn(sum);
       sv.coins = (sv.coins || 0) + coins; sv.ts = Date.now();
-      MB.Cloud.submit(sum); MB.Cloud.push();
+      MB.Cloud.submit(sum); MB.Cloud.logPlay(sum); MB.Cloud.push();
+      const life = sv.life || (sv.life = { plays: 0, time: 0, kills: 0 });
+      life.plays++; life.time += sum.time || 0; life.kills += sum.kills || 0;
       if (sum.win && !surv) {
         g.cleared = true;
         if (!g.bestTime || sum.time < g.bestTime) g.bestTime = sum.time;
@@ -629,7 +647,60 @@
       const rl = $('btnResLogin'); if (rl) rl.addEventListener('click', () => { G.running = false; this.openAccount(); });
       const next = MB.Gates.meta.find((m) => m.id === sum.gateId + 1);
       $('btnNext').classList.toggle('hidden', !(sum.win && !surv && next && next.file));
+      $('btnDonateR').classList.toggle('hidden', !!MB.Access.supporter);
+      // người tiếp tế: thỉnh thoảng một lời cảm ơn nhỏ (tối đa 1 lần / ngày, 15% khi thắng)
+      if (MB.Access.supporter && sum.win) {
+        const day = new Date().toDateString(), fl = sv.flags || (sv.flags = {});
+        if (fl.thxDay !== day && Math.random() < 0.15) { fl.thxDay = day; MB.Save.save(); $('resCloud').innerHTML = '<span class="thx">☕ Server vẫn chạy nhờ những Người tiếp tế như bạn. Cảm ơn!</span>'; }
+      }
       this.show('result');
+      // Trạm tiếp tế: 1 lần sau khi thắng Gate 10; cửa ác mộng: lần thua đầu + thỉnh thoảng (≤ 1 lần / phiên)
+      if (!MB.Access.supporter && !surv) {
+        const fl = sv.flags || (sv.flags = {});
+        if (sum.gateId === 10 && sum.win && !fl.relay10) { fl.relay10 = true; MB.Save.save(); this.openRelay('act1', sum); }
+        else if (sum.starve && !sum.win && !this.relayThisSession && (!fl.relayStarve || Math.random() < 0.3)) { fl.relayStarve = true; MB.Save.save(); this.relayThisSession = true; this.openRelay('starve', sum); }
+      }
+    },
+
+    /* ---------- Trạm tiếp tế (lời mời ủng hộ, lồng vào cốt truyện) ---------- */
+    openRelay(kind, sum) {
+      const A = MB.Access, sv = MB.Save.data, life = sv.life || { plays: 0, time: 0, kills: 0 };
+      const cleared = Object.values(sv.gates || {}).filter((g) => g && g.cleared).length;
+      const stars = Object.values(sv.gates || {}).reduce((a, g) => a + ((g && g.done) || []).length, 0);
+      const t = Math.round(life.time / 60), tt = t >= 60 ? `${Math.floor(t / 60)} giờ ${t % 60} phút` : `${t} phút`;
+      const L = kind === 'act1' ? [
+        ['TIẾP TẾ', 'Hunter đã quét sạch 10 cửa ải. Cuộc chiến ở Việt Nam sắp bắt đầu.'],
+        ['TIẾP TẾ', 'Nếu bạn muốn tiếp sức cho chiến dịch, hãy gửi một chút tiếp tế cho đội phát triển.'],
+      ] : [
+        ['HUNTER', 'Hết đạn… hết thuốc… Trạm tiếp tế, nghe rõ không?'],
+        ['TIẾP TẾ', 'Đoàn tiếp tế đã sẵn sàng nhưng thiếu nhiên liệu để bay tới Hà Nội.'],
+        ['TIẾP TẾ', 'Một chút tiếp sức từ bạn sẽ đưa đạn dược tới tay Hunter — và lũ quái sẽ trở lại bình thường.'],
+      ];
+      $('relayBody').innerHTML = `<div class="relay-head"><span class="rdot"></span>KÊNH TIẾP TẾ · ${kind === 'act1' ? 'BÁO CÁO CHIẾN DỊCH' : 'KHẨN CẤP'}</div>
+        <div class="relay-lines">${L.map(([w, x], i) => `<p style="animation-delay:${i * 0.9}s"><b>${w}</b>${esc(x)}</p>`).join('')}</div>
+        <div class="relay-stats"><div><b>${life.kills.toLocaleString('vi-VN')}</b><span>quái đã hạ</span></div><div><b>${tt}</b><span>chiến đấu</span></div><div><b>${cleared}</b><span>cửa đã qua</span></div><div><b>${stars}★</b><span>thử thách</span></div></div>
+        <p class="relay-note">Game do một người làm — miễn phí, không quảng cáo. Người tiếp tế nhận huy hiệu <b>☕ Người tiếp tế</b> trên bảng xếp hạng và hồ sơ Hunter${A.cfg.starve && A.cfg.starve.enabled ? ', và đoàn tiếp tế sẽ tới kịp ở các vùng ác mộng' : ''}.</p>
+        <div id="relayBar"></div>
+        <div class="btns relay-btns"><button id="rDonate" class="donate">☕ TIẾP TẾ CHO HUNTER</button><button id="rGo">CHIẾN TIẾP →</button></div>`;
+      this.serverBar($('relayBar'));
+      $('rDonate').onclick = () => { MB.Audio.play('ui'); this.openDonate('result'); };
+      $('rGo').onclick = () => { MB.Audio.play('ui'); if (kind === 'act1' || kind === 'starve') this.playGate(kind === 'act1' ? 11 : sum.gateId); };
+      this.show('relay');
+    },
+    // thanh "chi phí server tháng này" (admin đặt mục tiêu)
+    async serverBar(el) {
+      const S = MB.Access.cfg.server || {}; if (!el || !S.goal) return;
+      const got = await MB.Access.monthSupport(); if (got == null) return;
+      const v = got + (S.extra || 0), k = Math.min(1, v / S.goal);
+      el.innerHTML = `<div class="sbar"><div class="sbar-h"><span>${esc(S.label || 'Chi phí server tháng này')}</span><b>${Math.round(k * 100)}%</b></div><div class="sbar-t"><i style="width:${k * 100}%"></i></div><small>${MB.Access.price(v)} / ${MB.Access.price(S.goal)}</small></div>`;
+    },
+    // lần đầu nhận ra người chơi đã tiếp tế: cảm ơn 1 lần
+    thankSupporter() {
+      const sv = MB.Save.data, fl = sv.flags || (sv.flags = {}), u = MB.Cloud.user;
+      if (!u || fl.thanked === u.id) return;
+      fl.thanked = u.id; MB.Save.save();
+      MB.HUD.toast('<b>☕ CẢM ƠN NGƯỜI TIẾP TẾ!</b> Huy hiệu đã được trao — đoàn tiếp tế luôn sát cánh cùng Hunter.', '#ffd56a');
+      MB.Audio.play('weapon');
     },
 
     /* ---------- settings ---------- */

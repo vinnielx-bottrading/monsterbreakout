@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v7.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v7.4** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-03 (rev 31) |
+| README cập nhật | 2026-10-03 (rev 35) |
 
 ---
 
@@ -73,12 +73,32 @@ Khách chơi được Gate 1–7 (tiến trình lưu trên máy); **từ Gate 8 
 
 **Hiện tại (thu phí TẮT):** khách chơi Gate 1–7; từ Gate 8 phải đăng nhập Google (miễn phí) rồi chơi hết, không giới hạn. Nút **☕ ỦNG HỘ GAME** ở menu, menu Tạm dừng (trong trận), màn kết quả và mục Tài khoản → hiện mã VietQR ngân hàng của chủ game (chọn nhanh 20k / 50k / 100k / 200k hoặc tuỳ ý, nút sao chép số tài khoản / nội dung).
 
-**Trang quản trị `admin.html`** (đăng nhập Google bằng tài khoản có trong `mb_admins`; người chơi là admin thấy nút ⚙ QUẢN TRỊ trong Tài khoản):
+**Trang quản trị `admin.html`** (v7.2: giao diện sáng, menu chức năng bên trái, nội dung bên phải; trên điện thoại menu thu vào nút ☰). Đăng nhập Google bằng tài khoản có trong `mb_admins`; người chơi là admin thấy nút ⚙ QUẢN TRỊ trong Tài khoản. Nhóm **THEO DÕI**:
+- **Tổng quan:** số người đăng ký (+ mới 7 ngày), hoạt động 7 ngày, số trận, tỉ lệ thắng, tổng giờ chơi, trạng thái thu phí; biểu đồ số trận / người đăng ký mới 14 ngày; người chơi giỏi nhất; cửa ải khó nhất.
+- **Người chơi:** danh sách mọi tài khoản đã đăng ký (tên, email, ngày đăng ký, chơi gần nhất, cửa cao nhất, số cửa đã qua, số trận, thời gian chơi, năng lực) — tìm kiếm, lọc theo hạng, sắp xếp từng cột, tải CSV. Bấm 1 người → hồ sơ: chỉ số tổng, **đánh giá năng lực** (điểm từng tiêu chí), biểu đồ thời gian 20 trận gần nhất, **tiến độ từng cửa** (lượt, thắng, thời gian qua nhanh nhất / trung bình, nhanh hay chậm hơn trung vị mọi người, chính xác, sao), 40 trận gần nhất.
+- **Thống kê cửa ải:** tỉ lệ thắng theo cửa, phễu tiến độ (số người đã qua mỗi cửa), bảng chi tiết (người đã qua, lượt chơi, tỉ lệ thắng, thời gian qua nhanh nhất / trung vị, chính xác TB, trúng đòn/phút) — dùng để cân bằng độ khó.
+- **Đánh giá năng lực (0–100):** 25% tỉ lệ thắng + 25% tốc độ (thời gian qua cửa so với trung vị mọi người) + 20% độ chính xác + 15% né đòn (số lần trúng đòn mỗi phút) + 15% tiến độ. Hạng: Tân binh < 35 ≤ Chiến binh < 55 ≤ Tinh nhuệ < 75 ≤ Bậc thầy < 90 ≤ Huyền thoại. Cần ≥ 3 trận chiến dịch.
+- **Dữ liệu:** từ v7.2 mỗi trận của người đã đăng nhập ghi vào bảng `mb_plays` (hàm `mb_log_play`, tối đa 1 trận / 5 giây). Danh sách tài khoản lấy qua `mb_admin_players()` (chỉ admin). Trận chơi trước v7.2 không có nhật ký — chỉ có tiến độ trong bản lưu. Thử giao diện trên máy với dữ liệu giả: `admin.html?demo=1` (localhost).
+
+Nhóm **NỘI DUNG** (v7.3):
+- **Mở cửa ải (kiểm soát theo từng Màn):** mỗi Màn có công tắc *kiểm soát*. **Không bật** (mặc định) → người chơi chơi liên tục như bình thường, hết cửa này qua cửa khác, kể cả cửa mới phát hành sau này. **Bật** → chỉ các cửa được chọn mới mở; cửa còn lại hiện **🔒 Sắp mở · đang hoàn thiện** (không bấm được; nút Gate tiếp theo / Bất tận cũng bị chặn); cửa mới phát hành sau này của Màn đó mặc định đóng. Lưu ở key `gates` trong `mb_config`: `{ acts: { "2": [11, 12, 13] } }` — Màn không có trong `acts` = mở tự do. Màn mới thêm vào `MB.Gates.acts` / `meta` tự hiện ở đây.
+- **Admin chơi được mọi cửa:** tài khoản trong `mb_admins` bỏ qua cửa đóng, tiến độ (chưa qua cửa trước) và thu phí — để chơi thử. Thẻ cửa đang đóng hiện nhãn **ĐÓNG · ADMIN**. Quyền admin được nhớ trên máy (`mb_adm_<uid>`) để chơi thử cả khi mất mạng.
+
+Nhóm **KINH DOANH**:
 1. **Thu phí:** công tắc bật/tắt + "bắt buộc đăng nhập từ Gate" (mặc định 8) + "thu phí từ Gate" (mặc định 11). Lưu là áp dụng cho người chơi ở lần mở game kế tiếp.
 2. **Nhận donate:** mã ngân hàng (VCB, MB, TCB…), số tài khoản, tên chủ tài khoản, lời nhắn; hoặc dán link ảnh QR riêng (ví dụ QR MoMo). Có nút xem thử QR.
 3. **Bảng giá gói** (sửa tên, giá, giá màn tiếp theo, số ngày, mô tả).
 4. **Đơn hàng:** xem đơn, bấm DUYỆT khi đã nhận tiền mà đơn chưa tự mở.
 5. **Cấp quyền thủ công** theo email.
+
+
+**Tiếp tế (donate) — v7.4.** Game chủ yếu sống nhờ ủng hộ, lời mời được lồng vào cốt truyện và chỉ hiện đúng lúc:
+- **Trạm tiếp tế** (màn bộ đàm, nút "☕ Tiếp tế cho Hunter" và "Chiến tiếp →" ngang bằng, không chặn chơi): hiện **1 lần** sau khi thắng Gate 10 + cảnh chuyển Màn 2; và khi **thua ở cửa ác mộng** (lần đầu luôn hiện, sau đó 30%, tối đa 1 lần mỗi phiên). Kèm thành tích cá nhân (quái đã hạ, thời gian chiến đấu, cửa đã qua, ★) và thanh chi phí server. Người đã tiếp tế không bao giờ thấy màn này. Không có gì hiện trong lúc đang đánh.
+- **Cửa ác mộng khi chưa tiếp tế** (mặc định Gate 11, admin đổi được): banner "VÙNG ÁC MỘNG" + bộ đàm "đạn dược gần cạn"; quái đông ×1,7, maxAlive ×1,7, ra nhanh ×1,8, máu ×1,8, đánh đau ×1,4, tốc độ ×1,12, ~30% quái tinh nhuệ, boss luôn cấp tinh nhuệ (máu ×1,35), thùng y tế 80 giây/lần. Người tiếp tế chơi bình thường. Admin chưa tiếp tế cũng gặp (để thử).
+- **Mã tiếp tế riêng** mỗi tài khoản: `MBTT` + 6 ký tự đầu user id (hiện trong QR, mục Tài khoản, hồ sơ người chơi ở admin). Khách chưa đăng nhập: `MB UNG HO` (ẩn danh). SePay → `mb-sepay` nhận ra mã → `mb_support_by_code`; hoặc admin ghi nhận tay (mục **Người tiếp tế**).
+- **Ghi nhận người tiếp tế:** huy hiệu **☕** cạnh tên trên bảng xếp hạng (`mb_scores.supporter`), "☕ NGƯỜI TIẾP TẾ" trong Hồ sơ Hunter và Tài khoản; lời cảm ơn 1 lần khi nhận huy hiệu, sau đó thỉnh thoảng 1 dòng cảm ơn ở màn kết quả (≤ 1 lần/ngày, 15% khi thắng). Nút tiếp tế ẩn khỏi menu Tạm dừng và màn kết quả với người đã tiếp tế.
+- **Admin → Người tiếp tế:** tổng tháng / tổng đã nhận / số người tiếp tế; ghi nhận tay theo email (để trống = ẩn danh); **thanh chi phí server** (tên, mục tiêu tháng, số cộng thêm); bật/tắt + danh sách **cửa ác mộng**; danh sách người tiếp tế; lịch sử tiếp tế.
+- **Dữ liệu:** `mb_supporters` (tổng, số lần), `mb_donations` (lịch sử, ref chống trùng), `mb_month_support()` (công khai — tổng tháng), config `starve`, `server`. Cần chạy lại `supabase/schema.sql` (mục 7) và triển khai lại `mb-sepay` nếu đã dùng.
 
 **Khi BẬT thu phí** (từ Gate 11):
 
@@ -625,6 +645,10 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v7.4** · README rev 35 | **Tiếp tế:** màn "Trạm tiếp tế" lồng cốt truyện (1 lần sau Gate 10, khi thua cửa ác mộng), **cửa ác mộng** Gate 11 khi chưa tiếp tế, mã tiếp tế riêng `MBTT…`, huy hiệu ☕ Người tiếp tế (bảng xếp hạng, hồ sơ), thanh chi phí server, trang admin Người tiếp tế |
+| 2026-10-03 | **v7.3.1** · README rev 34 | Mở cửa ải đổi sang **kiểm soát theo từng Màn**: Màn không bật kiểm soát = chơi liên tục như bình thường; Màn bật = chỉ mở các cửa được chọn |
+| 2026-10-03 | **v7.3** · README rev 33 | Admin **chọn cửa mở cho người chơi** theo từng Màn (cửa đóng hiện "Sắp mở"); tài khoản admin chơi được mọi cửa để thử |
+| 2026-10-03 | **v7.2** · README rev 32 | Trang quản trị thiết kế lại (giao diện sáng, menu trái); **theo dõi người chơi** (danh sách, hồ sơ, tiến độ & thời gian qua từng cửa), **thống kê cửa ải**, **đánh giá năng lực cá nhân**, xuất CSV; nhật ký trận `mb_plays` |
 | 2026-10-03 | **v7.1** · README rev 31 | Thu phí **bật/tắt từ trang quản trị** (mặc định TẮT: đăng nhập là chơi hết); nút **☕ Ủng hộ** (menu, tạm dừng, kết quả, tài khoản) hiện VietQR ngân hàng; **admin.html** (công tắc thu phí, thông tin ngân hàng, bảng giá, đơn hàng, cấp quyền); 4 gói mới (15 ngày 29k, 30 ngày 49k + màn sau 25k, 1 năm 525k + Chu kỳ+, ủng hộ 5k mở 1 cửa 15 ngày); đơn hàng + webhook SePay `supabase/functions/mb-sepay` |
 | 2026-10-03 | **v7.0** · README rev 30 | **Mở khoá theo tài khoản:** khách chơi Gate 1–7, Gate 8+ bắt buộc đăng nhập; Gate 11+ (Màn 2) cần gói. `js/access.js` (3 gói: 49k Màn 2, 99k Hunter Pass, 29k/30 ngày), màn chặn đăng nhập / mua gói, gói đang dùng trong Tài khoản, bảng `mb_entitlements` + trigger chặn điểm; khung thanh toán chờ chọn cổng; `?unlock=all` chỉ chạy trên localhost |
 | 2026-10-03 | **v6.9** · README rev 29 | **Gate 14 Sa Pa · Fansipan** và **Gate 15 Huế** (2D + 3D), mỗi Gate 2 quái mới + 1 boss mới; **hệ thống đồng đội** (`js/ally.js`) với **Dian**; sương mù có ống ngắm nhiệt; sấm sét Huế; thẻ cửa ải nhãn + DIAN; khắc hệ cho boss mới (Thuỷ Long: điện, Dê Chúa: lửa, Nghê Đá: nổ); manh mối 4–5/10 |

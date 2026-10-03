@@ -46,7 +46,7 @@
       return r > 0.75 ? 2 : r > 0.45 ? 1 : 0;
     },
     init(G, e) {
-      const tier = G.bossTier = this.tierNow(), T = TIER[tier];
+      const tier = G.bossTier = G.starve ? 2 : this.tierNow(), T = TIER[tier];
       let k = T.hp * ((G.def.id >= 5) ? 0.85 : 1);
       e.hp *= k; e.maxHp *= k;
       e.stag = 0; e.stagMax = e.maxHp * T.stag; e.stagT = 0; e.stagLock = 0; e.enrageT = 0;

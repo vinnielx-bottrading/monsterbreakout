@@ -127,9 +127,17 @@
       const { error } = await this.sb.rpc('mb_submit_score', { p_gate: sum.mode === 'survival' ? 30 : sum.gateId, p_mode: sum.mode || 'campaign', p_score: Math.round(sum.score), p_wave: sum.mode === 'survival' ? sum.wave : 0, p_time: sum.time });
       if (error) console.warn('[cloud] gửi điểm lỗi', error);
     },
+    // nhật ký trận (để admin thống kê, đánh giá năng lực)
+    async logPlay(sum) {
+      if (!this.user || !this.sb) return;
+      const p = { gate: sum.gateId, mode: sum.mode, win: !!sum.win, time: Math.round(sum.time * 10) / 10, score: Math.round(sum.score), kills: sum.kills, accuracy: sum.accuracy,
+        hits: sum.hitsTaken || 0, stars: (sum.done || []).length, wave: sum.wave || 0, bossTier: sum.bossTier || 0 };
+      const { error } = await this.sb.rpc('mb_log_play', { p });
+      if (error) console.warn('[cloud] ghi trận lỗi', error);
+    },
     async leaderboard(gate, mode) {
       await this.load();
-      let q = this.sb.from('mb_scores').select('user_id,name,avatar,score,wave,time_s').eq('gate', gate).eq('mode', mode);
+      let q = this.sb.from('mb_scores').select('*').eq('gate', gate).eq('mode', mode);
       q = mode === 'survival' ? q.order('wave', { ascending: false }).order('score', { ascending: false }) : q.order('score', { ascending: false });
       const { data, error } = await q.limit(50);
       if (error) throw error;

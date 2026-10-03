@@ -314,3 +314,194 @@ $$;
 
 -- ĐẶT ADMIN (chạy 1 lần, thay email của bạn):
 --   insert into public.mb_admins (user_id) select id from auth.users where email = 'email-cua-ban@gmail.com' on conflict do nothing;
+
+-- =====================================================================
+-- 6) NHẬT KÝ TRẬN ĐẤU + THỐNG KÊ CHO ADMIN (v7.2)
+--    Mỗi trận (người đã đăng nhập) ghi 1 dòng vào mb_plays qua hàm mb_log_play.
+--    Admin xem: danh sách người chơi (mb_admin_players), mọi trận, bản lưu tiến trình.
+-- =====================================================================
+create table if not exists public.mb_plays (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  gate int not null,
+  mode text not null,
+  win boolean not null default false,
+  time_s real not null default 0,
+  score int not null default 0,
+  kills int not null default 0,
+  accuracy int not null default 0,
+  hits int not null default 0,
+  stars int not null default 0,
+  wave int not null default 0,
+  boss_tier int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists mb_plays_user on public.mb_plays (user_id, created_at desc);
+create index if not exists mb_plays_gate on public.mb_plays (gate, mode);
+create index if not exists mb_plays_time on public.mb_plays (created_at desc);
+alter table public.mb_plays enable row level security;
+drop policy if exists "mb_plays: chủ hoặc admin xem" on public.mb_plays;
+create policy "mb_plays: chủ hoặc admin xem" on public.mb_plays for select to authenticated using ((select auth.uid()) = user_id or public.mb_is_admin());
+grant select on public.mb_plays to authenticated;
+revoke insert, update, delete on public.mb_plays from anon, authenticated;
+
+create or replace function public.mb_log_play(p jsonb)
+returns void language plpgsql security definer set search_path = ''
+as $$
+declare uid uuid := auth.uid();
+begin
+  if uid is null then return; end if;
+  -- chống ghi dồn: tối đa 1 trận / 5 giây
+  if exists (select 1 from public.mb_plays where user_id = uid and created_at > now() - interval '5 seconds') then return; end if;
+  insert into public.mb_plays (user_id, gate, mode, win, time_s, score, kills, accuracy, hits, stars, wave, boss_tier)
+  values (uid,
+    least(greatest(coalesce((p->>'gate')::int, 0), 0), 99),
+    case when p->>'mode' = 'survival' then 'survival' else 'campaign' end,
+    coalesce((p->>'win')::boolean, false),
+    least(greatest(coalesce((p->>'time')::real, 0), 0), 36000),
+    least(greatest(coalesce((p->>'score')::int, 0), 0), 10000000),
+    least(greatest(coalesce((p->>'kills')::int, 0), 0), 100000),
+    least(greatest(coalesce((p->>'accuracy')::int, 0), 0), 100),
+    least(greatest(coalesce((p->>'hits')::int, 0), 0), 100000),
+    least(greatest(coalesce((p->>'stars')::int, 0), 0), 3),
+    least(greatest(coalesce((p->>'wave')::int, 0), 0), 10000),
+    least(greatest(coalesce((p->>'bossTier')::int, 0), 0), 2));
+end;
+$$;
+revoke all on function public.mb_log_play(jsonb) from public, anon;
+grant execute on function public.mb_log_play(jsonb) to authenticated;
+
+-- admin đọc được bản lưu tiến trình của mọi người
+drop policy if exists "mb_saves: admin xem" on public.mb_saves;
+create policy "mb_saves: admin xem" on public.mb_saves for select to authenticated using (public.mb_is_admin());
+
+-- danh sách người chơi đã đăng ký (email, tên, ngày đăng ký, lần đăng nhập cuối, tiến độ trong bản lưu)
+create or replace function public.mb_admin_players()
+returns table (user_id uuid, email text, name text, avatar text, created_at timestamptz, last_sign_in_at timestamptz, save jsonb, save_at timestamptz)
+language plpgsql stable security definer set search_path = ''
+as $$
+begin
+  if not public.mb_is_admin() then raise exception 'forbidden'; end if;
+  return query
+    select u.id, u.email::text,
+      coalesce(nullif(u.raw_user_meta_data->>'full_name', ''), nullif(u.raw_user_meta_data->>'name', ''), split_part(u.email, '@', 1))::text,
+      (u.raw_user_meta_data->>'avatar_url')::text, u.created_at, u.last_sign_in_at,
+      s.save - 'settings', s.updated_at
+    from auth.users u left join public.mb_saves s on s.user_id = u.id
+    order by u.created_at desc;
+end;
+$$;
+revoke all on function public.mb_admin_players() from public, anon;
+grant execute on function public.mb_admin_players() to authenticated;
+
+-- =====================================================================
+-- 7) NGƯỜI TIẾP TẾ (donate) — v7.4
+--    Mỗi người chơi có mã chuyển khoản riêng: MBTT + 6 ký tự đầu user id (in hoa).
+--    SePay webhook (mb-sepay) hoặc admin ghi nhận → mb_supporters (huy hiệu "Người tiếp tế").
+-- =====================================================================
+create table if not exists public.mb_supporters (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  total int not null default 0,
+  times int not null default 0,
+  first_at timestamptz not null default now(),
+  last_at timestamptz not null default now()
+);
+alter table public.mb_supporters enable row level security;
+drop policy if exists "mb_supporters: chủ hoặc admin xem" on public.mb_supporters;
+create policy "mb_supporters: chủ hoặc admin xem" on public.mb_supporters for select to authenticated using ((select auth.uid()) = user_id or public.mb_is_admin());
+grant select on public.mb_supporters to authenticated;
+revoke insert, update, delete on public.mb_supporters from anon, authenticated;
+
+create table if not exists public.mb_donations (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users (id) on delete set null,
+  amount int not null,
+  source text not null default 'manual',
+  ref text unique,
+  note text,
+  created_at timestamptz not null default now()
+);
+alter table public.mb_donations enable row level security;
+drop policy if exists "mb_donations: admin xem" on public.mb_donations;
+create policy "mb_donations: admin xem" on public.mb_donations for select to authenticated using (public.mb_is_admin());
+grant select on public.mb_donations to authenticated;
+revoke insert, update, delete on public.mb_donations from anon, authenticated;
+
+-- ghi nhận 1 lần ủng hộ (nội bộ)
+create or replace function public.mb_record_support(p_uid uuid, p_amount int, p_source text, p_ref text, p_note text)
+returns boolean language plpgsql security definer set search_path = ''
+as $$
+begin
+  if p_ref is not null and exists (select 1 from public.mb_donations where ref = p_ref) then return false; end if;
+  insert into public.mb_donations (user_id, amount, source, ref, note) values (p_uid, greatest(p_amount, 0), p_source, p_ref, p_note);
+  if p_uid is not null then
+    insert into public.mb_supporters as s (user_id, total, times) values (p_uid, greatest(p_amount, 0), 1)
+    on conflict (user_id) do update set total = s.total + excluded.total, times = s.times + 1, last_at = now();
+    update public.mb_scores set supporter = true where user_id = p_uid;
+  end if;
+  return true;
+end;
+$$;
+revoke all on function public.mb_record_support(uuid, int, text, text, text) from public, anon, authenticated;
+
+-- webhook: tìm người chơi theo mã MBTTxxxxxx (6 ký tự đầu user id)
+create or replace function public.mb_support_by_code(p_code text, p_amount int, p_ref text, p_note text)
+returns boolean language plpgsql security definer set search_path = ''
+as $$
+declare uid uuid; n int;
+begin
+  if not (public.mb_is_admin() or coalesce(auth.jwt()->>'role', '') = 'service_role') then raise exception 'forbidden'; end if;
+  select count(*) into n from auth.users u where u.id::text like lower(substr(p_code, 5, 6)) || '%';
+  if n = 1 then select u.id into uid from auth.users u where u.id::text like lower(substr(p_code, 5, 6)) || '%'; end if;
+  return public.mb_record_support(uid, p_amount, 'sepay', p_ref, p_note);   -- không khớp ai: vẫn ghi vào tổng ủng hộ
+end;
+$$;
+revoke all on function public.mb_support_by_code(text, int, text, text) from public, anon;
+grant execute on function public.mb_support_by_code(text, int, text, text) to authenticated, service_role;
+
+-- admin ghi nhận thủ công theo email (email trống = ủng hộ ẩn danh, chỉ cộng vào tổng)
+create or replace function public.mb_admin_support(p_email text, p_amount int, p_note text)
+returns boolean language plpgsql security definer set search_path = ''
+as $$
+declare uid uuid;
+begin
+  if not public.mb_is_admin() then raise exception 'forbidden'; end if;
+  if coalesce(trim(p_email), '') <> '' then
+    select id into uid from auth.users where lower(email) = lower(trim(p_email));
+    if uid is null then raise exception 'Không tìm thấy tài khoản %', p_email; end if;
+  end if;
+  return public.mb_record_support(uid, p_amount, 'manual', 'ADM-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 10)), p_note);
+end;
+$$;
+revoke all on function public.mb_admin_support(text, int, text) from public, anon;
+grant execute on function public.mb_admin_support(text, int, text) to authenticated;
+
+-- tổng ủng hộ tháng này (công khai, để hiện thanh "chi phí server")
+create or replace function public.mb_month_support()
+returns int language sql stable security definer set search_path = ''
+as $$ select coalesce(sum(amount), 0)::int from public.mb_donations where created_at >= date_trunc('month', now()); $$;
+grant execute on function public.mb_month_support() to anon, authenticated;
+
+-- bảng xếp hạng: đánh dấu người tiếp tế
+alter table public.mb_scores add column if not exists supporter boolean not null default false;
+create or replace function public.mb_guard_score()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  new.supporter := exists (select 1 from public.mb_supporters s where s.user_id = new.user_id);
+  if not coalesce((select (value->>'enabled')::boolean from public.mb_config where key = 'paywall'), false) then return new; end if;
+  if new.gate between 11 and 29 and not exists (
+    select 1 from public.mb_entitlements e
+    where e.user_id = new.user_id and (e.expires_at is null or e.expires_at > now())
+      and (e.acts is null or (case when new.gate <= 21 then 2 else 3 end) = any (e.acts))
+      and coalesce((e.perks->>'board')::boolean, false)
+  ) then raise exception 'locked content'; end if;
+  return new;
+end;
+$$;
+
+-- cấu hình mặc định: cửa "ác mộng" khi chưa tiếp tế + mục tiêu chi phí server
+insert into public.mb_config (key, value) values
+  ('starve', '{"enabled": true, "gates": [11]}'),
+  ('server', '{"goal": 0, "label": "Chi phí server tháng này", "extra": 0}')
+on conflict (key) do nothing;

@@ -39,6 +39,8 @@
       this.endless = !!opts.endless;
       // độ khó tự điều chỉnh (âm thầm): người chơi giỏi ở Gate 1–7 → Ác mộng từ Gate 8
       this.nightmare = this.mode === 'campaign' && MB.Skill.nightmareFor(def.id);
+      // "Thiếu tiếp tế": cửa ác mộng (admin chọn) khi người chơi chưa tiếp tế cho game — quái đông, trâu, đánh đau, boss tinh nhuệ
+      this.starve = this.mode === 'campaign' && !opts.carry && MB.Access && MB.Access.starveFor(def.id);
       this.hitstop = 0; this.perkT = 0; this.lastBossPhase = null;
       this.lowFx = this.quality() === 'low';
       this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
@@ -262,6 +264,11 @@
         const m = e.boss ? { hp: 1.3, dmg: 1.15, spd: 1.04 } : { hp: 1.35, dmg: 1.2, spd: 1.07 };
         e.hp *= m.hp; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * m.dmg); e.speed *= m.spd; e.score = Math.round(e.score * 1.25);
       }
+      if (this.starve) {
+        const m = e.boss ? { hp: 1.35, dmg: 1.25, spd: 1.08 } : { hp: 1.8, dmg: 1.4, spd: 1.12 };
+        e.hp *= m.hp; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * m.dmg); e.speed *= m.spd;
+        if (!e.boss && !opts.extra && Math.random() < 0.3) { e.elite = true; e.hp *= 1.6; e.maxHp = e.hp; e.r *= 1.12; e.score *= 2; }
+      }
       if (opts.hpMul && opts.hpMul !== 1) { e.hp *= opts.hpMul; e.maxHp *= opts.hpMul; e.score = Math.round(e.score * (1 + (opts.hpMul - 1) * 0.5)); }
       if (!e.fly) this.collide(e);
       this.enemies.push(e);
@@ -381,7 +388,11 @@
     // thông số wave: chiến dịch dùng đúng bảng của Gate; sinh tồn tăng dần vô hạn
     getWave(i) {
       const W = this.def.waves;
-      if (this.mode !== 'survival') return W[i];
+      if (this.mode !== 'survival') {
+        if (!this.starve || !W[i]) return W[i];
+        const w = W[i];
+        return { ...w, total: Math.round(w.total * 1.7), maxAlive: Math.round(w.maxAlive * 1.7), interval: [w.interval[0] * 0.55, w.interval[1] * 0.55], elite: Math.min(0.5, (w.elite || 0) + 0.25) };
+      }
       const k = i + 1, base = W[Math.min(i, W.length - 1)];
       let mix = base.mix;
       if (i >= W.length) { mix = {}; for (const w of W) for (const t in w.mix) mix[t] = (mix[t] || 0) + w.mix[t]; }
@@ -769,7 +780,7 @@
       const p = this.player;
       this.aidT = (this.aidT || 0) - dt;
       if (p.dead || this.over || this.state === 'won' || this.state === 'intro' || this.aidT > 0 || p.hp > p.maxHp * 0.35) return;
-      this.aidT = 40;
+      this.aidT = this.starve ? 80 : 40; // thiếu tiếp tế: thùng y tế thưa hơn
       let x = p.x, y = p.y;
       for (let i = 0; i < 12; i++) {
         const a = U.rnd(0, U.TAU), d = U.rnd(150, 230);
@@ -973,7 +984,7 @@
         gateId: this.def.id, win: this.win, score: this.score, mode: this.mode, wave: this.waveIdx + 1, comboBest: this.comboBest || 0, time: this.time, kills: this.stats.kills,
         accuracy: this.stats.shots ? Math.min(100, Math.round(this.stats.bhits / this.stats.shots * 100)) : 0,
         done, totalChallenges: this.challenges.length, mods: MB.Weapons.power(this.player), hitsTaken: this.stats.hitsTaken,
-        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, bossTier: this.bossTier || 0, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
+        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, bossTier: this.bossTier || 0, starve: !!this.starve, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
       };
     },
 

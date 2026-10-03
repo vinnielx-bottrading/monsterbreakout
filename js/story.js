@@ -427,8 +427,8 @@
       this.cur = m || null;
       if (!m) { el.classList.remove('show'); return; }
       const evil = m.who === 'GOATEVIL', ally = m.who === 'DIAN';
-      el.className = 'comm show' + (evil ? ' evil' : ally ? ' ally' : '');
-      el.innerHTML = `<i class="av${m.who === 'HUNTER' ? ' img' : ''}">${evil ? GOAT_ICON : ally ? DIAN_ICON : m.who === 'TED' ? 'T' : m.who === 'HUNTER' ? '<img src="assets/hunter/portrait.webp" alt="">' : 'H'}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
+      el.className = 'comm show' + (evil ? ' evil' : ally ? ' ally' : m.who === 'TIẾP TẾ' ? ' relay' : '');
+      el.innerHTML = `<i class="av${m.who === 'HUNTER' ? ' img' : ''}">${evil ? GOAT_ICON : ally ? DIAN_ICON : m.who === 'TIẾP TẾ' ? '☕' : m.who === 'TED' ? 'T' : m.who === 'HUNTER' ? '<img src="assets/hunter/portrait.webp" alt="">' : 'H'}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
       if (evil && SND.ok()) SND.glitch();
       clearTimeout(this.ct); this.ct = setTimeout(() => this.nextSay(), m.dur * 1000);
     },

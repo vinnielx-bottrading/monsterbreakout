@@ -14,11 +14,22 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return new Response(JSON.stringify({ success: false }), { status: 400 }); }
   if (body.transferType !== 'in') return Response.json({ success: true });           // chỉ xử lý tiền vào
   const text = `${body.code || ''} ${body.content || ''} ${body.description || ''}`.toUpperCase();
-  const m = text.match(/MB[A-Z0-9]{6}/);
-  if (!m) return Response.json({ success: true });                                     // chuyển khoản thường / donate
-
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  const { data, error } = await sb.rpc('mb_apply_order', { p_code: m[0], p_amount: Number(body.transferAmount) || 0, p_ref: String(body.referenceCode || body.id || '') });
+  const amount = Number(body.transferAmount) || 0, ref = String(body.referenceCode || body.id || '');
+
+  // ủng hộ (tiếp tế): nội dung có mã MBTT + 6 ký tự đầu user id → huy hiệu "Người tiếp tế"
+  const flat = text.replace(/\s+/g, '');
+  const d = flat.match(/MBTT[0-9A-F]{6}/) || (flat.includes('MBUNGHO') ? ['MBTTZZZZZZ'] : null);   // MBUNGHO = khách chưa đăng nhập → ủng hộ ẩn danh
+  if (d) {
+    const { error } = await sb.rpc('mb_support_by_code', { p_code: d[0], p_amount: amount, p_ref: 'SP-' + ref, p_note: String(body.content || '').slice(0, 200) });
+    if (error) { console.error(error); return Response.json({ success: false }, { status: 500 }); }
+    return Response.json({ success: true, support: true });
+  }
+  // mua gói: mã đơn MBxxxxxx (mã đơn chỉ gồm 0-9A-F nên không trùng MBTT)
+  const m = text.match(/MB[0-9A-F]{6}/);
+  if (!m) return Response.json({ success: true });                                     // chuyển khoản không liên quan
+
+  const { data, error } = await sb.rpc('mb_apply_order', { p_code: m[0], p_amount: amount, p_ref: ref });
   if (error) { console.error(error); return Response.json({ success: false }, { status: 500 }); }
   return Response.json({ success: true, applied: data });
 });

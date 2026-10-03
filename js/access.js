@@ -11,6 +11,8 @@
   const DEF = {
     paywall: { enabled: false, loginFrom: 8, paidFrom: 11 },
     donate: { bank: '', account: '', name: '', note: 'Ủng hộ duy trì server Monster Breakout', qr: '' },
+    starve: { enabled: true, gates: [11] },
+    server: { goal: 0, label: 'Chi phí server tháng này', extra: 0 },
     plans: {
       act15: { name: 'Gói 15 ngày', price: 29000, next: 29000, days: 15, scope: 'act', perks: {}, desc: 'Chiến dịch của màn này trong 15 ngày.' },
       act30: { name: 'Gói 30 ngày', price: 49000, next: 25000, days: 30, scope: 'act', perks: { survival: true, board: true }, desc: 'Chiến dịch + Sinh tồn/Bất tận + bảng xếp hạng của màn này trong 30 ngày. Màn tiếp theo chỉ 25.000đ.' },
@@ -41,6 +43,19 @@
     applyCfg(c) {
       for (const k of ['paywall', 'donate']) if (c[k]) this.cfg[k] = Object.assign({}, DEF[k], c[k]);
       if (c.plans) this.cfg.plans = c.plans;
+      // cửa "ác mộng" khi chưa tiếp tế, mục tiêu chi phí server
+      this.cfg.starve = Object.assign({ enabled: true, gates: [11] }, c.starve || {});
+      this.cfg.server = Object.assign({ goal: 0, label: 'Chi phí server tháng này', extra: 0 }, c.server || {});
+      // kiểm soát cửa theo từng Màn (admin chọn): { acts: { "2": [11, 12] } }
+      // Màn KHÔNG có trong danh sách = mở tự do (chơi liên tục như bình thường). Màn có trong danh sách = chỉ mở các cửa được chọn.
+      const g = c.gates;
+      this.cfg.gates = g && g.acts ? g.acts : null;
+    },
+    // cửa đang đóng với người chơi (admin vẫn chơi được)
+    isClosed(id) {
+      const A = this.cfg.gates; if (!A) return false;
+      const list = A[String(this.actOf(id))];
+      return Array.isArray(list) && !list.map(Number).includes(id);
     },
     get LOGIN_FROM() { return this.cfg.paywall.loginFrom || 8; },
     get PAID_FROM() { return this.cfg.paywall.paidFrom || 11; },
@@ -63,15 +78,19 @@
     ngplus() { return DEV || this.live().some((r) => r.perks && r.perks.ngplus); },
     // lý do chưa được chơi: null | 'login' | 'pay'
     need(id, mode) {
-      if (DEV) return null;
+      if (DEV || this.admin) return null;
+      if (this.isClosed(id)) return 'closed';
       if (id >= this.LOGIN_FROM && !(MB.Cloud && MB.Cloud.user)) return 'login';
       if (this.paywall && id >= this.PAID_FROM && !this.has(id, mode)) return 'pay';
       return null;
     },
     async check(id, mode) {
-      if (DEV || id < this.LOGIN_FROM) return null;
+      if (DEV) return null;
       const C = MB.Cloud;
       if (!C.user && C.needsInit()) { try { await C.load(); } catch (e) { /* bỏ qua */ } }
+      if (C.user && this.uid !== C.user.id) await this.refresh();   // biết có phải admin không
+      if (this.need(id, mode) === 'closed') return 'closed';
+      if (id < this.LOGIN_FROM) return null;
       if (C.user && this.paywall && id >= this.PAID_FROM && (this.uid !== C.user.id || Date.now() - this.loadedAt > 60000)) await this.refresh();
       return this.need(id, mode);
     },
@@ -79,7 +98,7 @@
       const C = MB.Cloud;
       if (!C.user) { this.ent = []; this.uid = null; return; }
       const uid = C.user.id;
-      if (this.uid !== uid) { this.uid = uid; try { this.ent = JSON.parse(localStorage.getItem('mb_ent_' + uid) || '[]'); } catch (e) { this.ent = []; } }
+      if (this.uid !== uid) { this.uid = uid; try { this.ent = JSON.parse(localStorage.getItem('mb_ent_' + uid) || '[]'); this.admin = localStorage.getItem('mb_adm_' + uid) === '1'; this.supporter = localStorage.getItem('mb_sup_' + uid) === '1'; } catch (e) { this.ent = []; } }
       if (this.loading) return this.loading;
       this.loading = (async () => {
         try {
@@ -89,14 +108,20 @@
           this.ent = data || []; this.loadedAt = Date.now();
           try { localStorage.setItem('mb_ent_' + uid, JSON.stringify(this.ent)); } catch (e) { /* bỏ qua */ }
           const ad = await C.sb.from('mb_admins').select('user_id').eq('user_id', uid).maybeSingle();
-          this.admin = !!(ad && ad.data);
+          if (!ad.error) { this.admin = !!ad.data; try { localStorage.setItem('mb_adm_' + uid, this.admin ? '1' : '0'); } catch (e) { /* bỏ qua */ } }
+          const sp = await C.sb.from('mb_supporters').select('total,times').eq('user_id', uid).maybeSingle();
+          if (!sp.error) {
+            const was = this.supporter; this.supporter = !!sp.data; this.support = sp.data || null;
+            try { localStorage.setItem('mb_sup_' + uid, this.supporter ? '1' : '0'); } catch (e) { /* bỏ qua */ }
+            if (this.supporter && !was && MB.App.thankSupporter) setTimeout(() => MB.App.thankSupporter(), 600);
+          }
         } catch (e) { console.warn('[access]', e); }
         this.loading = null;
       })();
       return this.loading;
     },
     onUser(u) {
-      if (!u) { this.ent = []; this.uid = null; this.loadedAt = 0; this.admin = false; return; }
+      if (!u) { this.ent = []; this.uid = null; this.loadedAt = 0; this.admin = false; this.supporter = false; return; }
       this.refresh().then(() => { if (MB.App.current === 'gates') MB.App.openGates(); if (MB.App.current === 'account') MB.App.renderAccount(); });
     },
     active() {
@@ -105,6 +130,19 @@
         const what = r.gates && r.gates.length ? ` Gate ${r.gates.join(', ')}` : r.acts ? ` · Màn ${r.acts.join(', ')}` : '';
         return (p ? p.name : r.plan) + what + (r.expires_at ? ` (đến ${new Date(r.expires_at).toLocaleDateString('vi-VN')})` : '');
       });
+    },
+    /* ---------- tiếp tế (donate) ---------- */
+    // mã chuyển khoản riêng: MBTT + 6 ký tự đầu user id → máy chủ nhận ra ai đã ủng hộ
+    donateCode() { const u = MB.Cloud && MB.Cloud.user; return u ? 'MBTT' + u.id.replace(/-/g, '').slice(0, 6).toUpperCase() : 'MB UNG HO'; },
+    // cửa "ác mộng" khi chưa tiếp tế (admin chọn trong trang quản trị)
+    starveFor(id) { const s = this.cfg.starve; return !DEV && !this.supporter && !!(s && s.enabled && (s.gates || []).map(Number).includes(id)); },
+    async monthSupport() {
+      try {
+        const C = MB.Cloud;
+        const r = await fetch(`${C.URL}/rest/v1/rpc/mb_month_support`, { method: 'POST', headers: { apikey: C.KEY, Authorization: 'Bearer ' + C.KEY, 'Content-Type': 'application/json' }, body: '{}' });
+        if (!r.ok) throw new Error(r.status);
+        return Number(await r.json()) || 0;
+      } catch (e) { return null; }
     },
     price(v) { return Number(v || 0).toLocaleString('vi-VN') + 'đ'; },
     // giá dự kiến (máy chủ tính lại khi tạo đơn): đã từng mua cùng gói cho màn khác → giá "màn tiếp theo"

@@ -508,3 +508,26 @@ button.donate:hover { background: rgba(255,170,80,.18); }
 .plan strong s { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: 4px; }
 body[data-input="touch"] .qrbox img { width: min(180px, 50vw); }
 .wallcard { max-height: calc(100vh - 24px); overflow-y: auto; }
+
+.gate .badm { position: absolute; bottom: 10px; right: 10px; font-size: 9.5px; font-weight: 900; letter-spacing: .06em; padding: 2px 6px; border-radius: 6px; background: rgba(255,109,104,.16); color: #ff8a84; border: 1px solid rgba(255,109,104,.4); }
+
+/* ===== Trạm tiếp tế (v7.4) ===== */
+.relaycard { max-width: 560px; max-height: calc(100vh - 24px); overflow-y: auto; border-color: rgba(255,190,110,.4); background: linear-gradient(180deg, rgba(40,28,12,.96), rgba(14,18,14,.97)); }
+.relay-head { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: .18em; color: #ffcf8a; margin-bottom: 10px; }
+.relay-head .rdot { width: 8px; height: 8px; border-radius: 50%; background: #ff6b4a; box-shadow: 0 0 8px #ff6b4a; animation: rblink 1s infinite; }
+@keyframes rblink { 50% { opacity: .25; } }
+.relay-lines p { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid rgba(255,190,110,.6); background: rgba(255,255,255,.03); border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.5; opacity: 0; animation: rline .5s forwards; }
+.relay-lines p b { display: block; font-size: 10.5px; letter-spacing: .16em; color: #ffcf8a; }
+@keyframes rline { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.relay-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; text-align: center; }
+.relay-stats div { padding: 8px 4px; border-radius: 10px; background: rgba(255,255,255,.05); }
+.relay-stats b { display: block; font-size: 17px; color: #ffd56a; } .relay-stats span { font-size: 11px; color: var(--muted); }
+.relay-note { font-size: 13px; color: var(--muted); line-height: 1.5; } .relay-note b { color: #ffcf8a; }
+.relay-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .relay-btns button { width: 100%; }
+.sbar { margin: 10px 0; text-align: left; } .sbar-h { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.sbar-h b { color: #ffd56a; } .sbar-t { height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; margin: 4px 0; }
+.sbar-t i { display: block; height: 100%; background: linear-gradient(90deg, #ffb35a, #ffd56a); border-radius: 4px; } .sbar small { font-size: 11px; color: var(--muted); }
+.supb { font-style: normal; font-size: 12px; } .supbadge { color: #ffd56a; font-weight: 800; letter-spacing: .04em; }
+.thx { color: #ffcf8a; font-size: 13px; }
+.comm.relay { border-color: rgba(255,190,110,.55); } .comm.relay .av { background: rgba(255,190,110,.15); color: #ffcf8a; } .comm.relay b { color: #ffcf8a; }
+@media (max-width: 520px) { .relay-stats { grid-template-columns: repeat(2, 1fr); } }
