@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.6** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v6.6.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-03 (rev 25) |
+| README cập nhật | 2026-10-03 (rev 26) |
 
 ---
 
@@ -78,7 +78,7 @@ sw.js                    Service worker: chơi offline sau lần tải đầu
 version.json             Số phiên bản; app so với server để tự cập nhật
 vercel.json              Cấu hình header cho Vercel
 css/style.css            Giao diện, bố cục responsive cho điện thoại
-assets/icons/            Icon app (svg, 192, 512)
+assets/icons/            Icon app v6.6.1 "vết cào + mắt quái": icon.svg, icon-192/512 (any), icon-maskable-192/512 (Android, nội dung trong vùng an toàn 80%), apple-touch-icon 180 (iPhone), favicon-32
 assets/audio/sfx/        v6.5: 67 file hiệu ứng mp3 (44 loại, nhiều biến thể) — xem assets/CREDITS.md
 assets/audio/music/      v6.5: nhạc nền lặp liền mạch: menu.mp3 (48 s), battle.mp3 (48 s), boss.mp3 (41 s)
 assets/models/           v6.5: hunter.glb (440 KB), zombie.glb (310 KB) — mô hình có khung xương + hoạt ảnh
@@ -585,6 +585,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v6.6.1** · README rev 26 | Icon mới (phương án C: tấm thép bị cào rách, mắt quái đỏ lộ ra sau vệt virus xanh); bộ icon riêng cho Android (maskable, không bị cắt mất khi máy bo tròn/vuông/giọt nước), iPhone (apple-touch-icon 180), favicon; manifest tách purpose any/maskable |
 | 2026-10-03 | **v6.6** · README rev 25 | Boss: "quả tim virus" thay vòng đỏ + chữ điểm yếu; Gate 5+ bớt 15% máu, hệ số tối đa ×2,5, nổi điên 5 giây sau choáng + khoá choáng 20 giây; tự cân bằng âm thầm 3 cấp theo thời gian hạ boss & máu còn lại; cấp khó: boss che tim, đổi lối đánh ở 66%/33% (gọi quái, vòng đạn), thưởng thêm xu |
 | 2026-10-03 | **v6.5.1** · README rev 24 | Mô hình 3D thật giữ đúng tạo hình đã vẽ: Hunter thay đầu mũ giáp bằng đầu tóc nâu + mũ trùm, thêm áo giáp ô liu, ba lô, phù hiệu; xác sống thêm đầu u nần mắt phát sáng, áo rách, túi độc, da xanh xám; thêm Cài đặt "Nhân vật 3D" (mô hình mới / dựng sẵn) |
 | 2026-10-03 | **v6.5** · README rev 23 | Âm thanh mới dạng file (67 hiệu ứng, 3 bản nhạc lặp: menu / trận / boss) dựng từ mẫu CC0 + tổng hợp offline; mô hình 3D thật có khung xương cho Hunter và xác sống thường (Mixamo qua three.js examples); tiếng quái gầm gừ; âm riêng cho 5 súng mới, siêu chiêu, gục choáng, điểm yếu |
