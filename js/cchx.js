@@ -72,7 +72,7 @@
     S.cfg.paywall = S.cfg.paywall || { enabled: false, loginFrom: 8, paidFrom: 11 };
     S.cfg.donate = S.cfg.donate || {}; S.cfg.plans = S.cfg.plans || {};
     S.players = pl.data || []; S.err = pl.error ? pl.error.message : '';
-    S.cfg.starve = S.cfg.starve || { enabled: true, gates: [11] }; S.cfg.server = S.cfg.server || { goal: 0, label: 'Chi phí server tháng này', extra: 0 };
+    S.cfg.starve = S.cfg.starve || { enabled: true, gates: [11] }; S.cfg.survival = Object.assign({ enabled: true, freeMin: 45, freeRev: 0, supMin: 120, supRev: 2 }, S.cfg.survival || {}); S.cfg.server = S.cfg.server || { goal: 0, label: 'Chi phí server tháng này', extra: 0 };
     const [sp, dn] = await Promise.all([sb.from('mb_supporters').select('*'), sb.from('mb_donations').select('*').order('created_at', { ascending: false }).limit(300)]);
     S.sup = {}; for (const r of sp.data || []) S.sup[r.user_id] = r;
     S.dons = dn.data || [];
@@ -378,6 +378,11 @@
       <div class="switch"><label class="toggle"><input type="checkbox" id="stOn" ${st.enabled ? 'checked' : ''}><span></span></label><b>${st.enabled ? 'Đang bật' : 'Đang tắt'}</b></div>
       <label>Các cửa ác mộng (cách nhau dấu phẩy)</label><input id="stGates" value="${esc((st.gates || []).join(', '))}" style="max-width:320px">
       <p style="margin-top:14px"><button id="stSave" class="primary">Lưu</button></p><div id="stMsg" class="msg"></div></div>
+    <div class="card"><h2>Giới hạn Đấu trường Sinh tồn mỗi ngày</h2><p class="muted">Tính trên máy chủ theo tài khoản, chỉ đếm lúc đang đánh, reset 0h giờ Việt Nam. Hết giờ → đấu trường "tắt đèn", người chơi tiếp tục từ khu vực đang dở vào hôm sau. Hồi sinh = sống lại ngay tại chỗ chết. Admin không bị giới hạn. Tắt công tắc = không giới hạn ai.</p>
+      <div class="switch"><label class="toggle"><input type="checkbox" id="svOn" ${S.cfg.survival.enabled ? 'checked' : ''}><span></span></label><b>${S.cfg.survival.enabled ? 'Đang giới hạn' : 'Không giới hạn'}</b></div>
+      <div class="row"><div><label>Chưa tiếp tế: phút/ngày</label><input id="svFm" type="number" value="${S.cfg.survival.freeMin}"></div><div><label>Chưa tiếp tế: hồi sinh/ngày</label><input id="svFr" type="number" value="${S.cfg.survival.freeRev}"></div></div>
+      <div class="row"><div><label>Người tiếp tế: phút/ngày</label><input id="svSm" type="number" value="${S.cfg.survival.supMin}"></div><div><label>Người tiếp tế: hồi sinh/ngày</label><input id="svSr" type="number" value="${S.cfg.survival.supRev}"></div></div>
+      <p style="margin-top:14px"><button id="svlSave" class="primary">Lưu</button></p><div id="svlMsg" class="msg"></div></div>
     <div class="grid2">
       <div class="card"><h2>Người tiếp tế</h2>${sups.length ? `<div class="tablewrap"><table><tr><th>Người chơi</th><th class="num">Tổng</th><th class="num">Số lần</th><th>Gần nhất</th></tr>${sups.map((u) => `<tr class="click" data-u="${u.user_id}"><td>${whoHtml(u)}</td><td class="num">${vnd(u.sup.total)}</td><td class="num">${u.sup.times}</td><td>${ago(u.sup.last_at)}</td></tr>`).join('')}</table></div>` : '<div class="empty">Chưa có ai</div>'}</div>
       <div class="card"><h2>Lịch sử tiếp tế</h2>${dons.length ? `<div class="tablewrap"><table><tr><th>Thời điểm</th><th>Người</th><th class="num">Số tiền</th><th>Nguồn</th></tr>${dons.slice(0, 60).map((d) => `<tr><td>${dt(d.created_at)}</td><td>${pname(d.user_id)}</td><td class="num">${vnd(d.amount)}</td><td>${d.source === 'sepay' ? 'Tự động' : 'Thủ công'}${d.note ? `<br><span class="muted">${esc(d.note)}</span>` : ''}</td></tr>`).join('')}</table></div>` : '<div class="empty">Chưa có</div>'}</div>
@@ -392,6 +397,7 @@
       if (!error) { await loadAll(); render(); }
     };
     $('svSave').onclick = () => save('server', { label: $('svLabel').value.trim(), goal: +$('svGoal').value || 0, extra: +$('svExtra').value || 0 }, 'svMsg');
+    $('svlSave').onclick = () => save('survival', { enabled: $('svOn').checked, freeMin: +$('svFm').value || 0, freeRev: +$('svFr').value || 0, supMin: +$('svSm').value || 0, supRev: +$('svSr').value || 0 }, 'svlMsg');
     $('stSave').onclick = () => save('starve', { enabled: $('stOn').checked, gates: $('stGates').value.split(/[^0-9]+/).filter(Boolean).map(Number) }, 'stMsg');
   };
 

@@ -49,7 +49,7 @@
       this.enemies = []; this.bullets = []; this.ebullets = []; this.pickups = []; this.particles = [];
       this.decals = []; this.texts = []; this.fx = []; this.obstacles = []; this.hazards = [];
       this.sfx = []; this.sup = null; this.superOfferT = 0; this.heavyT = 0; this.weakTold = false; this.elemTold = false; this.bossTier = 0; this.bossT0 = null;
-      this.bossRetryUsed = false; this.retryOffer = false;
+      this.bossRetryUsed = false; this.retryOffer = false; this.survOut = false; this.survRevOffer = false;
       this.boss = null; this.score = 0; this.hurtFlash = 0; this.wantFire = false;
       this.stats = { shots: 0, bhits: 0, kills: 0, mods: 0, dmgTaken: 0, hitsTaken: 0 };
       this.world = { w: def.world.w, h: def.world.h };
@@ -454,6 +454,7 @@
         MB.Audio.play('lose'); MB.Audio.intensity(0);
         // gục ở trận boss lần đầu → được 1 cơ hội đấu lại boss, không phải chơi lại cả Gate
         this.retryOffer = this.mode === 'campaign' && (this.state === 'boss' || this.state === 'preboss') && !this.bossRetryUsed;
+        this.survRevOffer = this.mode === 'survival' && this.endless && !this.survOut;
         if (this.state === 'boss') MB.Boss.record(this, false);
         this.banner('NHIỆM VỤ THẤT BẠI', this.retryOffer ? 'Còn 1 cơ hội đấu lại Boss' : 'Hunter đã gục ngã', 2);
         this.finish(false, 2.2);
@@ -478,6 +479,21 @@
       this.banner('ĐẤU LẠI BOSS', 'Cơ hội cuối · đã hồi đầy máu, đạn và kỹ năng', 2.6);
       MB.HUD.objective('ĐẤU LẠI', 'Boss xuất hiện lại sau 3 giây. Bất tử trong 3 giây để rời vùng nguy hiểm.');
       MB.Audio.play('wave'); MB.Audio.intensity(0.6);
+    },
+    // Sinh tồn: hồi sinh ngay tại chỗ gục (người tiếp tế, giới hạn lượt/ngày) — giữ nguyên wave, boss, điểm
+    reviveHere() {
+      const p = this.player;
+      this.survRevOffer = false; this.over = false; this.win = false; this.reported = false; this.overT = 0;
+      p.dead = false; p.deadT = 0; p.dash = null; p.hp = p.maxHp; if (p.maxArmor) p.armor = p.maxArmor;
+      p.burnT = 0; p.slow = 0; p.vx = 0; p.vy = 0; p.iframes = 3; p.reviveT = 3;
+      for (const w of p.weapons) { w.ammo = null; w.reloading = 0; }
+      p.grenades = Math.max(p.grenades, p.gMax || 3); MB.Combo.break(this);
+      this.ebullets.length = 0;
+      for (const e of this.enemies) { if (e.dead || e.boss) continue; const d = U.dist(e.x, e.y, p.x, p.y); if (d < 320) { const a = Math.atan2(e.y - p.y, e.x - p.x); e.vx += Math.cos(a) * 700; e.vy += Math.sin(a) * 700; this.damageEnemy(e, e.maxHp * 0.5, a, 0, true); } }
+      this.shockwave(p.x, p.y, 320, 0.6, 0, 'rgba(255,210,120,.9)');
+      this.burst(p.x, p.y, '#ffd27a', 50, 300);
+      this.banner('HỒI SINH TẠI CHỖ', 'Tiếp tế đã tới kịp — chiến tiếp!', 2.2);
+      MB.Audio.play('heal'); MB.Audio.intensity(0.6);
     },
     finish(win, delay) { if (this.over) return; this.over = true; this.win = win; this.overT = delay; },
 
@@ -671,7 +687,7 @@
         this.overT -= dt;
         if (this.overT <= 0 && !this.reported) {
           this.reported = true;
-          if (this.retryOffer) MB.App.offerBossRetry(); else MB.App.onGateEnd(this.summary());
+          if (this.retryOffer) MB.App.offerBossRetry(); else if (this.survRevOffer) MB.App.offerSurvRevive(); else MB.App.onGateEnd(this.summary());
         }
       }
 
@@ -993,7 +1009,7 @@
         gateId: this.def.id, win: this.win, score: this.score, mode: this.mode, wave: this.waveIdx + 1, comboBest: this.comboBest || 0, time: this.time, kills: this.stats.kills,
         accuracy: this.stats.shots ? Math.min(100, Math.round(this.stats.bhits / this.stats.shots * 100)) : 0,
         done, totalChallenges: this.challenges.length, mods: MB.Weapons.power(this.player), hitsTaken: this.stats.hitsTaken,
-        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, bossTier: this.bossTier || 0, starve: !!this.starve, ngp: !!this.ngp, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
+        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, bossTier: this.bossTier || 0, starve: !!this.starve, ngp: !!this.ngp, survOut: !!this.survOut, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
       };
     },
 

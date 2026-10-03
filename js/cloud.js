@@ -20,12 +20,19 @@
       a.cleared = !!(a.cleared || b.cleared);
       const t = [a.bestTime, b.bestTime].filter((x) => x > 0);
       a.bestTime = t.length ? Math.min(...t) : 0;
+      if (b.ngp && (!a.ngp || (b.ngp.best || 0) > (a.ngp.best || 0) || (b.ngp.cleared && !a.ngp.cleared))) a.ngp = Object.assign({}, a.ngp, b.ngp, { best: Math.max((a.ngp || {}).best || 0, b.ngp.best || 0), cleared: !!((a.ngp || {}).cleared || b.ngp.cleared) });
       if (b.surv && (!a.surv || b.surv.wave > a.surv.wave || (b.surv.wave === a.surv.wave && b.surv.score > a.surv.score))) a.surv = b.surv;
     }
     const arm = new Set([...(local.armory || []), ...(cloud.armory || [])]);
     out.armory = MB.Weapons.ORDER.filter((id) => arm.has(id));
     out.upg = Object.assign({}, local.upg || {});
     for (const k in cloud.upg || {}) out.upg[k] = Math.max(out.upg[k] || 0, cloud.upg[k]);
+    out.clues = Object.assign({}, cloud.clues || {}, local.clues || {});
+    out.story = Object.assign({}, cloud.story || {}, local.story || {});
+    if (cloud.endless && (!local.endless || cloud.endless.wave > local.endless.wave)) out.endless = cloud.endless;
+    // điểm lưu đấu trường Sinh tồn: lấy bản mới hơn (đổi máy vẫn vào lại đúng khu vực)
+    const ra = local.survRun, rb = cloud.survRun;
+    out.survRun = !ra ? rb || null : !rb ? ra : ((rb.ts || 0) > (ra.ts || 0) ? rb : ra);
     const newer = (cloud.ts || 0) > (local.ts || 0) ? cloud : local;
     out.coins = newer.coins || 0;
     out.ts = Math.max(local.ts || 0, cloud.ts || 0);

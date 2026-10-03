@@ -4,7 +4,7 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v8.0.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v8.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
@@ -331,7 +331,7 @@ Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 l�
 
 **v6.6 — cân lại nhịp boss & tự cân bằng theo tay chơi** (`MB.Boss` trong `js/arsenal.js`, ghi đè các số v6.4 bên dưới):
 - **Quả tim virus thay cho vòng đỏ + chữ "ĐIỂM YẾU":** một khối thịt đỏ cam có gân mọc ra trên thân boss, phập phồng theo nhịp tim (âm `heartbeat`), trúng thì máu cam toé ra + tiếng "phụt" (`weakhit`), không hiện chữ. Lần đầu gặp, Hunter nói qua bộ đàm: "Có thứ gì đang đập phập phồng trên thân nó… Nhắm vào đó!" (chỉ 1 lần, `sv.heartTold`). 3D có mô hình riêng (`R3.updateHeart`).
-- **Nhịp trận đều hơn (mọi người):** boss Gate 5+ bớt 15% máu; tổng hệ số nhân tối đa **×2,5** (trước ×4); hết choáng → **BOSS NỔI ĐIÊN 5 giây** (AI chạy nhanh ×1,5, di chuyển ×1,3, hào quang đỏ); sau đó **20 giây** mới tích thanh choáng lại (thanh xám).
+- **Nhịp trận (v8.1 siết lại):** bỏ giảm 15% máu boss Gate 5+, boss Màn 2 thêm 10% máu; cấp thường máu ×1,15; quả tim lộ **3,5 s / 10 s** (cấp khó 3 s/12 s, tinh nhuệ 2,5 s/14 s), nhỏ hơn, lấp ló trên thân (không còn nhô ra), vùng trúng hẹp lại, ×1,6 sát thương; mọi cấp đều xoay người che tim; thanh choáng 20% máu; boss Gate 8+ luôn đổi lối đánh ở 66%/33%; tổng hệ số nhân tối đa **×2** (trước ×2,5); hết choáng → **BOSS NỔI ĐIÊN 5 giây** (AI chạy nhanh ×1,5, di chuyển ×1,3, hào quang đỏ); sau đó **20 giây** mới tích thanh choáng lại (thanh xám).
 - **Tự cân bằng âm thầm:** mỗi trận boss ở Chiến dịch chấm điểm theo thời gian hạ boss (mục tiêu ~62 giây) và máu còn lại, trừ nếu phải đấu lại; thua boss = −0,8. Lưu trung bình trượt `sv.bossRating` (−1…1). Cấp: **0 thường** (≤0,45) · **1 khó** (>0,45) · **2 tinh nhuệ** (>0,75). Thử nhanh: `?bosstier=0|1|2`.
 
 | | Thường | Khó | Tinh nhuệ |
@@ -406,6 +406,13 @@ Mục tiêu: trận boss còn khoảng 45–75 giây thay vì 2–3 phút "bắn
 **Cảm giác bắn.** Khựng hình ngắn khi hạ quái tinh nhuệ (0,05 giây), boss chuyển phase (0,12 giây, kèm chữ *BOSS NỔI ĐIÊN*) và hạ boss (0,22 giây). Rung điện thoại khi trúng đòn, nổ gần, boss đổi phase, hạ boss, gục ngã (tắt được trong Cài đặt → *Rung điện thoại*).
 
 **Chế độ Sinh tồn Bất tận (v6.2).** Thay cho sinh tồn từng Gate: bấm **SINH TỒN → BẮT ĐẦU** để chiến đấu một chuỗi liên tục xuyên qua **mọi Gate đã qua ở Chiến dịch** (theo thứ tự, hết thì quay vòng). Mỗi khu vực = 4 wave + 1 boss; hạ boss → hồi 25% máu, chọn thẻ nâng cấp, tự chuyển sang bản đồ kế tiếp. Máu, giáp, súng, đạn, linh kiện, thẻ nâng cấp, điểm, combo được **mang theo suốt chuỗi**; wave tiếp tục đếm (quái mạnh dần +9%/wave, trộn quái của bản đồ hiện tại, boss sau mỗi lần gặp lại trâu hơn +35%). Không có đấu lại boss. Kỷ lục lưu ở `Save.data.endless = {wave, score, stage}`; bảng xếp hạng Sinh tồn dùng mã gate **30** (một bảng chung).
+
+**Đấu trường Sinh tồn — line độc lập (v8.2).** Màn chọn cửa có 2 thẻ thế giới lớn **CHIẾN DỊCH** (xanh) / **SINH TỒN** (đỏ) (+ **CHU KỲ+** khi đã mở); chọn Sinh tồn thì cả màn chuyển tông đỏ thẫm, tiêu đề "ĐẤU TRƯỜNG", phần giới thiệu hùng hồn, luật chơi, trạng thái hôm nay, chuỗi chiến trường, thanh chi phí server + nút ☕ tiếp tế (nhắc khéo ở chân trang).
+- **Bắt buộc đăng nhập** ngay từ đầu (lưu khu vực, trạng thái, giờ chiến). Tiến trình dùng chung tài khoản với Chiến dịch.
+- **Vào thẳng được**: chuỗi chiến trường gồm **10 bản đồ Màn 1 mở sẵn**; bản đồ Màn 2 nhập chuỗi khi đã qua cửa đó ở Chiến dịch (vẫn tôn trọng cửa đóng trong admin + thu phí).
+- **Giới hạn mỗi ngày** (tính trên máy chủ theo tài khoản, chỉ đếm lúc đang đánh — tạm dừng không tính, reset 0h giờ VN): chưa tiếp tế **45 phút**, gục là hết; **người tiếp tế 120 phút + hồi sinh tại chỗ 2 lần/ngày** (sống lại đúng chỗ gục, đầy máu/giáp/đạn, giữ wave–boss–điểm, đẩy lùi quái quanh mình). Admin chỉnh trong trang quản trị (Người tiếp tế → "Giới hạn Đấu trường Sinh tồn"); admin không bị giới hạn. Đồng hồ ⏱ trong HUD, cảnh báo còn 10/5/1 phút; hết giờ → "ĐẤU TRƯỜNG TẮT ĐÈN", giữ khu vực cho hôm sau. SQL: bảng `mb_surv_day`, hàm `mb_surv_status()`, `mb_surv_tick(p_sec)` (tối đa 90 s/lần), `mb_surv_revive()`, cấu hình `mb_config.survival`. Mất mạng → ước lượng tạm trên máy, gửi bù khi có mạng.
+- **Điểm lưu**: đầu mỗi khu vực ghi `Save.data.survRun = {chain, i, carry, stage, ts}` (đồng bộ mạng, lấy bản mới hơn khi ghép) → thoát giữa chừng / hết giờ / đổi máy thì vào lại đúng khu vực đó ("▶ TIẾP TỤC KHU VỰC N" hoặc "TRẬN MỚI"). Gục (không hồi sinh) thì xoá điểm lưu.
+- Người chưa tiếp tế gục sau wave 5: màn kết quả nhắc nhẹ quyền lợi người tiếp tế (1 lần mỗi phiên). **Bảng xếp hạng không còn hiện ☕** — thông tin tiếp tế không công khai.
 
 **Độ khó tự điều chỉnh — Ác mộng âm thầm (v6.2).** Mỗi lần thắng một Gate ở Chiến dịch, game chấm điểm kỹ năng 0–1: độ chính xác (35%, tối đa ở 55%), né đòn = số đòn trúng mỗi phút (30%, 0 đòn = tối đa, ≥6 đòn/phút = 0), máu còn lại (20%), số lần thua trước khi qua (15%), trừ 0,15 nếu phải dùng đấu lại boss. Lưu ở `gates[id].skill`.
 - Qua đủ Gate 1–7 với **điểm trung bình ≥ 0,6** → từ **Gate 8 trở đi** (gồm cả Màn 2) game **âm thầm** bật Ác mộng: quái thường máu ×1,35, sát thương ×1,2, tốc độ ×1,07; boss máu ×1,3, sát thương ×1,15; thêm 8% quái tinh nhuệ; quái ra nhanh hơn 15%. Bù lại: điểm quái ×1,25 và xu cuối trận ×1,3. Không có thông báo nào.
@@ -657,6 +664,9 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v8.3** · README rev 42 | **Menu chính mới phong cách game chiến đấu**: chữ quân sự Chakra Petch / Saira Condensed (tự lưu trữ trong `assets/fonts`, giấy phép OFL), tiêu đề MONSTER BREAKOUT cam lửa, khói + tàn lửa + vạch quét, **thẻ chiến binh** (chân dung, cấp bậc theo số cửa đã qua, cửa ải / manh mối / wave sinh tồn / xu), nút dạng mũi tên với dòng phụ, nút VÀO TRẬN gợi ý cửa tiếp theo, thanh trạng thái máy chủ ở chân; nút toàn game bo góc vát |
+| 2026-10-03 | **v8.2** · README rev 41 | **Hai thế giới**: thẻ lớn CHIẾN DỊCH / SINH TỒN (/ CHU KỲ+), Sinh tồn thành **Đấu trường** độc lập tông đỏ; bắt buộc đăng nhập; vào thẳng với 10 bản đồ Màn 1; **giới hạn giờ/ngày tính trên máy chủ** (45 phút chưa tiếp tế, 120 phút + **hồi sinh tại chỗ 2 lần** cho người tiếp tế, chỉnh được trong admin); **điểm lưu đầu khu vực** đồng bộ tài khoản; bỏ ☕ khỏi bảng xếp hạng; ghép bản lưu giữ cả manh mối, cảnh truyện, Chu kỳ+. **Cần chạy lại `supabase/schema.sql`** (mục 8) |
+| 2026-10-03 | **v8.1** · README rev 40 | **Khối giới thiệu Chu kỳ+** lấp khoảng trống sau Gate 21 (5 đặc quyền, thanh tiến độ Màn 2, mở khoá → nút VÀO CHU KỲ+, đếm số cửa đã chinh phục); thẻ cửa có **dấu ⟳ vàng** khi qua Chu kỳ+; bỏ chữ "thử nghiệm" ở 3D; **boss khó hơn**: quả tim lộ ít, nhỏ, không còn nhô ra ngoài, boss trâu hơn, khó choáng hơn (chi tiết mục Boss) |
 | 2026-10-03 | **v8.0.3** | Đổi địa chỉ trang quản trị: `admin.html` → **`cancuhunterx.html`** (mở bằng `/cancuhunterx`), `js/admin.js` → `js/cchx.js`, `css/admin.css` → `css/cchx.css`. `/admin` giờ là trang không tồn tại. Cần xoá 3 file cũ trên GitHub và thêm `https://<tên-miền>/cancuhunterx` vào Supabase → Authentication → URL Configuration → Redirect URLs |
 | 2026-10-03 | **v8.0.2** | Trang admin: tài khoản không phải quản trị **không thấy menu/giao diện quản trị** — chỉ hiện "Không tìm thấy trang" rồi tự về game; bỏ câu lệnh SQL cấp quyền khỏi trang (vẫn có ở mục cài đặt README). Dữ liệu vẫn được bảo vệ phía máy chủ (RLS + `mb_is_admin()` trong mọi hàm quản trị) |
 | 2026-10-03 | **v8.0.1** | Đăng nhập Google luôn hiện **bảng chọn tài khoản** (`prompt: select_account`) — đăng xuất rồi đăng nhập lại không còn tự vào tài khoản cũ (game + trang admin) |

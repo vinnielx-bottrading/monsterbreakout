@@ -1138,12 +1138,12 @@
       const h = this.heart;
       if (h.parent !== this.root) this.root.add(h);
       const u = b.__m3 && b.__m3.userData, hh = u ? u.h * 0.6 : 30;
-      const w = { x: b.x + Math.cos(b.weak.a) * b.r * 1.02, y: b.y + Math.sin(b.weak.a) * b.r * 1.02 }; // nhô ra ngoài thân
+      const w = { x: b.x + Math.cos(b.weak.a) * b.r * 1.02, y: b.y + Math.sin(b.weak.a) * b.r * 0.82 }; // lấp ló trên thân (v8.1: bớt lộ liễu)
       const grow = Math.min(1, b.weak.age / 0.35) * Math.min(1, b.weak.t / 0.3);
       const beat = Math.max(0, Math.sin(G.time * 7.5)) ** 6 * 0.22 + (b.weak.hitT > 0 ? 0.25 : 0);
       h.visible = grow > 0.02;
       h.position.set(w.x, hh, w.y);
-      h.scale.setScalar(Math.max(0.01, (b.r * 0.34 + 6) * grow * (1 + beat)));
+      h.scale.setScalar(Math.max(0.01, (b.r * 0.26 + 4) * grow * (1 + beat)));
       h.rotation.y = -b.weak.a + Math.sin(G.time * 2) * 0.2;
       h.userData.core.material.emissiveIntensity = 0.6 + beat * 3;
     },

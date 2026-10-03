@@ -32,9 +32,10 @@
      3) Cấp khó trở lên: boss xoay người che quả tim, đổi lối đánh ở 66% / 33% máu (gọi quái, bắn vòng đạn); thưởng thêm xu.
      Điểm yếu là một "quả tim virus" mọc ra trên thân boss — không có chữ, người chơi tự phát hiện. */
   const TIER = [
-    { hp: 1, weakT: 6, weakCd: 5, weakK: 2, stag: 0.13, stagGrow: 1.2, stagT: 4, heavy: 22, sup: 1, guard: 0, coin: 1 },
-    { hp: 1.2, weakT: 4.2, weakCd: 7, weakK: 1.7, stag: 0.18, stagGrow: 1.3, stagT: 3, heavy: 32, sup: 0.75, guard: 0.6, coin: 1.25 },
-    { hp: 1.4, weakT: 3.5, weakCd: 8, weakK: 1.6, stag: 0.22, stagGrow: 1.35, stagT: 2.5, heavy: 40, sup: 0.6, guard: 0.95, coin: 1.5 },
+    // v8.1: siết lại — boss trâu hơn, tim lộ ngắn và thưa hơn (cả cấp thường cũng xoay người che tim), khó choáng hơn
+    { hp: 1.15, weakT: 3.5, weakCd: 10, weakK: 1.6, stag: 0.2, stagGrow: 1.3, stagT: 3, heavy: 26, sup: 0.85, guard: 0.35, coin: 1 },
+    { hp: 1.35, weakT: 3, weakCd: 12, weakK: 1.5, stag: 0.25, stagGrow: 1.35, stagT: 2.6, heavy: 34, sup: 0.7, guard: 0.75, coin: 1.25 },
+    { hp: 1.6, weakT: 2.5, weakCd: 14, weakK: 1.4, stag: 0.3, stagGrow: 1.4, stagT: 2.2, heavy: 42, sup: 0.55, guard: 1.1, coin: 1.5 },
   ];
   const Boss = MB.Boss = {
     ELEM, ELEM_VI, ELEM_GUNS, WEAK, GUNS, TIER,
@@ -47,10 +48,10 @@
     },
     init(G, e) {
       const tier = G.bossTier = G.starve ? 2 : G.ngp ? Math.min(2, this.tierNow() + 1) : this.tierNow(), T = TIER[tier];
-      let k = T.hp * ((G.def.id >= 5) ? 0.85 : 1);
+      let k = T.hp * (G.def.id >= 11 ? 1.1 : 1);
       e.hp *= k; e.maxHp *= k;
       e.stag = 0; e.stagMax = e.maxHp * T.stag; e.stagT = 0; e.stagLock = 0; e.enrageT = 0;
-      e.weak = null; e.weakCd = 4; e.weakTxtT = 0; e.gphase = 1;
+      e.weak = null; e.weakCd = 8; e.weakTxtT = 0; e.gphase = 1;
       G.heavyT = 12; G.superOfferT = 0.8; G.bossT0 = G.time;
     },
     update(G, e, dt) {
@@ -79,7 +80,7 @@
         }
       }
       // cấp khó: đổi lối đánh ở 66% và 33% máu
-      if (G.bossTier >= 1 && !e.hidden) {
+      if ((G.bossTier >= 1 || G.def.id >= 8) && !e.hidden) {
         const f = e.hp / e.maxHp, ph = f < 0.33 ? 3 : f < 0.66 ? 2 : 1;
         if (ph > e.gphase) { e.gphase = ph; this.phaseShift(G, e, ph); }
         if (e.gphase >= 2 + (G.bossTier >= 2 ? 0 : 1) && e.spawnT <= 0) {
@@ -102,7 +103,7 @@
         const d = Math.hypot(src.fx - e.x, src.fy - e.y) || 1;
         const ix = e.x + (src.fx - e.x) / d * e.r, iy = e.y + (src.fy - e.y) / d * e.r;
         const w = this.weakPos(e);
-        if (U.dist(ix, iy, w.x, w.y) < e.r * 0.6 + 8) {
+        if (U.dist(ix, iy, w.x, w.y) < e.r * 0.42 + 6) {
           k *= T.weakK;
           // trúng tim: máu cam toé ra, nhịp đập giật mạnh — không hiện chữ
           if (e.weakTxtT <= 0) { e.weakTxtT = 0.12; G.burst(w.x, w.y, '#ff7a2c', 6, 160); e.weak.hitT = 0.15; }
@@ -111,7 +112,7 @@
       }
       if (e.stagT > 0) k *= 1.5;
       if (G.player.apT > 0 && !src.sup) k *= 1.4;
-      dmg *= Math.min(k, 2.5);
+      dmg *= Math.min(k, 2);
       if (e.stagT <= 0 && e.stagLock <= 0 && !e.hidden && !e.airborne) {
         e.stag += dmg;
         if (e.stag >= e.stagMax) this.stagger(G, e);
@@ -405,10 +406,10 @@
           const w = Boss.weakPos(b), c = P(w.x, 0, w.y);
           const grow = Math.min(1, b.weak.age / 0.35) * Math.min(1, b.weak.t / 0.3);
           const beat = Math.max(0, Math.sin(t * 7.5)) ** 6 * 0.22 + (b.weak.hitT > 0 ? 0.25 : 0);
-          const R = (b.r * 0.26 + 4) * grow * (1 + beat);
+          const R = (b.r * 0.2 + 3) * grow * (1 + beat);
           if (R > 0.5) {
             ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(b.weak.a);
-            ctx.shadowColor = '#ff5a2a'; ctx.shadowBlur = 14 + beat * 30;
+            ctx.shadowColor = '#ff5a2a'; ctx.shadowBlur = 6 + beat * 18;
             const gr = ctx.createRadialGradient(-R * 0.25, -R * 0.3, R * 0.1, 0, 0, R);
             gr.addColorStop(0, '#ffd08a'); gr.addColorStop(0.35, '#ff6a3c'); gr.addColorStop(1, '#8a1410');
             ctx.fillStyle = gr;

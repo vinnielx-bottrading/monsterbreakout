@@ -100,12 +100,44 @@
       });
     },
 
+    // khối giới thiệu Chu kỳ+ nằm sau Gate 21 (lấp khoảng trống, kích thích người chơi vượt hết Màn 2)
+    ngpPromo(list) {
+      const sv = MB.Save.data, open = this.cycleOpen(), ngp = this.mode === 'ngplus';
+      const done = list.filter((m) => (sv.gates[m.id] || {}).cleared).length, total = list.length;
+      const all = MB.Gates.meta.filter((m) => m.file), won = all.filter((m) => ((sv.gates[m.id] || {}).ngp || {}).cleared).length;
+      const perks = [['☠', 'Quái hung hãn hơn', 'Máu ×1,5 · đòn đánh ×1,3 · đông hơn 30%'], ['♛', 'Boss tinh nhuệ', 'Lên một cấp: tim lộ ít hơn, biết xoay người che điểm yếu'],
+        ['⛁', 'Xu thưởng ×1,5', 'Cày vũ khí và nâng cấp nhanh gấp rưỡi'], ['⟳', 'Huy hiệu vàng', 'Mỗi cửa chinh phục được đóng dấu ⟳ · kỷ lục tính riêng'], ['⇄', 'Tự chọn chiến trường', 'Vào thẳng bất kỳ cửa nào, không cần đi lần lượt']];
+      return `<div class="ngp-promo${open ? ' open' : ''}">
+        <div class="np-head"><span class="np-ico">⟳</span><div><b>CHU KỲ+</b><em>${open ? (ngp ? 'ĐANG BẬT' : 'ĐÃ MỞ KHOÁ') : 'THỬ THÁCH SAU CÙNG'}</em></div></div>
+        <p class="np-tag">${open ? 'Ghế số Bảy đã đổ — nhưng lũ quái chưa bao giờ ngừng tiến hoá. Quay lại mọi chiến trường, đối đầu phiên bản dữ dằn nhất của chúng.' : 'Chỉ dành cho Hunter đã đánh sập Ghế số Bảy. Mọi chiến trường trở lại — dữ dằn gấp bội, thưởng hậu hĩnh gấp rưỡi.'}</p>
+        <ul class="np-perks">${perks.map(([i, t, d]) => `<li><i>${i}</i><div><b>${t}</b><span>${d}</span></div></li>`).join('')}</ul>
+        ${open ? `<div class="np-foot"><span>Đã chinh phục <b>${won}/${all.length}</b> cửa ở Chu kỳ+</span><button id="ngpGo" class="primary">${ngp ? '← VỀ CHIẾN DỊCH' : 'VÀO CHU KỲ+ ▸'}</button></div>`
+          : `<div class="np-foot"><div class="np-bar"><i style="width:${Math.round(done / total * 100)}%"></i></div><span>Màn 2: <b>${done}/${total}</b> cửa · vượt <b>Gate 21</b> để mở khoá</span></div>`}
+      </div>`;
+    },
     // Chu kỳ+ mở sau khi xong Gate 21 (kết thúc Màn 2)
     cycleOpen() { const sv = MB.Save.data; return MB.Story.seen('ending') || !!((sv.gates || {})[21] || {}).cleared || MB.Access.dev; },
     endingIds() { return ['ending', ...(Object.keys(MB.Save.data.clues || {}).length >= 10 ? ['endTrue'] : []), 'endOut']; },
 
+    // thẻ chiến binh ở menu chính: chân dung, tên, chỉ số tác chiến + gợi ý cửa tiếp theo
+    renderMenuOp() {
+      const el = $('mnOp'); if (!el) return;
+      const sv = MB.Save.data, C = MB.Cloud, u = C.user, gs = sv.gates || {};
+      const ready = MB.Gates.meta.filter((m) => m.file), cleared = ready.filter((m) => (gs[m.id] || {}).cleared).length;
+      const nClue = Object.keys(sv.clues || {}).length, rec = sv.endless;
+      const next = ready.find((m) => !(gs[m.id] || {}).cleared && m.id <= sv.unlocked) || null;
+      const av = u ? safeImg(C.avatar()) : '';
+      const nm = u ? esc(C.name()) : 'KHÁCH · CHƯA ĐỊNH DANH';
+      const lv = cleared >= 21 ? 'CHỈ HUY' : cleared >= 15 ? 'ĐẠI ĐỘI TRƯỞNG' : cleared >= 10 ? 'TRUNG ĐỘI TRƯỞNG' : cleared >= 5 ? 'TIỂU ĐỘI TRƯỞNG' : 'TÂN BINH';
+      el.innerHTML = `<div class="op-av">${av ? `<img src="${av}" alt="" referrerpolicy="no-referrer">` : '<img src="assets/hunter/portrait.webp" alt="">'}<i></i></div>
+        <div class="op-id"><small>CHIẾN BINH${MB.Access.supporter ? ' · <em>☕</em>' : ''}</small><b>${nm}</b><span>CẤP BẬC: ${lv}</span></div>
+        <div class="op-stats"><div><b>${cleared}<small>/${ready.length}</small></b><span>Cửa ải</span></div><div><b>${nClue}<small>/10</small></b><span>Manh mối</span></div><div><b>${rec ? rec.wave : 0}</b><span>Wave SST</span></div><div><b>${(sv.coins || 0).toLocaleString('vi-VN')}</b><span>Xu</span></div></div>`;
+      const ps = $('mnPlaySub'); if (ps) ps.textContent = next ? `Tiếp tục: Gate ${String(next.id).padStart(2, '0')} · ${next.name}` : 'Chiến dịch · Đấu trường Sinh tồn · Chu kỳ+';
+    },
+
     show(name) {
       this.current = name;
+      if (name === 'menu') this.renderMenuOp();
       // nhạc chủ đề hồi hộp ở các màn menu; vào trận thì nhường cho nhạc trận
       MB.Audio.menuTheme(MENU_SCREENS.includes(name));
       for (const s of SCREENS) $(s).classList.toggle('hidden', s !== name);
@@ -123,7 +155,9 @@
       const cyc = this.cycleOpen();
       if (this.mode === 'ngplus' && !cyc) this.mode = 'campaign';
       const surv = this.mode === 'survival', ngp = this.mode === 'ngplus';
-      $('btnNgp').classList.toggle('hidden', !cyc);
+      $('btnNgp').classList.toggle('hidden', !cyc); $('modeToggle').classList.toggle('three', cyc);
+      $('gates').classList.toggle('world-surv', surv); $('gates').classList.toggle('world-ngp', ngp);
+      document.querySelector('#gates .head h2').textContent = surv ? 'ĐẤU TRƯỜNG' : ngp ? 'CHU KỲ+' : 'CHỌN CỬA ẢI';
       if (!this.act) this.act = sv.unlocked >= 11 && sv.unlocked < 99 ? 2 : 1;
       $('gateGrid').classList.remove('acts');
       document.querySelectorAll('#actToggle [data-actn]').forEach((b) => b.classList.toggle('on', +b.dataset.actn === this.act));
@@ -136,22 +170,7 @@
       $('coinText').textContent = (sv.coins || 0).toLocaleString('vi-VN');
       $('actToggle').classList.toggle('hidden', surv);
       $('gateGrid').classList.toggle('endless-wrap', surv);
-      if (surv) {
-        const chain = this.endlessChain(), rec = sv.endless;
-        $('actNote').innerHTML = '<b>SINH TỒN BẤT TẬN</b> — một chuỗi chiến đấu không ngừng xuyên qua mọi khu vực bạn đã giải phóng.';
-        $('btnReplay').classList.add('hidden');
-        $('gateGrid').innerHTML = chain.length ? `<div class="endless">
-            <div class="etop"><div><b>BẤT TẬN</b><span>${rec ? `Kỷ lục: <em>Wave ${rec.wave}</em> · khu vực ${rec.stage} · ${rec.score.toLocaleString('vi-VN')} điểm` : 'Chưa có kỷ lục — hãy là người mở màn.'}</span></div>
-              <button id="btnEndless" class="primary">BẮT ĐẦU ▸</button></div>
-            <p class="hint">Mỗi khu vực: 4 wave + 1 boss. Hạ boss → hồi 25% máu, chọn thẻ nâng cấp rồi tiến sang khu vực kế tiếp. Máu, súng, linh kiện, thẻ nâng cấp được giữ suốt chuỗi. Hết các khu vực thì quay vòng với quái mạnh hơn. Không có đấu lại boss.</p>
-            <div class="echain">${chain.map((id, i) => { const m = MB.Gates.meta.find((q) => q.id === id); return `<span style="--gc:${m.color}"><i>${i + 1}</i>${m.name}</span>`; }).join('<b>›</b>')}<b>↻</b></div>
-          </div>` : '<p class="hint">Qua Gate 01 ở Chiến dịch để mở chế độ Sinh tồn Bất tận.</p>';
-        const be = $('btnEndless'); if (be) be.addEventListener('click', () => { MB.Audio.play('ui'); this.startEndless(); });
-        this.renderViewToggle();
-        $('armoryText').textContent = 'Kho vũ khí: ' + sv.armory.map((id) => MB.Weapons.DEFS[id].name).join(' · ');
-        this.show('gates');
-        return;
-      }
+      if (surv) { this.openArena(); return; }
       // Chiến dịch: hiện cả 3 màn trên một trang (Màn 2 nổi bật, Màn 3 "sắp ra mắt") để người chơi thấy game còn dài
       const ACTS = MB.Gates.acts || [];
       const card = (m) => {
@@ -168,7 +187,7 @@
         if (need === 'login') status = '🔑 Đăng nhập để chơi tiếp';
         else if (need === 'pay') status = '💎 Cần gói để chơi';
         return `<button class="gate${unlocked ? '' : ' locked'}${need ? ' gated' : ''}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
-          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}${m.ally && unlocked ? '<span class="bally">+ DIAN</span>' : ''}${closed && adm ? '<span class="badm">ĐÓNG · ADMIN</span>' : ''}
+          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}${m.ally && unlocked ? '<span class="bally">+ DIAN</span>' : ''}${g.ngp && g.ngp.cleared ? '<span class="bngp" title="Đã chinh phục Chu kỳ+">⟳</span>' : ''}${closed && adm ? '<span class="badm">ĐÓNG · ADMIN</span>' : ''}
           <b>${m.name}</b><small>${m.vi}</small>
           <span class="stars">${unlocked ? stars : '🔒'}</span>
           <em>${status}</em>
@@ -182,10 +201,12 @@
         const head = `<div class="acthead" id="act${a.n}" style="--ac:${a.color}"><span class="anum">${a.n}</span>
           <div><b>MÀN ${a.n} · ${a.name}</b>${a.tag ? `<em class="atag">${a.tag}</em>` : ''}<span>${a.desc}</span></div>
           <i>${a.soon && !list.length ? 'Sắp ra mắt' : `${done}/${total} cửa`}${a.n === 2 ? ` · Manh mối ${nClue}/10` : ''}</i></div>`;
-        const body = list.length ? `<div class="grid">${list.map(card).join('')}</div>`
+        const promo = a.n === 2 && !surv ? this.ngpPromo(list) : '';
+        const body = list.length ? `<div class="grid">${list.map(card).join('')}${promo}</div>`
           : `<div class="grid">${(a.teasers || []).map((t) => `<div class="gate locked soon" style="--gc:${a.color}"><span class="gnum">${t.n}</span><b>${t.name}</b><small>${t.vi}</small><span class="stars">🔒</span><em>Sắp ra mắt</em><span class="gboss">Boss: ???</span></div>`).join('')}</div>`;
         return `<section class="actsec">${head}${body}</section>`;
       }).join('');
+      const pg = $('ngpGo'); if (pg) pg.addEventListener('click', () => { MB.Audio.play('ui'); this.mode = ngp ? 'campaign' : 'ngplus'; this.openGates(); });
       $('gateGrid').querySelectorAll('[data-gate]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.playGate(+b.dataset.gate); }));
       this.renderViewToggle();
       $('armoryText').textContent = 'Kho vũ khí: ' + sv.armory.map((id) => MB.Weapons.DEFS[id].name).join(' · ');
@@ -227,19 +248,35 @@
     },
 
     /* ---------- Sinh tồn Bất tận: 1 chuỗi qua mọi khu vực đã giải phóng ---------- */
+    // chuỗi đấu trường: Màn 1 mở sẵn (vào thẳng Sinh tồn được), cửa Màn 2+ nhập chuỗi khi đã qua ở Chiến dịch
     endlessChain() {
-      const gs = MB.Save.data.gates;
-      return MB.Gates.meta.filter((m) => m.file && gs[m.id] && gs[m.id].cleared && !MB.Access.need(m.id, 'survival')).map((m) => m.id);
+      const gs = MB.Save.data.gates, A = MB.Access, adm = A.admin || A.dev;
+      return MB.Gates.meta.filter((m) => m.file && ((m.act || 1) === 1 || (gs[m.id] && gs[m.id].cleared) || adm)
+        && (adm || (!A.isClosed(m.id) && !(A.paywall && m.id >= A.PAID_FROM && !A.has(m.id, 'survival'))))).map((m) => m.id);
     },
-    startEndless() {
-      const chain = this.endlessChain(); if (!chain.length) return;
+    async startEndless(resume) {
+      const C = MB.Cloud, A = MB.Access, sv = MB.Save.data;
+      if (!C.user && !A.dev) { this.mode = 'survival'; this.openGates(); return; }
+      this.show('loading'); $('loadingText').textContent = 'Đang mở cửa đấu trường…';
+      await A.survStatus();
+      if (A.survLeft() <= 0) { this.mode = 'survival'; this.openGates(); return; }
+      const run = resume && sv.survRun;
+      if (run && run.chain && run.chain.length) {
+        this.mode = 'survival'; this.endlessRun = { chain: run.chain, i: run.i || 0 };
+        this.playGate(run.chain[this.endlessRun.i], { endless: true, carry: run.carry || null });
+        return;
+      }
+      const chain = this.endlessChain(); if (!chain.length) { this.openGates(); return; }
       this.mode = 'survival'; this.endlessRun = { chain, i: 0 };
+      sv.survRun = { chain, i: 0, carry: null, stage: 1, ts: Date.now() }; sv.ts = Date.now(); MB.Save.save(); MB.Cloud.push();
       this.playGate(chain[0], { endless: true });
     },
     async endlessAdvance() {
       const run = this.endlessRun; if (!run) return;
       run.i = (run.i + 1) % run.chain.length;
       const id = run.chain[run.i], meta = MB.Gates.meta.find((m) => m.id === id), carry = G.carry();
+      // điểm lưu: đầu mỗi khu vực (thoát giữa chừng / hết giờ → lần sau vào lại đúng khu vực này)
+      { const sv = MB.Save.data; sv.survRun = { chain: run.chain, i: run.i, carry: JSON.parse(JSON.stringify(carry)), stage: carry.stage, ts: Date.now() }; sv.ts = Date.now(); MB.Save.save(); MB.Cloud.push(); }
       G.paused = true;
       $('loadingText').textContent = `Tiến vào khu vực ${carry.stage}: ${meta.name} — ${meta.vi}…`; this.show('loading');
       try {
@@ -247,6 +284,7 @@
         await this.loadScript(meta.file); await this.prepare3D(meta);
         this.lastGate = id; MB.Input.clear();
         G.start(MB.Gates.defs[id], { mode: 'survival', endless: true, carry });
+        this.survClockStart();
         G.banner(`KHU VỰC ${carry.stage}`, `${meta.name} · ${meta.vi}`, 2.6);
         this.updateAimBtn(); this.show(null);
       } catch (err) { console.error(err); G.paused = false; G.finish(false, 0.1); }
@@ -275,7 +313,9 @@
         if (!def) throw new Error('Gate chưa đăng ký');
         this.lastGate = id;
         MB.Input.clear();
-        G.start(def, { mode: this.mode === 'ngplus' ? 'campaign' : this.mode, ngp: this.mode === 'ngplus', endless: !!opts.endless });
+        G.start(def, { mode: this.mode === 'ngplus' ? 'campaign' : this.mode, ngp: this.mode === 'ngplus', endless: !!opts.endless, carry: opts.carry || undefined });
+        if (opts.carry) G.banner(`KHU VỰC ${opts.carry.stage}`, `${meta.name} · tiếp tục trận đang dở`, 2.6);
+        if (opts.endless) this.survClockStart();
         if (G.ngp) G.banner('CHU KỲ+', 'Quái mạnh hơn · xu thưởng ×1,5', 2.6);
         if (G.starve) {
           G.banner('VÙNG ÁC MỘNG', 'Hunter đang thiếu tiếp tế — quái đông và dữ gấp bội', 3);
@@ -451,7 +491,7 @@
       if (!chip) return;
       const t = C.lastSync ? new Date(C.lastSync).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
       if (!u) {
-        chip.innerHTML = C.status === 'loading' ? 'ĐANG KẾT NỐI…' : '<b class="g">G</b> ĐĂNG NHẬP LƯU TIẾN TRÌNH';
+        chip.innerHTML = C.status === 'loading' ? 'ĐANG KẾT NỐI…' : '<b class="g">G</b> ĐĂNG NHẬP GOOGLE';
         hint.textContent = `Gate 1–${MB.Access.LOGIN_FROM - 1} chơi ngay không cần đăng nhập. Đăng nhập Google (miễn phí) để lưu tiến trình, chơi tiếp các cửa sau và có tên trên bảng xếp hạng.`;
       } else {
         const av = safeImg(C.avatar());
@@ -459,7 +499,8 @@
         hint.textContent = C.status === 'syncing' ? 'Đang đồng bộ tiến trình…' : C.status === 'error' ? 'Chưa đồng bộ được (mất mạng?). Tiến trình vẫn lưu trên máy.' : `Đã đồng bộ tiến trình${t ? ' lúc ' + t : ''}.`;
       }
       $('btnAccount').classList.toggle('in', !!u);
-      const bd = $('btnDonate'); if (bd) bd.textContent = MB.Access.supporter ? '☕ NGƯỜI TIẾP TẾ' : '☕ TIẾP TẾ CHO GAME';
+      const bd = $('btnDonate'); if (bd) { const b2 = bd.querySelector('b'); if (b2) b2.textContent = MB.Access.supporter ? 'NGƯỜI TIẾP TẾ' : 'TIẾP TẾ CHO GAME'; }
+      this.renderMenuOp();
       if (u && MB.Access.supporter) chip.innerHTML += ' <span class="glowstar" title="Người tiếp tế">★</span>';
       if (this.current === 'account') this.openAccount(true);
     },
@@ -512,7 +553,7 @@
           const mm = Math.floor(r.time_s / 60), ss = String(Math.floor(r.time_s % 60)).padStart(2, '0');
           const av = safeImg(r.avatar);
           return `<div class="brow${r.user_id === me ? ' me' : ''}"><span class="rk">${i + 1}</span>${av ? `<img src="${av}" alt="" referrerpolicy="no-referrer">` : '<i>👤</i>'}
-            <b>${esc(r.name)}${r.supporter ? ' <em class="supb" title="Người tiếp tế">☕</em>' : ''}</b><span class="sc">${mode === 'survival' ? 'Wave ' + r.wave + ' · ' : ''}${r.score.toLocaleString('vi-VN')}</span>${mode === 'campaign' ? `<span class="tm">${mm}:${ss}</span>` : ''}</div>`;
+            <b>${esc(r.name)}</b><span class="sc">${mode === 'survival' ? 'Wave ' + r.wave + ' · ' : ''}${r.score.toLocaleString('vi-VN')}</span>${mode === 'campaign' ? `<span class="tm">${mm}:${ss}</span>` : ''}</div>`;
         }).join('') : '<p class="hint">Chưa có ai trên bảng này. Hãy là người đầu tiên!</p>';
       } catch (e) {
         if (req === this.boardReq) $('boardList').innerHTML = '<p class="hint err">Không tải được bảng xếp hạng (kiểm tra mạng).</p>';
@@ -521,12 +562,13 @@
 
     /* ---------- cơ hội đấu lại boss ---------- */
     offerBossRetry() {
-      G.paused = true; MB.Input.clear();
+      G.paused = true; MB.Input.clear(); this.retryKind = 'boss'; $('btnRetryBoss').textContent = 'ĐẤU LẠI BOSS (1 LẦN)';
       const b = MB.Enemies.types[G.def.boss.type];
       $('retryInfo').innerHTML = `Bạn đã tới trận cuối với <b>${b ? b.name : 'Boss'}</b>.<br>Đấu lại ngay tại chỗ: hồi đầy máu, giáp, đạn, lựu đạn và xung kích; giữ nguyên súng, linh kiện và điểm.<br><small>Mỗi lượt chơi Gate chỉ có 1 cơ hội.</small>`;
       this.show('retry');
     },
     retryBoss() {
+      if (this.retryKind === 'surv') { this.reviveSurv(); return; }
       MB.Audio.play('ui');
       G.retryBoss(); G.paused = false; MB.Input.clear();
       this.show(null);
@@ -535,6 +577,86 @@
       MB.Audio.play('ui');
       G.retryOffer = false; G.paused = false;
       this.onGateEnd(G.summary());
+    },
+
+    /* ---------- ĐẤU TRƯỜNG SINH TỒN (v8.2) ---------- */
+    fmtClock(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); },
+    // đếm giờ đang đánh (theo đồng hồ trận, tạm dừng không tính), gửi máy chủ mỗi 20 giây
+    survClockStart() {
+      clearInterval(this.survIv); this.survAcc = 0; this.survLast = G.time; this.survWarn = {};
+      const A = MB.Access, el = $('survClock');
+      if (!A.surv) A.survApply(null);
+      el.classList.remove('hidden');
+      const tick = () => {
+        if (!G.running || G.mode !== 'survival') { clearInterval(this.survIv); el.classList.add('hidden'); this.survFlush(); return; }
+        const d = Math.max(0, Math.min(2, G.time - this.survLast)); this.survLast = G.time;
+        if (!G.over && !G.paused && G.state !== 'intro') this.survAcc += d;
+        const left = A.survLeft() - this.survAcc, lim = A.surv ? A.surv.limit : 0;
+        if (lim >= 86400) { el.classList.add('hidden'); } else {
+          el.textContent = '⏱ ' + this.fmtClock(left); el.classList.toggle('low', left < 300);
+          for (const m of [10, 5, 1]) if (left <= m * 60 && left > m * 60 - 3 && !this.survWarn[m]) { this.survWarn[m] = 1; MB.HUD.toast(`<b>Đấu trường còn ${m} phút</b> hôm nay`, '#ffb84a'); }
+          if (left <= 0 && !G.over) {
+            G.survOut = true; G.banner('ĐẤU TRƯỜNG TẮT ĐÈN', 'Hết giờ chiến đấu hôm nay — khu vực này được giữ lại cho ngày mai', 3);
+            G.finish(false, 2.5); this.survFlush();
+          }
+        }
+        if (this.survAcc >= 20) this.survFlush();
+      };
+      this.survIv = setInterval(tick, 1000);
+    },
+    survFlush() { const a = Math.round(this.survAcc || 0); this.survAcc = 0; if (a > 0) MB.Access.survTick(a); },
+    async offerSurvRevive() {
+      this.survFlush();
+      const A = MB.Access, st = A.surv || A.survApply(null);
+      if (st.revLimit <= 0 || st.revives >= st.revLimit) { this.onGateEnd(G.summary()); return; }
+      G.paused = true; MB.Input.clear();
+      const left = st.revLimit - st.revives;
+      $('retryInfo').innerHTML = `Bạn gục ở <b>khu vực ${G.stage || 1} · wave ${(G.waveIdx || 0) + 1}</b>.<br>Là <b>Người tiếp tế</b>, bạn được hồi sinh ngay tại chỗ: đầy máu, giáp, đạn — giữ nguyên wave, súng, nâng cấp và điểm.<br><small>Còn ${left}/${st.revLimit} lượt hồi sinh hôm nay.</small>`;
+      $('btnRetryBoss').textContent = `HỒI SINH TẠI CHỖ (${left})`; this.retryKind = 'surv';
+      this.show('retry');
+    },
+    async reviveSurv() {
+      MB.Audio.play('ui');
+      const ok = await MB.Access.survRevive();
+      if (!ok) { this.giveUp(); return; }
+      G.reviveHere(); G.paused = false; MB.Input.clear(); this.show(null);
+    },
+    openArena() {
+      const sv = MB.Save.data, A = MB.Access, C = MB.Cloud, chain = this.endlessChain(), rec = sv.endless, run = sv.survRun;
+      const lim = A.survLimits(), st = A.surv;
+      const logged = !!C.user || A.dev, left = st ? A.survLeft() : lim.limit, out = logged && st && left <= 0;
+      $('actNote').innerHTML = ''; $('btnReplay').classList.add('hidden'); $('btnReplayEnd').classList.add('hidden');
+      const unlim = (st ? st.limit : lim.limit) >= 86400;
+      const capT = this.fmtClock(st ? st.limit : lim.limit), sup = st ? st.supporter : lim.supporter;
+      const now = Date.now(), vn = new Date(now + 7 * 3600e3), reopen = (24 * 3600 - (vn.getUTCHours() * 3600 + vn.getUTCMinutes() * 60 + vn.getUTCSeconds()));
+      const status = !logged ? `<div class="ar-gate"><b>🔑 Đấu trường yêu cầu đăng nhập</b><span>Để lưu khu vực đang chiến đấu, trạng thái Hunter và giờ chiến đấu — đổi máy vẫn đánh tiếp. Tiến trình Chiến dịch dùng chung tài khoản.</span><button id="arLogin" class="primary">ĐĂNG NHẬP GOOGLE</button></div>`
+        : out ? `<div class="ar-gate out"><b>🌑 Đấu trường đã tắt đèn hôm nay</b><span>Mỗi trận Sinh tồn đốt máy chủ gấp nhiều lần Chiến dịch. Để đấu trường sống được lâu dài, mỗi chiến binh có ${capT} chiến đấu mỗi ngày. Mở lại sau <b>${this.fmtClock(reopen)}</b> (0h giờ Việt Nam)${run ? ` — khu vực ${run.stage || 1} của bạn vẫn được giữ nguyên` : ''}.</span>
+            ${sup ? '<em>Cảm ơn bạn đã tiếp tế cho đấu trường ☕</em>' : `<em>☕ Người tiếp tế được chiến <b>${this.fmtClock(A.cfg.survival.supMin * 60)}</b> mỗi ngày và <b>hồi sinh tại chỗ ${A.cfg.survival.supRev} lần</b> — không phải đánh lại từ đầu.</em><button id="arDon" class="primary">☕ TIẾP TẾ CHO ĐẤU TRƯỜNG</button>`}</div>`
+        : `<div class="ar-stat"><div><span>Thời gian chiến hôm nay</span><b>${unlim ? 'Không giới hạn' : this.fmtClock(left) + ' / ' + capT}</b>${unlim ? '' : `<div class="ar-bar"><i style="width:${Math.round(left / (st ? st.limit : lim.limit) * 100)}%"></i></div>`}</div>
+            <div><span>Hồi sinh tại chỗ</span><b>${(st ? st.revLimit : lim.revLimit) > 0 ? `${Math.max(0, (st ? st.revLimit - st.revives : lim.revLimit))} lượt còn lại` : 'Không có — gục là hết'}</b>${!sup && A.cfg.survival.supRev > 0 ? `<small>Người tiếp tế: ${A.cfg.survival.supRev} lượt/ngày</small>` : ''}</div>
+            <div><span>Kỷ lục của bạn</span><b>${rec ? `Wave ${rec.wave} · khu vực ${rec.stage}` : 'Chưa có'}</b>${rec ? `<small>${rec.score.toLocaleString('vi-VN')} điểm</small>` : ''}</div></div>
+          <div class="ar-go">${run && run.stage > 1 ? `<button id="arResume" class="primary">▶ TIẾP TỤC KHU VỰC ${run.stage}</button><button id="arNew">TRẬN MỚI</button>` : `<button id="arNew" class="primary big">⚔ BƯỚC VÀO ĐẤU TRƯỜNG</button>`}</div>`;
+      $('gateGrid').innerHTML = `<div class="arena">
+        <div class="ar-hero"><small>CHẾ ĐỘ ĐỘC LẬP · KHÔNG CỐT TRUYỆN</small><h3>ĐẤU TRƯỜNG SINH TỒN</h3>
+          <p class="ar-cry">Không cốt truyện. Không lối thoát. Không ai tới cứu.<br>Chỉ có bạn, khẩu súng — và một biển quái <b>không bao giờ cạn</b>.</p>
+          <p>Mỗi khu vực là 4 đợt quái dồn dập và một Boss chặn cửa. Hạ Boss → hồi 25% máu, chọn thẻ nâng cấp, lao sang chiến trường kế tiếp. Hết vòng các chiến trường, lũ quái quay lại — <b>mạnh hơn, đông hơn, khát máu hơn</b>. Bạn trụ được bao lâu?</p></div>
+        ${status}
+        <div class="ar-rules"><div><i>⚔</i><b>Mỗi khu vực</b><span>4 wave + 1 Boss, quái tăng dần</span></div><div><i>♥</i><b>Giữ suốt chuỗi</b><span>Máu, súng, linh kiện, thẻ nâng cấp</span></div><div><i>⟲</i><b>Điểm lưu</b><span>Thoát giữa chừng → vào lại đúng khu vực</span></div><div><i>☠</i><b>Gục là hết</b><span>${A.cfg.survival.supRev > 0 ? `Trừ Người tiếp tế: hồi sinh tại chỗ ${A.cfg.survival.supRev} lần/ngày` : 'Không đấu lại'}</span></div></div>
+        <div class="ar-chain"><b>CHUỖI CHIẾN TRƯỜNG (${chain.length})</b><div class="echain">${chain.map((id, i) => { const m = MB.Gates.meta.find((q) => q.id === id); return `<span style="--gc:${m.color}"><i>${i + 1}</i>${m.name}</span>`; }).join('<b>›</b>')}<b>↻</b></div>
+          <small>Màn 1 mở sẵn. Chiến trường Màn 2 nhập chuỗi khi bạn chinh phục cửa đó ở Chiến dịch.</small></div>
+        <div class="ar-foot"><div id="arBar"></div><span>Đấu trường Sinh tồn tiêu tốn máy chủ nhiều nhất trong game. Mỗi ly cà phê tiếp tế giữ cho đèn đấu trường không bao giờ tắt.</span><button id="arDon2" class="sm">☕ Tiếp tế</button></div>
+      </div>`;
+      const on2 = (id, fn) => { const e = $(id); if (e) e.addEventListener('click', () => { MB.Audio.play('ui'); fn(); }); };
+      on2('arLogin', () => MB.Cloud.signIn());
+      on2('arDon', () => this.openDonate('gates')); on2('arDon2', () => this.openDonate('gates'));
+      on2('arResume', () => this.startEndless(true));
+      on2('arNew', () => { MB.Save.data.survRun = { done: true, ts: Date.now() }; MB.Save.save(); this.startEndless(false); });
+      this.serverBar($('arBar'));
+      this.renderViewToggle();
+      $('armoryText').textContent = 'Kho vũ khí: ' + sv.armory.map((id) => MB.Weapons.DEFS[id].name).join(' · ');
+      this.show('gates');
+      // cập nhật giờ còn lại từ máy chủ rồi vẽ lại (1 lần)
+      if (logged && !this.arFetching && (!st || Date.now() - (this.arT || 0) > 15000)) { this.arFetching = true; this.arT = Date.now(); A.survStatus().then(() => { this.arFetching = false; if (this.current === 'gates' && this.mode === 'survival') this.openArena(); }); }
     },
 
     /* ---------- chặn cửa: đăng nhập / mua gói ---------- */
@@ -629,6 +751,8 @@
         return;
       }
       const sv = MB.Save.data, g = MB.Save.gate(sum.gateId), surv = sum.mode === 'survival';
+      if (surv) { clearInterval(this.survIv); $('survClock').classList.add('hidden'); this.survFlush(); }
+      if (surv && sum.endless && !sum.survOut) sv.survRun = { done: true, ts: Date.now() };
       MB.Skill.record(sum);
       this.lastEndless = !!sum.endless;
       g.done = Array.from(new Set([...(g.done || []), ...sum.done]));
@@ -658,9 +782,14 @@
       MB.Save.save();
       G.running = false; MB.Audio.stopMusic();
       const mm = Math.floor(sum.time / 60), ss = String(Math.floor(sum.time % 60)).padStart(2, '0');
-      $('resTitle').textContent = surv ? (sum.endless ? `BẤT TẬN · WAVE ${sum.wave} · KHU VỰC ${sum.stage}` : `SINH TỒN · WAVE ${sum.wave}`) : sum.win ? (sum.gateId === 10 && !sum.ngp ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : sum.gateId === 21 && !sum.ngp ? 'GHẾ SỐ BẢY ĐÃ ĐỔ' : sum.ngp ? 'CHU KỲ+ · CLEARED' : 'GATE CLEARED') : 'MISSION FAILED';
+      $('resTitle').textContent = surv && sum.survOut ? `ĐẤU TRƯỜNG TẮT ĐÈN · KHU VỰC ${sum.stage}` : surv ? (sum.endless ? `BẤT TẬN · WAVE ${sum.wave} · KHU VỰC ${sum.stage}` : `SINH TỒN · WAVE ${sum.wave}`) : sum.win ? (sum.gateId === 10 && !sum.ngp ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : sum.gateId === 21 && !sum.ngp ? 'GHẾ SỐ BẢY ĐÃ ĐỔ' : sum.ngp ? 'CHU KỲ+ · CLEARED' : 'GATE CLEARED') : 'MISSION FAILED';
       $('resTitle').className = sum.win || surv ? 'win' : 'lose';
       $('resCoins').innerHTML = `+${coins.toLocaleString('vi-VN')} xu · tổng ${sv.coins.toLocaleString('vi-VN')} xu` + (sum.comboBest >= 5 ? ` · combo cao nhất ×${sum.comboBest}` : '');
+      if (surv && sum.endless) {
+        const A = MB.Access, sc = A.cfg.survival;
+        if (sum.survOut) $('resCoins').innerHTML += `<br><small class="survnote">Hết giờ chiến đấu hôm nay. Khu vực ${sum.stage} được giữ nguyên — quay lại sau 0h để đánh tiếp.</small>`;
+        else if (!A.supporter && sc.supRev > 0 && !this.survNudged && (sum.wave || 0) >= 5) { this.survNudged = true; $('resCoins').innerHTML += `<br><small class="survnote">☕ Người tiếp tế được <b>hồi sinh ngay tại chỗ ${sc.supRev} lần/ngày</b> và chiến ${Math.round(sc.supMin / 60 * 10) / 10} giờ mỗi ngày — không phải đánh lại từ khu vực 1.</small>`; }
+      }
       $('resStars').innerHTML = [0, 1, 2].map((i) => `<i class="${i < sum.done.length ? 'on' : ''}">★</i>`).join('');
       $('resStats').innerHTML = `
         <div><span>${surv ? 'Wave · điểm' : 'Điểm'}</span><b>${surv ? sum.wave + ' · ' : ''}${sum.score.toLocaleString('vi-VN')}${newBest ? ' <em>KỶ LỤC</em>' : ''}</b></div>
@@ -771,7 +900,7 @@
           <option value="fast"${st.aimSpeed === 'fast' ? ' selected' : ''}>Nhanh</option></select></label>
         <label class="row"><span>Góc nhìn</span><select data-set="view">
           <option value="2d"${st.view !== '3d' ? ' selected' : ''}>2D từ trên xuống</option>
-          <option value="3d"${st.view === '3d' ? ' selected' : ''}>3D (thử nghiệm)</option></select></label>
+          <option value="3d"${st.view === '3d' ? ' selected' : ''}>3D</option></select></label>
         <label class="row"><span>Nhân vật 3D</span><select data-set="model3d">
           <option value="real"${st.model3d !== 'classic' ? ' selected' : ''}>Mô hình có khung xương (chuyển động thật)</option>
           <option value="classic"${st.model3d === 'classic' ? ' selected' : ''}>Mô hình dựng sẵn (nhẹ máy)</option></select></label>`;

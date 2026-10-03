@@ -12,6 +12,7 @@
     paywall: { enabled: false, loginFrom: 8, paidFrom: 11 },
     donate: { bank: '', account: '', name: '', note: 'Ủng hộ duy trì server Monster Breakout', qr: '' },
     starve: { enabled: true, gates: [11] },
+    survival: { enabled: true, freeMin: 45, freeRev: 0, supMin: 120, supRev: 2 },
     server: { goal: 0, label: 'Chi phí server tháng này', extra: 0 },
     plans: {
       act15: { name: 'Gói 15 ngày', price: 29000, next: 29000, days: 15, scope: 'act', perks: {}, desc: 'Chiến dịch của màn này trong 15 ngày.' },
@@ -48,6 +49,7 @@
       this.cfg.server = Object.assign({ goal: 0, label: 'Chi phí server tháng này', extra: 0 }, c.server || {});
       // kiểm soát cửa theo từng Màn (admin chọn): { acts: { "2": [11, 12] } }
       // Màn KHÔNG có trong danh sách = mở tự do (chơi liên tục như bình thường). Màn có trong danh sách = chỉ mở các cửa được chọn.
+      this.cfg.survival = Object.assign({ enabled: true, freeMin: 45, freeRev: 0, supMin: 120, supRev: 2 }, c.survival || {});
       const g = c.gates;
       this.cfg.gates = g && g.acts ? g.acts : null;
     },
@@ -80,6 +82,7 @@
     need(id, mode) {
       if (DEV || this.admin) return null;
       if (this.isClosed(id)) return 'closed';
+      if (mode === 'survival' && !(MB.Cloud && MB.Cloud.user)) return 'login';
       if (id >= this.LOGIN_FROM && !(MB.Cloud && MB.Cloud.user)) return 'login';
       if (this.paywall && id >= this.PAID_FROM && !this.has(id, mode)) return 'pay';
       if (mode === 'ngplus' && this.paywall && !this.ngplus()) return 'pay';
@@ -137,6 +140,51 @@
         return (p ? p.name : r.plan) + what + (r.expires_at ? ` (đến ${new Date(r.expires_at).toLocaleDateString('vi-VN')})` : '');
       });
     },
+    /* ---------- giới hạn đấu trường Sinh tồn theo ngày (v8.2) ----------
+       Máy chủ tính giờ (mb_surv_status/tick/revive). Mất mạng → ước lượng tạm trên máy, gửi bù khi có mạng. */
+    surv: null,
+    survDay() { return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); },
+    survLimits() {
+      const s = this.cfg.survival, sup = !!this.supporter;
+      if (DEV || this.admin || !s.enabled) return { limit: 86400, revLimit: 99, supporter: sup };
+      return { limit: (sup ? s.supMin : s.freeMin) * 60, revLimit: sup ? s.supRev : s.freeRev, supporter: sup };
+    },
+    survLocalKey() { return 'mb_surv_' + (this.uid || 'x') + '_' + this.survDay(); },
+    survLocal() { try { return JSON.parse(localStorage.getItem(this.survLocalKey()) || 'null') || { used: 0, revives: 0, pend: 0 }; } catch (e) { return { used: 0, revives: 0, pend: 0 }; } },
+    survSaveLocal(o) { try { localStorage.setItem(this.survLocalKey(), JSON.stringify(o)); } catch (e) { /* bỏ qua */ } },
+    survApply(st) {
+      const L = this.survLocal(), lim = this.survLimits();
+      const used = Math.max(st && st.used != null ? +st.used : 0, L.used), revives = Math.max(st && st.revives != null ? +st.revives : 0, L.revives);
+      this.surv = { day: this.survDay(), used, revives, limit: st && st.limit != null ? +st.limit : lim.limit, revLimit: st && st.revLimit != null ? +st.revLimit : lim.revLimit, supporter: st && st.supporter != null ? !!st.supporter : lim.supporter };
+      this.survSaveLocal({ used, revives, pend: L.pend || 0 });
+      return this.surv;
+    },
+    async survRpc(fn, args) {
+      const C = MB.Cloud;
+      if (DEV || !C.user || !C.sb) return null;
+      try { const { data, error } = await C.sb.rpc(fn, args || {}); if (error) throw error; return data; } catch (e) { console.warn('[surv]', fn, e.message || e); return null; }
+    },
+    async survStatus() { return this.survApply(await this.survRpc('mb_surv_status')); },
+    // cộng thời gian đang đánh (gửi theo đợt, tối đa 90 giây/lần)
+    async survTick(sec) {
+      const L = this.survLocal(); L.used += sec; L.pend = (L.pend || 0) + sec; this.survSaveLocal(L);
+      if (this.surv) this.surv.used = Math.max(this.surv.used, L.used);
+      let st = null;
+      while (L.pend > 0) { const s = Math.min(90, Math.round(L.pend)); const r = await this.survRpc('mb_surv_tick', { p_sec: s }); if (!r) break; st = r; L.pend -= s; }
+      L.pend = Math.max(0, L.pend); this.survSaveLocal(L);
+      return st ? this.survApply(st) : this.surv;
+    },
+    async survRevive() {
+      const st = this.surv || this.survApply(null);
+      if (st.revives >= st.revLimit) return false;
+      const r = await this.survRpc('mb_surv_revive');
+      if (r && r.ok === false) { this.survApply(r); return false; }
+      const L = this.survLocal(); L.revives = (r ? +r.revives : st.revives + 1); this.survSaveLocal(L);
+      this.survApply(r);
+      return true;
+    },
+    survLeft() { const s = this.surv; return s ? Math.max(0, s.limit - s.used) : 0; },
+
     /* ---------- tiếp tế (donate) ---------- */
     // mã chuyển khoản riêng: MBTT + 6 ký tự đầu user id → máy chủ nhận ra ai đã ủng hộ
     donateCode() { const u = MB.Cloud && MB.Cloud.user; return u ? 'MBTT' + u.id.replace(/-/g, '').slice(0, 6).toUpperCase() : 'MB UNG HO'; },

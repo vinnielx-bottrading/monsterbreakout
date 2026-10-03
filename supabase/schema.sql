@@ -510,3 +510,78 @@ on conflict (key) do nothing;
 drop policy if exists "mb_donations: admin xem" on public.mb_donations;
 drop policy if exists "mb_donations: chủ hoặc admin xem" on public.mb_donations;
 create policy "mb_donations: chủ hoặc admin xem" on public.mb_donations for select to authenticated using ((select auth.uid()) = user_id or public.mb_is_admin());
+
+-- =====================================================================
+-- 8) GIỚI HẠN ĐẤU TRƯỜNG SINH TỒN THEO NGÀY — v8.2
+--    Tính giờ trên máy chủ theo tài khoản (ngày theo giờ Việt Nam, reset 0h).
+--    Mặc định: chưa tiếp tế 45 phút/ngày, không hồi sinh; người tiếp tế 120 phút/ngày, hồi sinh tại chỗ 2 lần/ngày.
+--    Admin chỉnh trong trang quản trị → mb_config key 'survival'.
+-- =====================================================================
+create table if not exists public.mb_surv_day (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  day date not null,
+  seconds int not null default 0,
+  revives int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day)
+);
+alter table public.mb_surv_day enable row level security;
+drop policy if exists "mb_surv_day: chủ hoặc admin xem" on public.mb_surv_day;
+create policy "mb_surv_day: chủ hoặc admin xem" on public.mb_surv_day for select to authenticated using ((select auth.uid()) = user_id or public.mb_is_admin());
+grant select on public.mb_surv_day to authenticated;
+revoke insert, update, delete on public.mb_surv_day from anon, authenticated;
+
+insert into public.mb_config (key, value) values
+  ('survival', '{"enabled": true, "freeMin": 45, "freeRev": 0, "supMin": 120, "supRev": 2}')
+on conflict (key) do nothing;
+
+-- trạng thái hôm nay: đã dùng bao nhiêu giây / được bao nhiêu, hồi sinh còn bao nhiêu
+create or replace function public.mb_surv_status()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  d date := (now() at time zone 'Asia/Ho_Chi_Minh')::date;
+  cfg jsonb; sup boolean; adm boolean; r public.mb_surv_day;
+  lim int; rev int;
+begin
+  if uid is null then raise exception 'login required'; end if;
+  select value into cfg from public.mb_config where key = 'survival';
+  cfg := coalesce(cfg, '{}'::jsonb);
+  sup := exists (select 1 from public.mb_supporters s where s.user_id = uid);
+  adm := public.mb_is_admin();
+  lim := case when sup then coalesce((cfg->>'supMin')::int, 120) else coalesce((cfg->>'freeMin')::int, 45) end * 60;
+  rev := case when sup then coalesce((cfg->>'supRev')::int, 2) else coalesce((cfg->>'freeRev')::int, 0) end;
+  if coalesce((cfg->>'enabled')::boolean, true) = false or adm then lim := 86400; rev := greatest(rev, 99); end if;
+  select * into r from public.mb_surv_day where user_id = uid and day = d;
+  return jsonb_build_object('day', d, 'used', coalesce(r.seconds, 0), 'limit', lim, 'revives', coalesce(r.revives, 0), 'revLimit', rev, 'supporter', sup);
+end;
+$$;
+
+-- cộng thời gian đang đánh (tối đa 90 giây mỗi lần gửi để chống gian lận)
+create or replace function public.mb_surv_tick(p_sec int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); d date := (now() at time zone 'Asia/Ho_Chi_Minh')::date;
+begin
+  if uid is null then raise exception 'login required'; end if;
+  insert into public.mb_surv_day (user_id, day, seconds) values (uid, d, greatest(0, least(coalesce(p_sec, 0), 90)))
+  on conflict (user_id, day) do update set seconds = public.mb_surv_day.seconds + greatest(0, least(coalesce(p_sec, 0), 90)), updated_at = now();
+  return public.mb_surv_status();
+end;
+$$;
+
+-- dùng 1 lượt hồi sinh tại chỗ (trả về trạng thái mới; ok=false nếu hết lượt)
+create or replace function public.mb_surv_revive()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); d date := (now() at time zone 'Asia/Ho_Chi_Minh')::date; st jsonb;
+begin
+  if uid is null then raise exception 'login required'; end if;
+  st := public.mb_surv_status();
+  if (st->>'revives')::int >= (st->>'revLimit')::int then return st || '{"ok": false}'::jsonb; end if;
+  insert into public.mb_surv_day (user_id, day, revives) values (uid, d, 1)
+  on conflict (user_id, day) do update set revives = public.mb_surv_day.revives + 1, updated_at = now();
+  return public.mb_surv_status() || '{"ok": true}'::jsonb;
+end;
+$$;
+grant execute on function public.mb_surv_status() to authenticated;
+grant execute on function public.mb_surv_tick(int) to authenticated;
+grant execute on function public.mb_surv_revive() to authenticated;
