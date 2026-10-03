@@ -64,6 +64,7 @@
         if (U.dist(ix, iy, w.x, w.y) < e.r * 0.65 + 10) {
           k *= 2;
           if (e.weakTxtT <= 0) { e.weakTxtT = 0.35; G.text(w.x, w.y - 16, 'ĐIỂM YẾU ×2', '#ff7a3c', 14); }
+          MB.Audio.play('weakhit');
         }
       }
       if (e.stagT > 0) k *= 1.5;
@@ -79,7 +80,7 @@
       e.stag = 0; e.stagMax *= 1.2; e.stagT = 4; e.stunT = Math.max(e.stunT || 0, 4);
       G.hitstop = Math.max(G.hitstop, 0.12); G.shake(12); MB.haptic([30, 20, 50]);
       G.banner('BOSS GỤC CHOÁNG!', 'Dồn hoả lực · +50% sát thương trong 4 giây', 1.8);
-      MB.Audio.play('boss');
+      MB.Audio.play('stagger');
       G.burst(e.x, e.y, '#ffd56a', 30, 260);
     },
     tip(e) {
@@ -110,9 +111,9 @@
       const T = TYPES[p.superType];
       G.banner('SIÊU CHIÊU', T.name.toUpperCase(), 1.2);
       MB.haptic([40, 30, 60]); G.shake(8);
-      if (p.superType === 'orbital') { G.sup = { type: 'orbital', t: 0, dur: 2.6, n: 0, next: 0 }; MB.Audio.play('wave'); }
-      else if (p.superType === 'laser') { G.sup = { type: 'laser', t: 0, dur: 3, tick: 0 }; MB.Audio.play('nova'); p.iframes = Math.max(p.iframes, 0.6); }
-      else { G.sup = { type: 'drone', t: 0, dur: 10, cd: 0.3, a: 0, x: p.x, y: p.y }; MB.Audio.play('mod'); }
+      if (p.superType === 'orbital') { G.sup = { type: 'orbital', t: 0, dur: 2.6, n: 0, next: 0 }; MB.Audio.play('super_orbital'); }
+      else if (p.superType === 'laser') { G.sup = { type: 'laser', t: 0, dur: 3, tick: 0 }; MB.Audio.play('super_laser'); p.iframes = Math.max(p.iframes, 0.6); }
+      else { G.sup = { type: 'drone', t: 0, dur: 10, cd: 0.3, a: 0, x: p.x, y: p.y }; MB.Audio.play('drone'); }
     },
 
     update(G, dt) {
@@ -123,6 +124,12 @@
       for (let i = G.sfx.length - 1; i >= 0; i--) { const f = G.sfx[i]; f.t += dt; if (f.t >= f.life) G.sfx.splice(i, 1); }
       const boss = G.boss && !G.boss.dead ? G.boss : null;
       if (boss) Boss.update(G, boss, dt);
+      // tiếng gầm gừ của quái ở gần (không khí rùng rợn)
+      G.growlT = (G.growlT == null ? 3 : G.growlT) - dt;
+      if (G.growlT <= 0 && !G.over) {
+        G.growlT = 3 + Math.random() * 4;
+        if (G.enemies.some((e) => !e.dead && !e.boss && !e.hidden && U.dist(e.x, e.y, p.x, p.y) < 520)) MB.Audio.play('growl');
+      }
       if (boss && G.state === 'boss' && !G.over) { G.heavyT -= dt; if (G.heavyT <= 0) { G.heavyT = 22; this.dropHeavy(G); } }
       if (G.superOfferT > 0 && !G.over && !p.dead) { G.superOfferT -= dt; if (G.superOfferT <= 0) { MB.App.offerSuper(); return; } }
       const s = G.sup; if (!s) return;

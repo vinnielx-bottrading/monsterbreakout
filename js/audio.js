@@ -1,4 +1,6 @@
-/* Monster Breakout — âm thanh tổng hợp bằng WebAudio (không cần file mp3) */
+/* Monster Breakout — âm thanh (v6.5)
+   - Hiệu ứng & nhạc nền dạng file (assets/audio): tự dựng từ mẫu âm CC0 (Sonic Pi / freesound, Kenney) + tổng hợp offline.
+   - Chưa tải xong file (hoặc lỗi mạng) thì dùng âm tổng hợp WebAudio bên dưới làm dự phòng. */
 'use strict';
 (function (MB) {
   const A = MB.Audio = {
@@ -6,6 +8,59 @@
     on: { sfx: true, music: true }, muted: false, wantMenu: false, menu: null,
     last: {},
     music: null,
+    buf: {}, mbuf: {}, voices: {}, lastVar: {}, loading: false,
+    // số biến thể của mỗi hiệu ứng (tên_1.mp3, tên_2.mp3 …)
+    SAMPLES: { boom: 3, boss: 1, break: 2, challenge: 1, dash: 2, drone: 1, empty: 1, growl: 4, heal: 1, hit: 4, hurt: 2, kill: 3, lash: 1, lose: 1, mod: 1, nova: 1, pickup: 1,
+      reload: 1, reload_done: 1, roar: 2, shot_beam: 1, shot_bolt: 1, shot_cryo: 2, shot_disc: 1, shot_flame: 2, shot_gl: 1, shot_missile: 1, shot_plasma: 2, shot_rifle: 3,
+      shot_shotgun: 2, shot_smg: 3, shot_sniper: 2, slam: 1, spit: 1, stagger: 1, super_laser: 1, super_orbital: 1, swap: 1, throw: 1, ui: 1, wave: 1, weakhit: 1, weapon: 1, win: 1 },
+    // âm lượng từng hiệu ứng (cân bằng với nhau)
+    VOL: { hit: 0.32, kill: 0.5, shot_rifle: 0.5, shot_smg: 0.42, shot_shotgun: 0.62, shot_sniper: 0.62, shot_flame: 0.36, shot_gl: 0.55, shot_plasma: 0.45, shot_beam: 0.32,
+      shot_cryo: 0.34, shot_bolt: 0.55, shot_missile: 0.5, shot_disc: 0.45, boom: 0.75, growl: 0.32, roar: 0.75, boss: 0.85, ui: 0.35, pickup: 0.5, empty: 0.4, reload: 0.5,
+      reload_done: 0.5, swap: 0.45, dash: 0.45, hurt: 0.6, stagger: 0.8, weakhit: 0.38, wave: 0.7, win: 0.75, lose: 0.75, super_orbital: 0.8, super_laser: 0.8 },
+    MAXV: { hit: 4, shot_rifle: 5, shot_smg: 5, shot_flame: 3, shot_cryo: 3, shot_beam: 2, kill: 4, boom: 4, growl: 2 },
+    LOOPS: { battle: [0.1, 48.1], boss: [0.1, 41.2428], menu: [0.1, 48.1] },
+    MUSVOL: 0.42,
+    decode(ab) {
+      return new Promise((res, rej) => { const p = this.ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+    },
+    async fetchBuf(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return this.decode(await r.arrayBuffer()); },
+    // tải hiệu ứng (song song tối đa 6 file một lúc)
+    loadSamples() {
+      if (this.loading || !this.ctx) return;
+      this.loading = true;
+      const jobs = [];
+      for (const k in this.SAMPLES) for (let i = 1; i <= this.SAMPLES[k]; i++) jobs.push([k, this.SAMPLES[k] > 1 ? `${k}_${i}` : k]);
+      let idx = 0;
+      const next = () => {
+        if (idx >= jobs.length) return;
+        const [k, f] = jobs[idx++];
+        this.fetchBuf(`assets/audio/sfx/${f}.mp3`).then((b) => { (this.buf[k] = this.buf[k] || []).push(b); }).catch(() => {}).then(next);
+      };
+      for (let i = 0; i < 6; i++) next();
+      this.loadMusic('menu');
+    },
+    loadMusic(name) {
+      if (this.mbuf[name] || !this.ctx) return Promise.resolve(this.mbuf[name]);
+      this.mbuf[name] = this.fetchBuf(`assets/audio/music/${name}.mp3`).then((b) => { this.mbuf[name] = b; this.onMusicReady(name); return b; }).catch(() => { this.mbuf[name] = null; });
+      return this.mbuf[name];
+    },
+    isBuf(x) { return x && typeof x.getChannelData === 'function'; },
+    loopSrc(name, gain) {
+      const c = this.ctx, b = this.mbuf[name], L = this.LOOPS[name];
+      const s = c.createBufferSource(), g = c.createGain();
+      s.buffer = b; s.loop = true; s.loopStart = L[0]; s.loopEnd = Math.min(L[1], b.duration);
+      g.gain.value = 0.0001; g.gain.setTargetAtTime(gain, c.currentTime, 0.6);
+      s.connect(g); g.connect(this.mus); s.start(c.currentTime + 0.02, L[0]);
+      return { s, g };
+    },
+    // nhạc file tải xong khi đang phát nhạc tổng hợp → chuyển sang nhạc file
+    onMusicReady(name) {
+      if (!this.ctx) return;
+      if (name === 'menu' && this.wantMenu && this.menu && !this.menu.file) { this.menuTheme(false); this.menuTheme(true); }
+      if ((name === 'battle' || name === 'boss') && this.music && !this.music.file && this.isBuf(this.mbuf.battle) && this.isBuf(this.mbuf.boss)) {
+        const k = this.music.k || 0.2; this.stopMusic(); this.startMusic(); this.intensity(k);
+      }
+    },
 
     // iPhone: âm thanh web mặc định bị tắt theo nút gạt im lặng. Khi nút loa của game đang BẬT,
     // chuyển phiên âm thanh sang "playback" (như app nghe nhạc) để vẫn có tiếng dù máy đang im lặng.
@@ -44,7 +99,7 @@
         this.ctx = new AC();
         this.out = this.ctx.createGain(); this.out.gain.value = this.muted ? 0 : 0.7; this.out.connect(this.ctx.destination);
         this.sfx = this.ctx.createGain(); this.sfx.gain.value = 0.85; this.sfx.connect(this.out);
-        this.mus = this.ctx.createGain(); this.mus.gain.value = this.on.music ? 0.5 : 0; this.mus.connect(this.out);
+        this.mus = this.ctx.createGain(); this.mus.gain.value = this.on.music ? this.MUSVOL : 0; this.mus.connect(this.out);
         const len = this.ctx.sampleRate;
         this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
         const d = this.noiseBuf.getChannelData(0);
@@ -53,6 +108,7 @@
         const src = this.ctx.createBufferSource(); src.buffer = this.ctx.createBuffer(1, 1, 22050); src.connect(this.ctx.destination); src.start(0);
         if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
         if (this.wantMenu) this.menuTheme(true);
+        this.loadSamples();
       } catch (e) { this.ctx = null; }
     },
     // nút loa: tắt / bật toàn bộ âm thanh của game
@@ -72,7 +128,7 @@
     },
     set(kind, v) {
       this.on[kind] = v;
-      if (kind === 'music' && this.mus && this.ctx) this.mus.gain.setTargetAtTime(v ? 0.5 : 0, this.ctx.currentTime, 0.2);
+      if (kind === 'music' && this.mus && this.ctx) this.mus.gain.setTargetAtTime(v ? this.MUSVOL : 0, this.ctx.currentTime, 0.2);
     },
     env(g, t, a, d, peak) {
       g.gain.setValueAtTime(0.0001, t);
@@ -102,10 +158,28 @@
     play(name) {
       if (!this.ctx || !this.on.sfx || this.ctx.state !== 'running') return;
       const now = performance.now();
-      const gap = { hit: 35, shot_smg: 45, shot_rifle: 55, kill: 45, spit: 60, break: 60 }[name] || 25;
+      const gap = { hit: 35, shot_smg: 45, shot_rifle: 55, kill: 45, spit: 60, break: 60, shot_flame: 90, shot_cryo: 110, growl: 900, weakhit: 120 }[name] || 25;
       if (this.last[name] && now - this.last[name] < gap) return;
       this.last[name] = now;
-      const fn = SFX[name];
+      const list = this.buf[name];
+      if (list && list.length) {
+        // phát mẫu âm: chọn biến thể khác lần trước, lệch cao độ nhẹ cho đỡ lặp
+        const v = this.voices[name] || 0, max = this.MAXV[name] || 3;
+        if (v >= max) return;
+        let i = Math.floor(Math.random() * list.length);
+        if (list.length > 1 && i === this.lastVar[name]) i = (i + 1) % list.length;
+        this.lastVar[name] = i;
+        const c = this.ctx, s = c.createBufferSource(), g = c.createGain();
+        s.buffer = list[i];
+        s.playbackRate.value = /^shot_|^hit|^kill|^growl|^boom/.test(name) ? 0.94 + Math.random() * 0.12 : 1;
+        g.gain.value = this.VOL[name] || 0.55;
+        s.connect(g); g.connect(this.sfx);
+        this.voices[name] = v + 1;
+        s.onended = () => { this.voices[name] = Math.max(0, (this.voices[name] || 1) - 1); };
+        s.start();
+        return;
+      }
+      const fn = SFX[name] || SFX[FALLBACK[name]];
       if (fn) { try { fn(this); } catch (e) { /* ignore */ } }
     },
 
@@ -122,6 +196,12 @@
         return;
       }
       if (!this.ctx || this.menu || this.ctx.state !== 'running') return;
+      if (this.isBuf(this.mbuf.menu)) {
+        const l = this.loopSrc('menu', 1);
+        this.menu = { g: l.g, nodes: [l.s], file: true, timer: 0 };
+        return;
+      }
+      this.loadMusic('menu');
       const c = this.ctx, g = c.createGain();
       g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(1, c.currentTime + 2.5);
       g.connect(this.mus);
@@ -177,6 +257,12 @@
       this.menuTheme(false);
       if (!this.ctx || this.music) return;
       const c = this.ctx;
+      if (this.isBuf(this.mbuf.battle) && this.isBuf(this.mbuf.boss)) {
+        const a = this.loopSrc('battle', 0.75), b = this.loopSrc('boss', 0.0001);
+        this.music = { file: true, a, b, k: 0, nodes: [a.s, b.s] };
+        return;
+      }
+      this.loadMusic('battle'); this.loadMusic('boss');
       const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 4;
       const g = c.createGain(); g.gain.value = 0.06;
       const o1 = c.createOscillator(), o2 = c.createOscillator(), o3 = c.createOscillator();
@@ -193,17 +279,28 @@
     intensity(k) {
       if (!this.music) return;
       const t = this.ctx.currentTime;
+      this.music.k = k;
+      if (this.music.file) {
+        const boss = k >= 0.95;
+        this.music.a.g.gain.setTargetAtTime(boss ? 0.0001 : 0.55 + 0.45 * Math.min(1, k), t, 1.0);
+        this.music.b.g.gain.setTargetAtTime(boss ? 1 : 0.0001, t, 1.0);
+        return;
+      }
       this.music.f.frequency.setTargetAtTime(260 + k * 500, t, 0.8);
       this.music.g.gain.setTargetAtTime(0.06 + k * 0.05, t, 0.8);
     },
     stopMusic() {
       if (!this.music) return;
       const m = this.music; this.music = null;
-      m.g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.3);
+      if (m.file) { m.a.g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.3); m.b.g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.3); }
+      else m.g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.3);
       setTimeout(() => m.nodes.forEach((o) => { try { o.stop(); } catch (e) { /* ignore */ } }), 1200);
     },
   };
 
+  // âm dự phòng cho hiệu ứng mới khi chưa tải file
+  const FALLBACK = { shot_beam: 'shot_plasma', shot_cryo: 'shot_flame', shot_bolt: 'shot_sniper', shot_missile: 'shot_gl', shot_disc: 'shot_rifle', growl: 'roar',
+    stagger: 'slam', weakhit: 'hit', super_orbital: 'boom', super_laser: 'nova', drone: 'mod' };
   const arp = (a, notes, type, step, dur, vol) => notes.forEach((f, i) => a.tone(type, f, f, dur, vol, i * step));
   const SFX = {
     shot_rifle: (a) => { a.noise(0.07, 0.32, 'highpass', 1800, 600); a.tone('square', 180, 60, 0.07, 0.14); },
