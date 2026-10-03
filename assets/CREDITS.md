@@ -8,6 +8,8 @@ Phần còn lại (tiếng súng, nổ, quái gầm, nhạc dàn dây/kèn/trố
 
 ## Mô hình 3D — `assets/models/`
 - `hunter.glb` — từ `Soldier.glb` trong three.js examples (mô hình & hoạt ảnh gốc của **Mixamo / Adobe**), đã tô lại màu, giảm texture, lược kênh hoạt ảnh.
+- `hunter_swat.glb` (v8.4) — nhân vật **Swat Guy** + hoạt ảnh Rifle Idle / Walk / Run / Firing Rifle / Hit Reaction / Dying từ **Mixamo (Adobe)**, chuyển sang glTF, giảm texture.
+- `zombie_real.glb` (v8.4.1) — nhân vật xác sống + hoạt ảnh Zombie Idle / Walk / Running / Attack / Dying từ **Mixamo (Adobe)**, chuyển sang glTF, giảm texture.
 - `zombie.glb` — từ `Xbot.glb` trong three.js examples (gốc **Mixamo / Adobe**), đã giảm lưới ~78%, chỉ giữ idle / walk / run.
 Điều khoản Mixamo cho phép dùng nhân vật & hoạt ảnh trong dự án (kể cả thương mại), không được phân phối lại dạng tài nguyên rời để người khác tải về dùng.
 
