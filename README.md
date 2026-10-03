@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.4** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v6.5** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-02 (rev 22) |
+| README cập nhật | 2026-10-02 (rev 23) |
 
 ---
 
@@ -79,6 +79,11 @@ version.json             Số phiên bản; app so với server để tự cập
 vercel.json              Cấu hình header cho Vercel
 css/style.css            Giao diện, bố cục responsive cho điện thoại
 assets/icons/            Icon app (svg, 192, 512)
+assets/audio/sfx/        v6.5: 67 file hiệu ứng mp3 (44 loại, nhiều biến thể) — xem assets/CREDITS.md
+assets/audio/music/      v6.5: nhạc nền lặp liền mạch: menu.mp3 (48 s), battle.mp3 (48 s), boss.mp3 (41 s)
+assets/models/           v6.5: hunter.glb (440 KB), zombie.glb (310 KB) — mô hình có khung xương + hoạt ảnh
+assets/CREDITS.md        Nguồn & giấy phép âm thanh / mô hình
+js/vendor/three-addons.min.js  GLTFLoader + SkeletonUtils (three r170)
 assets/hunter/           Ảnh nhân vật Hunter: body.webp (key art menu), portrait.webp (chân dung thoại), dossier.webp (hồ sơ)
 js/core.js               Tiện ích, va chạm (tròn / hộp xoay), lưu game, registry
 js/props.js              Vẽ vật cản, vùng nguy hiểm dùng chung (virus, bùn, axit, khí độc, dung nham, lửa, băng, nước, dầu) và bộ công cụ vẽ nền MB.GK
@@ -116,6 +121,12 @@ js/gates/gate12-hoian.js      Màn 2 · Hội An – phố đèn lồng ban đê
 **Vì sao tách file:** phần engine dùng chung (khoảng 130 KB) được tải một lần. Mỗi Gate là một file riêng 15–30 KB, chỉ tải khi người chơi chọn Gate đó (Gate 10 tải thêm các Gate trước để dùng lại quái). Bộ vẽ 3D và Three.js chỉ tải khi chơi 3D.
 
 ## 3b. Chế độ 3D
+
+**v6.5 — mô hình 3D thật (có khung xương & hoạt ảnh).** Khi bật 3D, `render3d.js` tải thêm `three-addons.min.js` + `hunter.glb` + `zombie.glb` (~800 KB, chỉ tải 1 lần). Trong lúc tải dùng mô hình dựng sẵn; tải xong tự đổi (`onSkinnedReady`).
+- **Hunter:** lính đặc nhiệm Mixamo, tô lại tông đen than / ô liu, hoạt ảnh idle / walk / run hoà trộn theo tốc độ; cả người quay theo hướng ngắm, chạy lùi thì phát hoạt ảnh ngược. Tay được "bẻ" sang tư thế ôm súng mỗi khung hình (`aimBone`, `POSE_RIFLE`), súng là mô hình dựng sẵn đặt trước ngực; giữ phù hiệu cánh-kiếm phát sáng và vòng cyan dưới chân.
+- **Xác sống thường (`zombie`):** hình nhân Xbot giảm lưới, màu da thối ngẫu nhiên, khớp đỏ sẫm, mắt phát sáng, tay giơ ra trước kiểu xác sống, đầu lắc lư, đi theo tốc độ thật. Tối đa 12 con (điện thoại) / 40 con (máy tính) dùng mô hình thật cùng lúc, còn lại dùng mô hình dựng sẵn; chọn *Chất lượng: Thấp* thì tắt hẳn để nhẹ máy. Các biến thể xác sống riêng của từng Gate, nhện, licker, boss vẫn là mô hình dựng sẵn.
+- Muốn Hunter giống ảnh concept hơn: tạo GLB từ ảnh (Meshy/Tripo…), gắn khung xương Mixamo, xuất GLB có idle/walk/run rồi thay `assets/models/hunter.glb` (giữ tên xương `mixamorig*`).
+
 
 Chọn ở màn hình **Chọn cửa ải** (nút **2D / 3D**) hoặc trong **Cài đặt → Góc nhìn**. Mặc định là 3D. Cả 10 Gate đều có bản 3D.
 
@@ -175,6 +186,12 @@ Toà nhà, tán cây che nhân vật sẽ tự mờ đi. Kênh nước, dung nha
 - **2D hay 3D đều chơi được trên điện thoại.** Chọn ở màn hình chọn Gate, hoặc đổi ngay giữa trận trong menu Tạm dừng (nút *ĐỔI SANG 2D / 3D*). Máy yếu nên chơi 2D.
 
 ## 4b. Âm thanh
+
+**v6.5 — âm thanh dạng file.** `js/audio.js` tải 67 file hiệu ứng (`assets/audio/sfx/<tên>[_n].mp3`, 64 kbps mono, tổng ~710 KB) ngay sau lần chạm đầu tiên, 6 file song song; mỗi lần phát chọn biến thể khác lần trước và lệch cao độ ±6% (súng, trúng đạn, nổ, gầm) để đỡ lặp, giới hạn số tiếng cùng lúc mỗi loại (`MAXV`), âm lượng cân bằng trong `VOL`. Chưa tải xong / lỗi mạng → dùng âm tổng hợp cũ (`SFX`, `FALLBACK`).
+Nhạc nền (`assets/audio/music/*.mp3`, 80 kbps stereo, tổng ~1,4 MB): **menu** (hồi hộp, tim đập, dây trầm, 70 BPM), **battle** (taiko + dây staccato giọng Rê thứ, 120 BPM), **boss** (140 BPM, kèn đồng, đàn bass méo, choir). File có 0,1 s đệm 2 đầu; phát bằng `loopStart`/`loopEnd` (`LOOPS`) nên lặp liền mạch dù bộ mã hoá MP3 chèn khoảng lặng. Trong trận: battle và boss chạy song song, `intensity(k)` chuyển dần sang nhạc boss khi k ≥ 0,95. Nhạc chỉ tải khi cần (menu ngay sau chạm, trận khi vào Gate) và được service worker cache lại.
+Hiệu ứng mới: `shot_beam/cryo/bolt/missile/disc`, `super_orbital/laser`, `drone`, `stagger`, `weakhit`, `growl` (quái gầm gừ ngẫu nhiên 3–7 giây/lần khi có quái trong 520 đơn vị).
+Nguồn: mẫu âm CC0 (Sonic Pi/freesound, Kenney) + tổng hợp offline — chi tiết ở `assets/CREDITS.md`.
+
 
 - Toàn bộ âm thanh tổng hợp bằng WebAudio (không có file mp3).
 - **Nhạc chủ đề ở menu (v5.5):** phát ngay từ màn hình đầu (sau lần chạm/nhấp đầu tiên — trình duyệt không cho tự phát trước đó). Không khí hồi hộp, nguy hiểm: tiếng tim đập "thình… thịch", nền trầm rung rợn người, đoạn lặp giọng Rê thứ dồn dập dần, hợp âm nghịch tai mỗi 8 ô nhịp, tiếng rít kim loại thỉnh thoảng. Phát ở các màn menu, chọn Gate, cửa hàng, bảng xếp hạng, tài khoản, kết quả; vào trận thì chuyển sang nhạc trận (mạnh dần khi đánh boss).
@@ -548,6 +565,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v6.5** · README rev 23 | Âm thanh mới dạng file (67 hiệu ứng, 3 bản nhạc lặp: menu / trận / boss) dựng từ mẫu CC0 + tổng hợp offline; mô hình 3D thật có khung xương cho Hunter và xác sống thường (Mixamo qua three.js examples); tiếng quái gầm gừ; âm riêng cho 5 súng mới, siêu chiêu, gục choáng, điểm yếu |
 | 2026-10-02 | **v6.4** · README rev 22 | Trận boss mới: điểm yếu ×2, gục choáng (+50%), khắc hệ ×1,5, tiếp tế đạn hạng nặng; thanh nộ + 3 siêu chiêu chọn khi boss xuất hiện; 5 súng mới (Cryo, Bolt X, Hornet, Lumen Beam, Ripper) nhận khi hạ boss Gate 3/5/7/9/11 hoặc mua bằng xu; sát thương nổ nhân theo linh kiện |
 | 2026-10-02 | **v6.3** · README rev 21 | Hunter đổi ngoại hình theo ảnh concept "Operator" (2D + 3D): áo đen than, giáp nâu ô liu, ba lô, tóc nâu, súng giảm thanh + ống ngắm; phù hiệu cánh-kiếm phát sáng làm điểm nhận diện. Key art ở menu, khẩu hiệu + phù hiệu, màn Hồ sơ Hunter, chân dung trong thoại/bộ đàm |
 | 2026-10-02 | **v6.2.2** · README rev 20 | Hunter quay đầu nhanh khi đổi hướng / quái sau lưng (~0,15 giây thay vì ~0,5 giây); ngắm Tự động ưu tiên quái đang áp sát thay vì giữ khoá quái ở xa |
