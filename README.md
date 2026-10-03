@@ -4,7 +4,7 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v8.0.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v8.0.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
@@ -73,12 +73,12 @@ Khách chơi được Gate 1–7 (tiến trình lưu trên máy); **từ Gate 8 
 
 **Hiện tại (thu phí TẮT):** khách chơi Gate 1–7; từ Gate 8 phải đăng nhập Google (miễn phí) rồi chơi hết, không giới hạn. Nút **☕ ỦNG HỘ GAME** ở menu, menu Tạm dừng (trong trận), màn kết quả và mục Tài khoản → hiện mã VietQR ngân hàng của chủ game (chọn nhanh 20k / 50k / 100k / 200k hoặc tuỳ ý, nút sao chép số tài khoản / nội dung).
 
-**Trang quản trị `admin.html`** (v7.2: giao diện sáng, menu chức năng bên trái, nội dung bên phải; trên điện thoại menu thu vào nút ☰). Đăng nhập Google bằng tài khoản có trong `mb_admins`; người chơi là admin thấy nút ⚙ QUẢN TRỊ trong Tài khoản. Nhóm **THEO DÕI**:
+**Trang quản trị `cancuhunterx.html`** (v7.2: giao diện sáng, menu chức năng bên trái, nội dung bên phải; trên điện thoại menu thu vào nút ☰). Đăng nhập Google bằng tài khoản có trong `mb_admins`; người chơi là admin thấy nút ⚙ QUẢN TRỊ trong Tài khoản. Nhóm **THEO DÕI**:
 - **Tổng quan:** số người đăng ký (+ mới 7 ngày), hoạt động 7 ngày, số trận, tỉ lệ thắng, tổng giờ chơi, trạng thái thu phí; biểu đồ số trận / người đăng ký mới 14 ngày; người chơi giỏi nhất; cửa ải khó nhất.
 - **Người chơi:** danh sách mọi tài khoản đã đăng ký (tên, email, ngày đăng ký, chơi gần nhất, cửa cao nhất, số cửa đã qua, số trận, thời gian chơi, năng lực) — tìm kiếm, lọc theo hạng, sắp xếp từng cột, tải CSV. Bấm 1 người → hồ sơ: chỉ số tổng, **đánh giá năng lực** (điểm từng tiêu chí), biểu đồ thời gian 20 trận gần nhất, **tiến độ từng cửa** (lượt, thắng, thời gian qua nhanh nhất / trung bình, nhanh hay chậm hơn trung vị mọi người, chính xác, sao), 40 trận gần nhất.
 - **Thống kê cửa ải:** tỉ lệ thắng theo cửa, phễu tiến độ (số người đã qua mỗi cửa), bảng chi tiết (người đã qua, lượt chơi, tỉ lệ thắng, thời gian qua nhanh nhất / trung vị, chính xác TB, trúng đòn/phút) — dùng để cân bằng độ khó.
 - **Đánh giá năng lực (0–100):** 25% tỉ lệ thắng + 25% tốc độ (thời gian qua cửa so với trung vị mọi người) + 20% độ chính xác + 15% né đòn (số lần trúng đòn mỗi phút) + 15% tiến độ. Hạng: Tân binh < 35 ≤ Chiến binh < 55 ≤ Tinh nhuệ < 75 ≤ Bậc thầy < 90 ≤ Huyền thoại. Cần ≥ 3 trận chiến dịch.
-- **Dữ liệu:** từ v7.2 mỗi trận của người đã đăng nhập ghi vào bảng `mb_plays` (hàm `mb_log_play`, tối đa 1 trận / 5 giây). Danh sách tài khoản lấy qua `mb_admin_players()` (chỉ admin). Trận chơi trước v7.2 không có nhật ký — chỉ có tiến độ trong bản lưu. Thử giao diện trên máy với dữ liệu giả: `admin.html?demo=1` (localhost).
+- **Dữ liệu:** từ v7.2 mỗi trận của người đã đăng nhập ghi vào bảng `mb_plays` (hàm `mb_log_play`, tối đa 1 trận / 5 giây). Danh sách tài khoản lấy qua `mb_admin_players()` (chỉ admin). Trận chơi trước v7.2 không có nhật ký — chỉ có tiến độ trong bản lưu. Thử giao diện trên máy với dữ liệu giả: `cancuhunterx.html?demo=1` (localhost).
 
 Nhóm **NỘI DUNG** (v7.3):
 - **Mở cửa ải (kiểm soát theo từng Màn):** mỗi Màn có công tắc *kiểm soát*. **Không bật** (mặc định) → người chơi chơi liên tục như bình thường, hết cửa này qua cửa khác, kể cả cửa mới phát hành sau này. **Bật** → chỉ các cửa được chọn mới mở; cửa còn lại hiện **🔒 Sắp mở · đang hoàn thiện** (không bấm được; nút Gate tiếp theo / Bất tận cũng bị chặn); cửa mới phát hành sau này của Màn đó mặc định đóng. Lưu ở key `gates` trong `mb_config`: `{ acts: { "2": [11, 12, 13] } }` — Màn không có trong `acts` = mở tự do. Màn mới thêm vào `MB.Gates.acts` / `meta` tự hiện ở đây.
@@ -121,7 +121,7 @@ Mua màn tiếp theo tính thời hạn mới từ lúc mua. Giá do **máy ch�
 **Cài đặt (làm 1 lần, theo thứ tự):**
 1. SQL Editor → chạy lại toàn bộ `supabase/schema.sql`.
 2. Tự đặt mình làm admin: `insert into public.mb_admins (user_id) select id from auth.users where email = 'email-cua-ban@gmail.com';` (đăng nhập game bằng email đó ít nhất 1 lần trước).
-3. Mở `https://<tên-miền>/admin.html` → nhập thông tin ngân hàng nhận donate → LƯU.
+3. Mở `https://<tên-miền>/cancuhunterx.html` → nhập thông tin ngân hàng nhận donate → LƯU.
 4. (Khi muốn thu phí tự động) Đăng ký SePay, liên kết tài khoản ngân hàng → triển khai `supabase functions deploy mb-sepay --no-verify-jwt` → *Edge Functions → Secrets*: `SEPAY_API_KEY` = khoá tự đặt → trong SePay tạo webhook tới `https://oapfplwvvspkvklldtpf.supabase.co/functions/v1/mb-sepay`, chứng thực "API Key" với cùng khoá → bật công tắc thu phí trong admin.
 
 **Dữ liệu:** `mb_config` (paywall / donate / plans — ai cũng đọc, chỉ admin sửa) · `mb_admins` · `mb_orders` (chủ đơn + admin xem, chỉ tạo qua `mb_create_order`) · `mb_entitlements` (thêm `gates`, `perks`; chỉ admin / máy chủ ghi) · trigger `mb_guard_score` chỉ chặn điểm Gate 11+ khi đang bật thu phí và gói không có quyền bảng xếp hạng.
@@ -657,6 +657,8 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v8.0.3** | Đổi địa chỉ trang quản trị: `admin.html` → **`cancuhunterx.html`** (mở bằng `/cancuhunterx`), `js/admin.js` → `js/cchx.js`, `css/admin.css` → `css/cchx.css`. `/admin` giờ là trang không tồn tại. Cần xoá 3 file cũ trên GitHub và thêm `https://<tên-miền>/cancuhunterx` vào Supabase → Authentication → URL Configuration → Redirect URLs |
+| 2026-10-03 | **v8.0.2** | Trang admin: tài khoản không phải quản trị **không thấy menu/giao diện quản trị** — chỉ hiện "Không tìm thấy trang" rồi tự về game; bỏ câu lệnh SQL cấp quyền khỏi trang (vẫn có ở mục cài đặt README). Dữ liệu vẫn được bảo vệ phía máy chủ (RLS + `mb_is_admin()` trong mọi hàm quản trị) |
 | 2026-10-03 | **v8.0.1** | Đăng nhập Google luôn hiện **bảng chọn tài khoản** (`prompt: select_account`) — đăng xuất rồi đăng nhập lại không còn tự vào tài khoản cũ (game + trang admin) |
 | 2026-10-03 | **v8.0** · README rev 39 | **Hoàn tất Màn 2**: **Gate 20 Thất Sơn** (rừng tràm Trà Sư, đồng thốt nốt, cáp treo núi Cấm, mưa điểm ảnh, boss GoatEvil · Hiện Thân) và **Gate 21 Căn cứ Alpha** (cửa laser an ninh, boss GS. Ted · Giáp Alpha), 2D + 3D; 4 quái mới; manh mối 10/10; **cảnh kết thúc Màn 2** (Hội đồng Mười Hai, kết thúc thật khi đủ 10 manh mối) + nút xem lại; chế độ **Chu kỳ+** (quái mạnh hơn, xu ×1,5, kỷ lục riêng); teaser Màn 3 mới. Khắc hệ: GoatEvil — điện, Ted — điện |
 | 2026-10-03 | **v7.7** · README rev 38 | **Gate 18 Sài Gòn** (đêm neon, giờ cao điểm xe máy trên Lê Lợi, boss Vật Thể V-0, Dian đánh cùng — lộ chuyện Dian giấu việc Ted còn sống) và **Gate 19 Miền Tây** (sông Hậu, chợ nổi Cái Răng, cầu khỉ, nước lớn, boss Thuỷ Quái Cửu Long, đánh một mình — cô Hạnh qua bộ đàm), 2D + 3D; 4 quái mới; manh mối 8–9/10. Khắc hệ: V-0 — lửa, Thuỷ Quái — điện. Bộ đàm hiện chữ cái đầu tên người nói |
@@ -667,7 +669,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | 2026-10-03 | **v7.3.1** · README rev 34 | Mở cửa ải đổi sang **kiểm soát theo từng Màn**: Màn không bật kiểm soát = chơi liên tục như bình thường; Màn bật = chỉ mở các cửa được chọn |
 | 2026-10-03 | **v7.3** · README rev 33 | Admin **chọn cửa mở cho người chơi** theo từng Màn (cửa đóng hiện "Sắp mở"); tài khoản admin chơi được mọi cửa để thử |
 | 2026-10-03 | **v7.2** · README rev 32 | Trang quản trị thiết kế lại (giao diện sáng, menu trái); **theo dõi người chơi** (danh sách, hồ sơ, tiến độ & thời gian qua từng cửa), **thống kê cửa ải**, **đánh giá năng lực cá nhân**, xuất CSV; nhật ký trận `mb_plays` |
-| 2026-10-03 | **v7.1** · README rev 31 | Thu phí **bật/tắt từ trang quản trị** (mặc định TẮT: đăng nhập là chơi hết); nút **☕ Ủng hộ** (menu, tạm dừng, kết quả, tài khoản) hiện VietQR ngân hàng; **admin.html** (công tắc thu phí, thông tin ngân hàng, bảng giá, đơn hàng, cấp quyền); 4 gói mới (15 ngày 29k, 30 ngày 49k + màn sau 25k, 1 năm 525k + Chu kỳ+, ủng hộ 5k mở 1 cửa 15 ngày); đơn hàng + webhook SePay `supabase/functions/mb-sepay` |
+| 2026-10-03 | **v7.1** · README rev 31 | Thu phí **bật/tắt từ trang quản trị** (mặc định TẮT: đăng nhập là chơi hết); nút **☕ Ủng hộ** (menu, tạm dừng, kết quả, tài khoản) hiện VietQR ngân hàng; **cancuhunterx.html** (công tắc thu phí, thông tin ngân hàng, bảng giá, đơn hàng, cấp quyền); 4 gói mới (15 ngày 29k, 30 ngày 49k + màn sau 25k, 1 năm 525k + Chu kỳ+, ủng hộ 5k mở 1 cửa 15 ngày); đơn hàng + webhook SePay `supabase/functions/mb-sepay` |
 | 2026-10-03 | **v7.0** · README rev 30 | **Mở khoá theo tài khoản:** khách chơi Gate 1–7, Gate 8+ bắt buộc đăng nhập; Gate 11+ (Màn 2) cần gói. `js/access.js` (3 gói: 49k Màn 2, 99k Hunter Pass, 29k/30 ngày), màn chặn đăng nhập / mua gói, gói đang dùng trong Tài khoản, bảng `mb_entitlements` + trigger chặn điểm; khung thanh toán chờ chọn cổng; `?unlock=all` chỉ chạy trên localhost |
 | 2026-10-03 | **v6.9** · README rev 29 | **Gate 14 Sa Pa · Fansipan** và **Gate 15 Huế** (2D + 3D), mỗi Gate 2 quái mới + 1 boss mới; **hệ thống đồng đội** (`js/ally.js`) với **Dian**; sương mù có ống ngắm nhiệt; sấm sét Huế; thẻ cửa ải nhãn + DIAN; khắc hệ cho boss mới (Thuỷ Long: điện, Dê Chúa: lửa, Nghê Đá: nổ); manh mối 4–5/10 |
 | 2026-10-03 | **v6.8** · README rev 28 | **Gate 13 Hạ Long** (2D + 3D): bản đồ biển–cầu ván–làng chài nổi–đảo đá vôi–bãi cát–hang Sửng Sốt; quái Sứa Điện, Cua Đột Biến; boss Thuỷ Long Vịnh Hạ; manh mối 3/10. Hồ sơ Hunter thêm tên thật Nguyễn Hào Tình |

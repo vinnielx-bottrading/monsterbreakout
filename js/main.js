@@ -486,7 +486,7 @@
       b('btnSync', () => { MB.Audio.play('ui'); C.sync(); MB.Access.refresh().then(() => this.renderAccount()); });
       b('btnPlans', () => { MB.Audio.play('ui'); this.openWall('pay', MB.Access.PAID_FROM, 'account'); });
       b('btnDonate2', () => { MB.Audio.play('ui'); this.openDonate('account'); });
-      b('btnAdmin', () => { location.href = 'admin.html'; });
+      b('btnAdmin', () => { location.href = 'cancuhunterx'; });
       b('btnLogout', () => { MB.Audio.play('ui'); C.signOut(); });
       if (!keep) this.show('account');
     },

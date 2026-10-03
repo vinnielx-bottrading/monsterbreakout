@@ -1,6 +1,6 @@
 /* Monster Breakout — quyền chơi, gói trả phí, donate (v7.1)
    - Khách (chưa đăng nhập): chơi Gate 1–7. Từ Gate 8 phải đăng nhập Google (miễn phí).
-   - THU PHÍ: bật/tắt bằng trang quản trị (admin.html → bảng mb_config, key 'paywall'). Đang TẮT: đăng nhập là chơi hết.
+   - THU PHÍ: bật/tắt bằng trang quản trị (cancuhunterx.html → bảng mb_config, key 'paywall'). Đang TẮT: đăng nhập là chơi hết.
      Khi BẬT: từ Gate 11 (Màn 2) cần gói — 15 ngày / 30 ngày theo màn, 1 năm mọi màn (+ Chu kỳ+), hoặc ủng hộ 5.000đ mở 1 cửa 15 ngày.
    - Bảng giá, thông tin ngân hàng nhận donate cũng chỉnh ở trang quản trị (key 'plans', 'donate').
    - Thanh toán: mã VietQR có sẵn số tiền + mã đơn → SePay báo biến động số dư → Edge Function mb-sepay → mở khoá.

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Quản trị · Monster Breakout</title>
+<link rel="icon" href="assets/icons/favicon-32.png">
+<link rel="stylesheet" href="css/cchx.css">
+</head>
+<body class="locked">
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="brand"><img src="assets/icons/icon-192.png" alt=""><div><b>Monster Breakout</b><span>Trang quản trị</span></div></div>
+    <nav id="nav">
+      <div class="navgroup">THEO DÕI</div>
+      <button data-p="overview"><i>◧</i>Tổng quan</button>
+      <button data-p="players"><i>☺</i>Người chơi</button>
+      <button data-p="gates"><i>▦</i>Thống kê cửa ải</button>
+      <div class="navgroup">NỘI DUNG</div>
+      <button data-p="content"><i>⚑</i>Mở cửa ải</button>
+      <div class="navgroup">KINH DOANH</div>
+      <button data-p="paywall"><i>⏻</i>Đăng nhập & thu phí</button>
+      <button data-p="support"><i>☕</i>Người tiếp tế</button>
+      <button data-p="donate"><i>♥</i>Tài khoản nhận tiền</button>
+      <button data-p="plans"><i>☰</i>Bảng giá gói</button>
+      <button data-p="orders"><i>⎙</i>Đơn hàng</button>
+      <button data-p="grant"><i>✚</i>Cấp quyền thủ công</button>
+    </nav>
+    <div class="sidefoot"><span id="who"></span><a href="./">← Về game</a></div>
+  </aside>
+  <main class="main">
+    <header class="top"><button id="menuBtn" class="ghost menu-btn" aria-label="Mở menu">☰</button><h1 id="title">Đang tải…</h1><span id="sub" class="muted"></span><button id="reload" class="ghost">↻ Tải lại dữ liệu</button></header>
+    <div id="page" class="page"></div>
+  </main>
+</div>
+<div id="tip" class="tip" hidden></div>
+<script>window.MB = { Gates: {} };</script>
+<script src="js/gates/index.js"></script>
+<script src="js/vendor/supabase.min.js"></script>
+<script src="js/cchx.js"></script>
+</body>
+</html>
