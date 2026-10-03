@@ -53,6 +53,7 @@
       if (sum.win) c += 120;
       if (sum.mode === 'survival') c += sum.wave * 15;
       if (sum.nightmare) c = Math.round(c * 1.3);
+      if (sum.ngp) c = Math.round(c * 1.5);
       if (sum.win && sum.bossTier && MB.Boss) c = Math.round(c * MB.Boss.TIER[sum.bossTier].coin); // hạ boss cấp khó / tinh nhuệ
       return Math.max(5, c);
     },

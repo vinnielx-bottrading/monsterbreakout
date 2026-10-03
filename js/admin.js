@@ -36,7 +36,7 @@
     if (!user) {
       $('title').textContent = 'Đăng nhập';
       $('page').innerHTML = `<div class="card center"><h2>Trang quản trị</h2><p class="muted">Đăng nhập bằng tài khoản Google quản trị.</p><button id="login" class="primary">Đăng nhập Google</button></div>`;
-      $('login').onclick = () => sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+      $('login').onclick = () => sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } } });
       return;
     }
     $('who').innerHTML = `${esc(user.email)}<a href="#" id="out">Đăng xuất</a>`;

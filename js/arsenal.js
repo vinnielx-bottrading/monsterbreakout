@@ -13,7 +13,7 @@
   const ELEM_GUNS = { fire: 'Pyro', ice: 'Cryo', shock: 'Arc Plasma / Lumen Beam', blast: 'Boomer / Bolt X / Hornet' };
   const WEAK = {
     spiderQueen: 'fire', behemoth: 'blast', toadKing: 'fire', cryoWyrm: 'fire', magmaTitan: 'ice', kraken: 'shock',
-    assembler: 'shock', abomination: 'fire', omega: 'ice', origin: 'shock', nightBlade: 'blast', lanternSerpent: 'ice', bayDragon: 'shock', goatKing: 'fire', nghe: 'blast',
+    assembler: 'shock', abomination: 'fire', omega: 'ice', origin: 'shock', nightBlade: 'blast', lanternSerpent: 'ice', bayDragon: 'shock', goatKing: 'fire', nghe: 'blast', stoneGiant: 'blast', bloomQueen: 'fire', patientZero: 'fire', mekongCat: 'shock', goatAvatar: 'shock', tedAlpha: 'shock',
   };
   // súng mới: nhận khi hạ boss ở Gate tương ứng, hoặc mua bằng xu (mở bán khi đã tới Gate trước đó 2 cửa)
   const GUNS = [
@@ -46,7 +46,7 @@
       return r > 0.75 ? 2 : r > 0.45 ? 1 : 0;
     },
     init(G, e) {
-      const tier = G.bossTier = G.starve ? 2 : this.tierNow(), T = TIER[tier];
+      const tier = G.bossTier = G.starve ? 2 : G.ngp ? Math.min(2, this.tierNow() + 1) : this.tierNow(), T = TIER[tier];
       let k = T.hp * ((G.def.id >= 5) ? 0.85 : 1);
       e.hp *= k; e.maxHp *= k;
       e.stag = 0; e.stagMax = e.maxHp * T.stag; e.stagT = 0; e.stagLock = 0; e.enrageT = 0;

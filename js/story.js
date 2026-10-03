@@ -248,7 +248,7 @@
       vignette(ctx, w, h, 0.85);
     },
     // 3. cận cảnh mẩu giấy cháy dở
-    note(ctx, w, h, t) {
+    note(ctx, w, h, t, S) {
       ctx.fillStyle = '#120c08'; ctx.fillRect(0, 0, w, h);
       const r = U.seeded(77);
       for (let i = 0; i < 18; i++) { ctx.fillStyle = `rgba(${60 + r() * 30},${36 + r() * 20},${20 + r() * 10},.5)`; ctx.fillRect(0, i * h / 18, w, h / 18 - 2); } // mặt bàn gỗ
@@ -272,7 +272,7 @@
       // chữ viết tay
       const fs = pw / 22;
       ctx.fillStyle = '#2a1a10'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      const lines = [['Hunter — nếu cậu đọc được thư này,', 1], ['thì tôi đã không kịp.', 1], ['HỒ GƯƠM · THÁP RÙA', 1.35], ['21°01\'43"N  105°51\'08"E', 1.05], ['Nó không phải AI bình thường. Đừng tin ai cả.', 0.92], ['— T.', 1.1]];
+      const lines = S.note || [['Hunter — nếu cậu đọc được thư này,', 1], ['thì tôi đã không kịp.', 1], ['HỒ GƯƠM · THÁP RÙA', 1.35], ['21°01\'43"N  105°51\'08"E', 1.05], ['Nó không phải AI bình thường. Đừng tin ai cả.', 0.92], ['— T.', 1.1]];
       let y = -ph / 2 + fs * 2.2;
       for (const [s, k] of lines) { ctx.font = `italic ${k > 1.2 ? 700 : 500} ${fs * k}px Georgia, 'Times New Roman', serif`; ctx.fillText(s, -pw / 2 + fs * 1.6, y); y += fs * 1.55 * k; }
       // ký hiệu đầu dê bằng mực đỏ
@@ -306,15 +306,99 @@
       if (S.title) {
         const a = Math.min(1, S.title);
         ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.fillStyle = '#fff3d8'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 20;
-        ctx.font = `900 ${Math.min(w * 0.07, h * 0.11)}px system-ui, sans-serif`; ctx.fillText('MÀN 2 · NGUỒN GỐC', w / 2, h * 0.24);
-        ctx.font = `600 ${Math.min(w * 0.026, h * 0.04)}px system-ui, sans-serif`; ctx.fillStyle = '#ffcf80'; ctx.fillText('Gate 11 — Hồ Gươm, Hà Nội', w / 2, h * 0.32);
+        ctx.font = `900 ${Math.min(w * 0.07, h * 0.11)}px system-ui, sans-serif`; ctx.fillText(S.tt || 'MÀN 2 · NGUỒN GỐC', w / 2, h * 0.24);
+        ctx.font = `600 ${Math.min(w * 0.026, h * 0.04)}px system-ui, sans-serif`; ctx.fillStyle = '#ffcf80'; ctx.fillText(S.ts || 'Gate 11 — Hồ Gươm, Hà Nội', w / 2, h * 0.32);
         ctx.shadowBlur = 0; ctx.globalAlpha = 1;
       }
+    },
+
+    // 5. sảnh lõi phản ứng Căn cứ Alpha — bộ giáp vỡ, GS Ted quỵ gối
+    alpha(ctx, w, h, t, S) {
+      ctx.fillStyle = '#06090c'; ctx.fillRect(0, 0, w, h);
+      // lõi phản ứng tắt dần phía sau
+      const cx = w * 0.5, cy = h * 0.4, pul = 0.5 + Math.sin(t * 3) * 0.2 * (1 - (S.cut || 0));
+      const cg = ctx.createRadialGradient(cx, cy, 10, cx, cy, h * 0.5); cg.addColorStop(0, `rgba(90,210,255,${0.55 * pul})`); cg.addColorStop(0.4, `rgba(40,120,200,${0.25 * pul})`); cg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = cg; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = `rgba(120,220,255,${0.4 * pul})`; ctx.lineWidth = 3;
+      for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.ellipse(cx, cy, h * 0.08 * i, h * 0.03 * i, 0, 0, U.TAU); ctx.stroke(); }
+      ctx.fillStyle = '#0c1218'; ctx.fillRect(cx - h * 0.05, cy, h * 0.1, h * 0.5);
+      // sàn
+      ctx.fillStyle = '#0a0f13'; ctx.fillRect(0, h * 0.72, w, h * 0.28);
+      ctx.strokeStyle = 'rgba(120,160,180,.12)'; ctx.lineWidth = 1; for (let i = -8; i <= 8; i++) { ctx.beginPath(); ctx.moveTo(cx + i * w * 0.04, h * 0.72); ctx.lineTo(cx + i * w * 0.14, h); ctx.stroke(); }
+      // bộ giáp Alpha vỡ, Ted quỵ gối (bóng)
+      const tx = w * 0.62, ty = h * 0.86, s = h / 620;
+      ctx.save(); ctx.translate(tx, ty); ctx.scale(s, s);
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; U.ellipse(ctx, 0, 6, 140, 20); ctx.fill();
+      ctx.fillStyle = '#2a2e34'; ctx.beginPath(); ctx.moveTo(-80, 0); ctx.lineTo(-70, -90); ctx.lineTo(-30, -150); ctx.lineTo(40, -150); ctx.lineTo(80, -80); ctx.lineTo(90, 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,120,60,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-20, -150); ctx.lineTo(0, -100); ctx.lineTo(-14, -60); ctx.lineTo(10, -20); ctx.stroke();
+      ctx.fillStyle = '#c9a68a'; ctx.beginPath(); ctx.arc(10, -170, 22, 0, U.TAU); ctx.fill();
+      ctx.fillStyle = '#e8e8e8'; ctx.beginPath(); ctx.arc(4, -176, 20, Math.PI * 0.9, Math.PI * 2.05); ctx.fill();
+      ctx.fillStyle = `rgba(255,${S.cut ? 60 : 90},60,${0.5 + Math.sin(t * 9) * 0.3})`; U.circle(ctx, -50, -100, 10); ctx.fill();
+      ctx.restore();
+      // Hunter + Dian đứng phía trước
+      hunter(ctx, w * 0.26, h * 1.02, h / 360, '#7ad8ff');
+      ctx.save(); ctx.translate(w * 0.12, h * 1.04); ctx.scale(h / 420, h / 420); ctx.fillStyle = '#05080a';
+      ctx.beginPath(); ctx.ellipse(0, -150, 30, 9, 0, 0, U.TAU); ctx.fill(); ctx.beginPath(); ctx.arc(0, -150, 13, 0, U.TAU); ctx.fill(); ctx.fillRect(-22, -140, 44, 80); ctx.fillRect(-16, -60, 12, 60); ctx.fillRect(4, -60, 12, 60);
+      ctx.save(); ctx.rotate(-0.6); ctx.fillRect(-4, -200, 8, 140); ctx.restore(); ctx.restore();
+      // tia lửa điện
+      if (Math.sin(t * 7) > 0.5) { ctx.strokeStyle = '#bfefff'; ctx.lineWidth = 1.5; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(tx - 40, ty - 80 * s); ctx.lineTo(tx - 40 + (Math.random() - 0.5) * 60, ty - 80 * s + (Math.random() - 0.5) * 60); ctx.stroke(); } }
+      if (S.cut) { ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 0.8 - S.cut)})`; ctx.fillRect(0, 0, w, h); }
+      vignette(ctx, w, h, 0.8);
+    },
+    // 6. Hội đồng Mười Hai hiện hình qua tín hiệu đầu dê
+    council(ctx, w, h, t, S) {
+      ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, w, h);
+      const cx = w / 2, cy = h * 0.58, k = S.council || 1, rx = Math.min(w * 0.42, h * 0.75), ry = h * 0.22;
+      // bàn tròn ánh sáng
+      ctx.strokeStyle = `rgba(255,60,90,${0.5 * k})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.75, ry * 0.75, 0, 0, U.TAU); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,60,90,${0.2 * k})`; ctx.lineWidth = 12; ctx.stroke();
+      // 12 bóng người: sau lưng trước, xa nhỏ — ghế số 7 trống, chớp tắt
+      const seats = [];
+      for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + i / 12 * U.TAU; seats.push({ i, a, x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry }); }
+      seats.sort((a, b) => a.y - b.y);
+      for (const st of seats) {
+        const sc = 0.6 + (st.y - (cy - ry)) / (2 * ry) * 0.6, x = st.x, y = st.y, fl = k * (0.7 + Math.sin(t * 20 + st.i) * 0.08 + (Math.random() < 0.03 ? -0.5 : 0));
+        if (st.i === 6) { ctx.strokeStyle = `rgba(255,60,90,${0.25 + Math.abs(Math.sin(t * 6)) * 0.3})`; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.strokeRect(x - 18 * sc, y - 90 * sc, 36 * sc, 90 * sc); ctx.setLineDash([]); ctx.fillStyle = `rgba(255,120,140,${k})`; ctx.font = `800 ${12 * sc}px system-ui`; ctx.textAlign = 'center'; ctx.fillText('VII', x, y + 16 * sc); continue; }
+        const g = ctx.createLinearGradient(0, y - 110 * sc, 0, y); g.addColorStop(0, `rgba(255,90,120,${0.85 * fl})`); g.addColorStop(1, `rgba(255,40,70,${0.15 * fl})`);
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y - 92 * sc, 12 * sc, 0, U.TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - 22 * sc, y); ctx.quadraticCurveTo(x - 26 * sc, y - 70 * sc, x, y - 78 * sc); ctx.quadraticCurveTo(x + 26 * sc, y - 70 * sc, x + 22 * sc, y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = `rgba(255,220,230,${0.6 * fl})`; ctx.font = `700 ${10 * sc}px system-ui`; ctx.textAlign = 'center'; ctx.fillText(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][st.i], x, y + 14 * sc);
+      }
+      // đầu dê mờ phía trên bàn
+      ctx.globalCompositeOperation = 'lighter'; goatHead(ctx, cx, cy - h * 0.32, h / 1400, t, 0.2, 0.35 * k); ctx.globalCompositeOperation = 'source-over';
+      // nhiễu quét ngang
+      ctx.fillStyle = 'rgba(255,60,90,.05)'; for (let i = 0; i < 6; i++) ctx.fillRect(0, (t * 120 + i * h / 6) % h, w, 3);
+      vignette(ctx, w, h, 0.85);
     },
   };
 
   /* ================= KỊCH BẢN ================= */
   const SCRIPTS = {
+
+    // kết thúc Màn 2 (sau Gate 21)
+    ending: [
+      { scene: 'alpha', who: '', text: 'Bộ giáp Alpha nứt toác. Giáo sư Ted quỵ xuống giữa lõi phản ứng đang tắt dần.' },
+      { scene: 'alpha', who: 'GS. TED', text: 'Cậu làm được rồi, Hunter… đúng như ta đã tính.' },
+      { scene: 'alpha', who: 'HUNTER', text: 'Ông thật sự là ai?' },
+      { scene: 'alpha', who: 'GS. TED', text: 'Một trong Mười Hai. Ghế số Bảy của Hội đồng.' },
+      { scene: 'alpha', who: 'DIAN', text: 'Thầy… vì sao?' },
+      { scene: 'alpha', who: 'GS. TED', text: 'Vì thế giới này cần được làm lại từ đầu. Virus chỉ là cây chổi, Dũng.' },
+      { scene: 'council', fx: 'council', who: '', text: 'Mười một bóng người hiện lên quanh căn phòng — qua tín hiệu đầu dê. Một chiếc ghế trống.' },
+      { scene: 'council', who: 'HỘI ĐỒNG', text: 'Ghế số Bảy đã thất bại.' },
+      { scene: 'council', who: 'HỘI ĐỒNG', text: 'Thí nghiệm Hunter: thành công. Chuyển sang giai đoạn ba.' },
+      { scene: 'alpha', who: 'GS. TED', text: 'Hunter… chạy đi. Họ ở khắp nơi.' },
+      { scene: 'alpha', fx: 'cut', who: '', text: 'Tín hiệu cắt đứt. Lõi Alpha tắt lịm. Giáo sư Ted không còn thở — lần này là thật.' },
+    ],
+    endTrue: [
+      { scene: 'note', who: 'HUNTER', note: [['Hunter — mười mảnh giấy, mười cửa.', 1], ['Cậu đã đọc hết. Ta đã chọn đúng người.', 1], ['GHẾ SỐ MỘT', 1.35], ['47°22\'N  8°32\'E', 1.05], ['Kẻ đứng đầu không bao giờ lộ mặt.', 0.92], ['— T.', 1.1]], text: 'Trong túi áo ông ấy… mẩu giấy thứ mười một.' },
+      { scene: 'note', who: '', text: 'KẾT THÚC THẬT — Giáo sư Ted để lại đường đến kẻ ngồi ghế số Một.' },
+    ],
+    endOut: [
+      { scene: 'depart', who: 'DIAN', text: 'Mười một người còn lại. Họ ở khắp thế giới.' },
+      { scene: 'depart', who: 'HUNTER', text: 'Vậy thì chúng ta đi khắp thế giới.' },
+      { scene: 'depart', fx: 'title', tt: 'HẾT MÀN 2 · NGUỒN GỐC', ts: 'Màn 3 · Bóng Tối Lan Rộng — sắp ra mắt · Chu kỳ+ đã mở', who: '', text: 'Chu kỳ+ đã mở: chơi lại mọi cửa với quái mạnh hơn, xu thưởng ×1,5 — trong lúc chờ Màn 3.' },
+    ],
     act2: [
       { scene: 'battle', who: '', text: 'The Origin gục ngã. Lần đầu tiên sau nhiều tháng, thành phố chìm vào im lặng…' },
       { scene: 'battle', fx: 'goat', who: 'GOATEVIL', text: 'Hunter… Ngươi vừa tiêu diệt một bản thử nghiệm. Một trong hàng nghìn bản.' },
@@ -333,12 +417,12 @@
 
   /* ================= TRÌNH CHIẾU CẢNH CHUYỂN ================= */
   const Story = MB.Story = {
-    SND,
+    SND, goatHead,
     seen(id) { return !!((MB.Save.data.story || {})[id]); },
     mark(id) { const sv = MB.Save.data; sv.story = sv.story || {}; sv.story[id] = true; MB.Save.save(); },
 
     play(id, done) {
-      const lines = SCRIPTS[id]; if (!lines) { if (done) done(); return; }
+      const lines = Array.isArray(id) ? id.flatMap((k) => SCRIPTS[k] || []) : SCRIPTS[id]; if (!lines || !lines.length) { if (done) done(); return; }
       MB.Audio.unlock(); MB.Audio.menuTheme(false); SND.drone(true);
       const root = $('story'), cv = $('storyCanvas'), ctx = cv.getContext('2d');
       const off = document.createElement('canvas'), octx = off.getContext('2d');
@@ -365,14 +449,17 @@
           S.shatter = Array.from({ length: 260 }, () => ({ x: w * 0.66 + (Math.random() - 0.5) * h * 0.35, y: h * 0.4 + (Math.random() - 0.5) * h * 0.4, vx: (Math.random() - 0.5) * 400, vy: (Math.random() - 0.8) * 300, s: 2 + Math.random() * 5, l: 1 + Math.random(), c: Math.random() < 0.5 ? '#ff4a5a' : '#ffd0d6' }));
         }
         if (N.fx === 'alarm') SND.alarm(5);
-        if (N.fx === 'title') S.title = 0.01;
+        if (N.fx === 'title') { S.title = 0.01; S.tt = N.tt; S.ts = N.ts; }
+        if (N.note) S.note = N.note;
+        if (N.fx === 'council') { S.council = 0.01; S.glitch = 1; SND.glitch(); }
+        if (N.fx === 'cut') { S.cut = 0.01; S.glitch = 1.4; SND.glitch(); }
         if (N.scene === 'note' && lines[S.i - 1].scene !== 'note') SND.heart();
       };
       const finish = () => {
         if (ended) return; ended = true;
         cancelAnimationFrame(raf); removeEventListener('resize', fit); removeEventListener('keydown', key, true);
         root.classList.add('hidden'); SND.drone(false);
-        this.mark(id);
+        (Array.isArray(id) ? id : [id]).forEach((k) => this.mark(k));
         if (done) done();
       };
       const key = (e) => {
@@ -392,6 +479,8 @@
         S.mouth = S.laughing ? Math.abs(Math.sin(now / 90)) : S.typed < L.text.length && L.who === 'GOATEVIL' ? Math.abs(Math.sin(now / 70)) * 0.5 : 0;
         if (S.shatter) for (const q of S.shatter) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 200 * dt; q.l -= dt * 0.8; }
         if (S.title > 0) S.title = Math.min(1, S.title + dt * 0.6);
+        if (S.council > 0) S.council = Math.min(1, S.council + dt * 0.5);
+        if (S.cut > 0) S.cut = Math.min(1, S.cut + dt * 0.8);
         S.glitch = Math.max(0, S.glitch - dt * 1.4);
         const t = now / 1000;
         octx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -404,7 +493,7 @@
         // khung thoại
         const box = $('storyText');
         const shown = L.text.slice(0, S.typed | 0);
-        let html = (L.who ? `<b class="${L.who === 'GOATEVIL' ? 'evil' : ''}">${esc(L.who)}</b>` : '') + `<span class="${L.who ? '' : 'narr'}">${esc(shown)}</span>`;
+        let html = (L.who ? `<b class="${L.who === 'GOATEVIL' || L.who === 'HỘI ĐỒNG' ? 'evil' : ''}">${esc(L.who)}</b>` : '') + `<span class="${L.who ? '' : 'narr'}">${esc(shown)}</span>`;
         // lời thoại của Hunter: kèm chân dung
         if (L.who === 'HUNTER') html = `<img class="sp" src="assets/hunter/portrait.webp" alt=""><div>${html}</div>`;
         if (box.__h !== html) { box.innerHTML = html; box.__h = html; box.classList.toggle('pt', L.who === 'HUNTER'); }
@@ -428,7 +517,7 @@
       if (!m) { el.classList.remove('show'); return; }
       const evil = m.who === 'GOATEVIL', ally = m.who === 'DIAN';
       el.className = 'comm show' + (evil ? ' evil' : ally ? ' ally' : m.who === 'TIẾP TẾ' ? ' relay' : '');
-      el.innerHTML = `<i class="av${m.who === 'HUNTER' ? ' img' : ''}">${evil ? GOAT_ICON : ally ? DIAN_ICON : m.who === 'TIẾP TẾ' ? '☕' : m.who === 'TED' ? 'T' : m.who === 'HUNTER' ? '<img src="assets/hunter/portrait.webp" alt="">' : 'H'}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
+      el.innerHTML = `<i class="av${m.who === 'HUNTER' ? ' img' : ''}">${evil ? GOAT_ICON : ally ? DIAN_ICON : m.who === 'TIẾP TẾ' ? '☕' : m.who === 'TED' ? 'T' : m.who === 'HUNTER' ? '<img src="assets/hunter/portrait.webp" alt="">' : esc((m.who.split(' ').pop() || 'H')[0])}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
       if (evil && SND.ok()) SND.glitch();
       clearTimeout(this.ct); this.ct = setTimeout(() => this.nextSay(), m.dur * 1000);
     },

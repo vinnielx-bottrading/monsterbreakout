@@ -41,6 +41,8 @@
       this.nightmare = this.mode === 'campaign' && MB.Skill.nightmareFor(def.id);
       // "Thiếu tiếp tế": cửa ác mộng (admin chọn) khi người chơi chưa tiếp tế cho game — quái đông, trâu, đánh đau, boss tinh nhuệ
       this.starve = this.mode === 'campaign' && !opts.carry && MB.Access && MB.Access.starveFor(def.id);
+      // Chu kỳ+ (sau khi xong Màn 2): chơi lại cửa đã qua, quái mạnh hơn, xu ×1,5, kỷ lục riêng
+      this.ngp = this.mode === 'campaign' && !!opts.ngp;
       this.hitstop = 0; this.perkT = 0; this.lastBossPhase = null;
       this.lowFx = this.quality() === 'low';
       this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
@@ -269,6 +271,11 @@
         e.hp *= m.hp; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * m.dmg); e.speed *= m.spd;
         if (!e.boss && !opts.extra && Math.random() < 0.3) { e.elite = true; e.hp *= 1.6; e.maxHp = e.hp; e.r *= 1.12; e.score *= 2; }
       }
+      if (this.ngp) {
+        const m = e.boss ? { hp: 1.4, dmg: 1.25, spd: 1.05 } : { hp: 1.5, dmg: 1.3, spd: 1.08 };
+        e.hp *= m.hp; e.maxHp = e.hp; e.dmg = Math.round(e.dmg * m.dmg); e.speed *= m.spd; e.score = Math.round(e.score * 1.3);
+        if (!e.boss && !e.elite && !opts.extra && Math.random() < 0.12) { e.elite = true; e.hp *= 1.6; e.maxHp = e.hp; e.r *= 1.12; e.score *= 2; }
+      }
       if (opts.hpMul && opts.hpMul !== 1) { e.hp *= opts.hpMul; e.maxHp *= opts.hpMul; e.score = Math.round(e.score * (1 + (opts.hpMul - 1) * 0.5)); }
       if (!e.fly) this.collide(e);
       this.enemies.push(e);
@@ -389,8 +396,10 @@
     getWave(i) {
       const W = this.def.waves;
       if (this.mode !== 'survival') {
-        if (!this.starve || !W[i]) return W[i];
-        const w = W[i];
+        let w = W[i];
+        if (!w) return w;
+        if (this.ngp) w = { ...w, total: Math.round(w.total * 1.3), maxAlive: Math.round(w.maxAlive * 1.2), interval: [w.interval[0] * 0.85, w.interval[1] * 0.85] };
+        if (!this.starve) return w;
         return { ...w, total: Math.round(w.total * 1.7), maxAlive: Math.round(w.maxAlive * 1.7), interval: [w.interval[0] * 0.55, w.interval[1] * 0.55], elite: Math.min(0.5, (w.elite || 0) + 0.25) };
       }
       const k = i + 1, base = W[Math.min(i, W.length - 1)];
@@ -984,7 +993,7 @@
         gateId: this.def.id, win: this.win, score: this.score, mode: this.mode, wave: this.waveIdx + 1, comboBest: this.comboBest || 0, time: this.time, kills: this.stats.kills,
         accuracy: this.stats.shots ? Math.min(100, Math.round(this.stats.bhits / this.stats.shots * 100)) : 0,
         done, totalChallenges: this.challenges.length, mods: MB.Weapons.power(this.player), hitsTaken: this.stats.hitsTaken,
-        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, bossTier: this.bossTier || 0, starve: !!this.starve, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
+        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, bossTier: this.bossTier || 0, starve: !!this.starve, ngp: !!this.ngp, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
       };
     },
 

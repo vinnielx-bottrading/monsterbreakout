@@ -72,6 +72,7 @@
         const sec = document.getElementById('act' + this.act); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
       on('btnReplay', () => MB.Story.play('act2', () => this.openGates()));
+      on('btnReplayEnd', () => MB.Story.play(this.endingIds(), () => this.openGates()));
       document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.addEventListener('click', () => {
         MB.Audio.play('ui'); this.mode = b.dataset.mode; this.openGates();
       }));
@@ -99,6 +100,10 @@
       });
     },
 
+    // Chu kỳ+ mở sau khi xong Gate 21 (kết thúc Màn 2)
+    cycleOpen() { const sv = MB.Save.data; return MB.Story.seen('ending') || !!((sv.gates || {})[21] || {}).cleared || MB.Access.dev; },
+    endingIds() { return ['ending', ...(Object.keys(MB.Save.data.clues || {}).length >= 10 ? ['endTrue'] : []), 'endOut']; },
+
     show(name) {
       this.current = name;
       // nhạc chủ đề hồi hộp ở các màn menu; vào trận thì nhường cho nhạc trận
@@ -114,14 +119,20 @@
     /* ---------- chọn Gate ---------- */
     openGates() {
       if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
-      const sv = MB.Save.data, surv = this.mode === 'survival';
+      const sv = MB.Save.data;
+      const cyc = this.cycleOpen();
+      if (this.mode === 'ngplus' && !cyc) this.mode = 'campaign';
+      const surv = this.mode === 'survival', ngp = this.mode === 'ngplus';
+      $('btnNgp').classList.toggle('hidden', !cyc);
       if (!this.act) this.act = sv.unlocked >= 11 && sv.unlocked < 99 ? 2 : 1;
       $('gateGrid').classList.remove('acts');
       document.querySelectorAll('#actToggle [data-actn]').forEach((b) => b.classList.toggle('on', +b.dataset.actn === this.act));
       const nClue = Object.keys(sv.clues || {}).length;
       $('actNote').innerHTML = `<b>CHIẾN DỊCH</b> — Màn 1 · <b>Màn 2 đã mở</b> · Màn 3 sắp ra mắt. Manh mối của GS. Ted: <b>${nClue}/10</b>`;
+      if (ngp) $('actNote').innerHTML = '<b>CHU KỲ+</b> — chơi lại mọi cửa đã qua: quái máu ×1,5, đánh đau ×1,3, đông hơn 30%, boss cấp cao hơn. <b>Xu thưởng ×1,5</b>, kỷ lục tính riêng.';
       $('btnReplay').classList.toggle('hidden', !MB.Story.seen('act2'));
-      document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === (surv ? 'survival' : 'campaign')));
+      $('btnReplayEnd').classList.toggle('hidden', !MB.Story.seen('ending'));
+      document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === this.mode || (!this.mode && b.dataset.mode === 'campaign')));
       $('coinText').textContent = (sv.coins || 0).toLocaleString('vi-VN');
       $('actToggle').classList.toggle('hidden', surv);
       $('gateGrid').classList.toggle('endless-wrap', surv);
@@ -147,12 +158,13 @@
         const g = sv.gates[m.id] || { best: 0, done: [], cleared: false };
         const ready = !!m.file;
         const adm = MB.Access.admin || MB.Access.dev, closed = ready && MB.Access.isClosed(m.id);
-        const unlocked = ready && (adm || (!closed && (surv ? !!g.cleared : m.id <= sv.unlocked)));
+        const unlocked = ready && (ngp ? !!g.cleared && (adm || !closed) : (adm || (!closed && (surv ? !!g.cleared : m.id <= sv.unlocked))));
         const stars = [0, 1, 2].map((i) => `<i class="${i < (g.done || []).length ? 'on' : ''}">★</i>`).join('');
         let status = !ready ? (m.act === 2 ? 'Sắp ra mắt · Màn 2' : 'Sắp ra mắt') : !unlocked ? (surv ? 'Qua Gate này ở Chiến dịch để mở' : `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở`) : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
         if (closed && !adm) status = '🔒 Sắp mở · đang hoàn thiện';
         if (surv && unlocked) status = g.surv ? `Kỷ lục: Wave ${g.surv.wave} · ${g.surv.score.toLocaleString('vi-VN')}` : 'Chưa có kỷ lục';
-        const need = unlocked ? MB.Access.need(m.id, surv ? 'survival' : 'campaign') : null;
+        if (ngp) status = !ready ? 'Sắp ra mắt' : !g.cleared ? 'Qua cửa này ở Chiến dịch để mở' : g.ngp && g.ngp.best ? `Chu kỳ+ · Best ${g.ngp.best.toLocaleString('vi-VN')}` : 'Chu kỳ+ · chưa có kỷ lục';
+        const need = unlocked ? MB.Access.need(m.id, surv ? 'survival' : ngp ? 'ngplus' : 'campaign') : null;
         if (need === 'login') status = '🔑 Đăng nhập để chơi tiếp';
         else if (need === 'pay') status = '💎 Cần gói để chơi';
         return `<button class="gate${unlocked ? '' : ' locked'}${need ? ' gated' : ''}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
@@ -246,6 +258,7 @@
       if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
       const meta = MB.Gates.meta.find((m) => m.id === id);
       if (!meta || !meta.file) { this.openGates(); return; }
+      if (this.mode === 'ngplus' && !((MB.Save.data.gates || {})[id] || {}).cleared) this.mode = 'campaign';
       MB.Audio.unlock();
       this.show('loading');
       {
@@ -262,7 +275,8 @@
         if (!def) throw new Error('Gate chưa đăng ký');
         this.lastGate = id;
         MB.Input.clear();
-        G.start(def, { mode: this.mode, endless: !!opts.endless });
+        G.start(def, { mode: this.mode === 'ngplus' ? 'campaign' : this.mode, ngp: this.mode === 'ngplus', endless: !!opts.endless });
+        if (G.ngp) G.banner('CHU KỲ+', 'Quái mạnh hơn · xu thưởng ×1,5', 2.6);
         if (G.starve) {
           G.banner('VÙNG ÁC MỘNG', 'Hunter đang thiếu tiếp tế — quái đông và dữ gấp bội', 3);
           MB.Story.say('HUNTER', 'Đạn dược gần cạn… đoàn tiếp tế vẫn chưa tới.', 3.2);
@@ -608,6 +622,12 @@
         MB.Story.play('act2', () => { this.act = 2; this.onGateEnd(sum, true); });
         return;
       }
+      // thắng Gate 21 lần đầu → cảnh kết thúc Màn 2 (kết thúc thật nếu đủ 10 manh mối), mở Chu kỳ+
+      if (!afterStory && sum.gateId === 21 && sum.win && sum.mode !== 'survival' && !sum.ngp && !MB.Story.seen('ending')) {
+        G.running = false; MB.Audio.stopMusic();
+        MB.Story.play(this.endingIds(), () => this.onGateEnd(sum, true));
+        return;
+      }
       const sv = MB.Save.data, g = MB.Save.gate(sum.gateId), surv = sum.mode === 'survival';
       MB.Skill.record(sum);
       this.lastEndless = !!sum.endless;
@@ -620,13 +640,17 @@
       } else if (surv) {
         newBest = !g.surv || sum.wave > g.surv.wave || (sum.wave === g.surv.wave && sum.score > g.surv.score);
         if (newBest) g.surv = { wave: sum.wave, score: sum.score };
+      } else if (sum.ngp) {
+        const gp = g.ngp || (g.ngp = { best: 0 });
+        newBest = sum.score > (gp.best || 0); if (newBest) gp.best = sum.score;
+        if (sum.win) { gp.cleared = true; if (!gp.bestTime || sum.time < gp.bestTime) gp.bestTime = sum.time; }
       } else { newBest = sum.score > g.best; if (newBest) g.best = sum.score; }
       const coins = MB.Shop.earn(sum);
       sv.coins = (sv.coins || 0) + coins; sv.ts = Date.now();
       MB.Cloud.submit(sum); MB.Cloud.logPlay(sum); MB.Cloud.push();
       const life = sv.life || (sv.life = { plays: 0, time: 0, kills: 0 });
       life.plays++; life.time += sum.time || 0; life.kills += sum.kills || 0;
-      if (sum.win && !surv) {
+      if (sum.win && !surv && !sum.ngp) {
         g.cleared = true;
         if (!g.bestTime || sum.time < g.bestTime) g.bestTime = sum.time;
         sv.unlocked = Math.max(sv.unlocked, sum.gateId + 1);
@@ -634,7 +658,7 @@
       MB.Save.save();
       G.running = false; MB.Audio.stopMusic();
       const mm = Math.floor(sum.time / 60), ss = String(Math.floor(sum.time % 60)).padStart(2, '0');
-      $('resTitle').textContent = surv ? (sum.endless ? `BẤT TẬN · WAVE ${sum.wave} · KHU VỰC ${sum.stage}` : `SINH TỒN · WAVE ${sum.wave}`) : sum.win ? (sum.gateId === 10 ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : 'GATE CLEARED') : 'MISSION FAILED';
+      $('resTitle').textContent = surv ? (sum.endless ? `BẤT TẬN · WAVE ${sum.wave} · KHU VỰC ${sum.stage}` : `SINH TỒN · WAVE ${sum.wave}`) : sum.win ? (sum.gateId === 10 && !sum.ngp ? 'NHÂN LOẠI ĐÃ ĐƯỢC CỨU' : sum.gateId === 21 && !sum.ngp ? 'GHẾ SỐ BẢY ĐÃ ĐỔ' : sum.ngp ? 'CHU KỲ+ · CLEARED' : 'GATE CLEARED') : 'MISSION FAILED';
       $('resTitle').className = sum.win || surv ? 'win' : 'lose';
       $('resCoins').innerHTML = `+${coins.toLocaleString('vi-VN')} xu · tổng ${sv.coins.toLocaleString('vi-VN')} xu` + (sum.comboBest >= 5 ? ` · combo cao nhất ×${sum.comboBest}` : '');
       $('resStars').innerHTML = [0, 1, 2].map((i) => `<i class="${i < sum.done.length ? 'on' : ''}">★</i>`).join('');

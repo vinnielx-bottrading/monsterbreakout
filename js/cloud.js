@@ -80,7 +80,7 @@
       try {
         this.status = 'loading'; this.render();
         await this.load();
-        const { error } = await this.sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+        const { error } = await this.sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } } });
         if (error) throw error;
       } catch (e) { this.fail(e); }
     },
@@ -124,6 +124,7 @@
     async submit(sum) {
       if (!this.user || !this.sb) return;
       if (sum.mode !== 'survival' && !sum.win) return;
+      if (sum.ngp) return; // Chu kỳ+: kỷ lục riêng trên máy, không trộn bảng xếp hạng chiến dịch
       const { error } = await this.sb.rpc('mb_submit_score', { p_gate: sum.mode === 'survival' ? 30 : sum.gateId, p_mode: sum.mode || 'campaign', p_score: Math.round(sum.score), p_wave: sum.mode === 'survival' ? sum.wave : 0, p_time: sum.time });
       if (error) console.warn('[cloud] gửi điểm lỗi', error);
     },

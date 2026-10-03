@@ -82,6 +82,7 @@
       if (this.isClosed(id)) return 'closed';
       if (id >= this.LOGIN_FROM && !(MB.Cloud && MB.Cloud.user)) return 'login';
       if (this.paywall && id >= this.PAID_FROM && !this.has(id, mode)) return 'pay';
+      if (mode === 'ngplus' && this.paywall && !this.ngplus()) return 'pay';
       return null;
     },
     async check(id, mode) {
