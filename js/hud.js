@@ -128,8 +128,9 @@
       if (G.boss && !G.boss.dead) {
         const b = G.boss;
         this.set('boss', e.bossFill, 'width', (b.hp / b.maxHp * 100).toFixed(1) + '%');
-        this.set('bstg', e.bossStag, 'width', (b.stagT > 0 ? b.stagT / 4 * 100 : Math.min(100, (b.stag || 0) / (b.stagMax || 1) * 100)).toFixed(0) + '%');
-        this.set('bstc', e.bossStag, 'className', b.stagT > 0 ? 'on' : '');
+        const ST = MB.Boss.TIER[G.bossTier || 0].stagT;
+        this.set('bstg', e.bossStag, 'width', (b.stagT > 0 ? b.stagT / ST * 100 : b.stagLock > 0 ? (1 - b.stagLock / 20) * 100 : Math.min(100, (b.stag || 0) / (b.stagMax || 1) * 100)).toFixed(0) + '%');
+        this.set('bstc', e.bossStag, 'className', b.stagT > 0 ? 'on' : b.stagLock > 0 ? 'lock' : '');
         this.set('btip', e.bossTip, 'text', MB.Boss.tip(b));
       }
     },

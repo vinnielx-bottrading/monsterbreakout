@@ -44,7 +44,7 @@
       this.time = 0; this.over = false; this.overT = 0; this.reported = false; this.paused = false;
       this.enemies = []; this.bullets = []; this.ebullets = []; this.pickups = []; this.particles = [];
       this.decals = []; this.texts = []; this.fx = []; this.obstacles = []; this.hazards = [];
-      this.sfx = []; this.sup = null; this.superOfferT = 0; this.heavyT = 0; this.weakTold = false; this.elemTold = false;
+      this.sfx = []; this.sup = null; this.superOfferT = 0; this.heavyT = 0; this.weakTold = false; this.elemTold = false; this.bossTier = 0; this.bossT0 = null;
       this.bossRetryUsed = false; this.retryOffer = false;
       this.boss = null; this.score = 0; this.hurtFlash = 0; this.wantFire = false;
       this.stats = { shots: 0, bhits: 0, kills: 0, mods: 0, dmgTaken: 0, hitsTaken: 0 };
@@ -340,6 +340,8 @@
       for (let i = 0; i < 6; i++) setTimeout(() => { if (this.running) this.burst(e.x + U.rnd(-60, 60), e.y + U.rnd(-60, 60), '#ffd56a', 30, 300); }, i * 120);
       MB.HUD.bossHide();
       this.sup = null; this.superOfferT = 0;
+      MB.Boss.record(this, true);
+      if (this.bossTier >= 1) MB.HUD.toast(`Boss cấp ${this.bossTier >= 2 ? 'tinh nhuệ' : 'khó'} · thưởng thêm ${this.bossTier >= 2 ? 50 : 25}% xu`, '#ffd56a');
       // súng mới khi hạ boss ở Gate 3 / 5 / 7 / 9 / 11
       const gun = MB.Boss.gunForGate(this.def.id), sv = MB.Save.data;
       if (gun && !sv.armory.includes(gun)) {
@@ -431,6 +433,7 @@
         MB.Audio.play('lose'); MB.Audio.intensity(0);
         // gục ở trận boss lần đầu → được 1 cơ hội đấu lại boss, không phải chơi lại cả Gate
         this.retryOffer = this.mode === 'campaign' && (this.state === 'boss' || this.state === 'preboss') && !this.bossRetryUsed;
+        if (this.state === 'boss') MB.Boss.record(this, false);
         this.banner('NHIỆM VỤ THẤT BẠI', this.retryOffer ? 'Còn 1 cơ hội đấu lại Boss' : 'Hunter đã gục ngã', 2);
         this.finish(false, 2.2);
       }
@@ -792,10 +795,11 @@
         if (!e.fly && !e.boss) for (const h of this.hazards) if (h.enemyDps && U.dist(e.x, e.y, h.x, h.y) < h.r) this.damageEnemy(e, h.enemyDps * dt, 0, 0, true);
         if (e.dead) continue;
         if (e.stunT > 0) { e.stunT -= dt; MB.Enemies.stop(e, dt, 8); }
-        else if (!p.dead && !this.over) e.def.update(e, this, dt);
+        else if (!p.dead && !this.over) e.def.update(e, this, e.enrageT > 0 ? dt * 1.5 : dt); // boss nổi điên: mọi nhịp tấn công nhanh hơn
         else MB.Enemies.stop(e, dt, 4);
         let sm = 1;
         if (e.slowT > 0) { e.slowT -= dt; sm = e.boss ? 0.75 : 0.5; }
+        if (e.enrageT > 0) sm *= 1.3;
         if (e.frozenT > 0) e.frozenT -= dt;
         if (e.chill > 0) e.chill = Math.max(0, e.chill - 25 * dt);
         e.x += (e.vx * sm + e.kx) * dt; e.y += (e.vy * sm + e.ky) * dt;
@@ -967,7 +971,7 @@
         gateId: this.def.id, win: this.win, score: this.score, mode: this.mode, wave: this.waveIdx + 1, comboBest: this.comboBest || 0, time: this.time, kills: this.stats.kills,
         accuracy: this.stats.shots ? Math.min(100, Math.round(this.stats.bhits / this.stats.shots * 100)) : 0,
         done, totalChallenges: this.challenges.length, mods: MB.Weapons.power(this.player), hitsTaken: this.stats.hitsTaken,
-        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
+        hpK: this.player.maxHp ? Math.max(0, this.player.hp) / this.player.maxHp : 0, retry: !!this.bossRetryUsed, bossTier: this.bossTier || 0, endless: !!this.endless, stage: this.stage || 1, nightmare: !!this.nightmare,
       };
     },
 

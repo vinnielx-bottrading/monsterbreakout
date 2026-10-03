@@ -452,3 +452,5 @@ body[data-input="touch"] .tbtn.sk3.rdy { background: rgba(255,213,106,.42); }
   .shop .item.gun > div { flex: 1 1 calc(100% - 90px); }
   .shop .item.gun button { margin-left: auto; }
 }
+
+#bossStag.lock { background: rgba(255,255,255,.22); box-shadow: none; }

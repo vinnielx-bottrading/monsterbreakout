@@ -1005,10 +1005,34 @@
       if (this.ovTex) this.ovTex.dispose();
       if (this.sun && this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
       if (this.renderer) this.renderer.renderLists.dispose();
-      this.scene = null; SK.live = 0;
+      this.scene = null; SK.live = 0; this.heart = null;
     },
 
     // đồng bộ một danh sách thực thể với mesh (tạo / cập nhật / xoá)
+    updateHeart(G) {
+      const b = G.boss, show = b && !b.dead && b.weak && !b.hidden && b.spawnT <= 0;
+      if (!show) { if (this.heart) this.heart.visible = false; return; }
+      if (!this.heart) {
+        const h = new T.Group();
+        const core = new T.Mesh(bumpy('heart', new T.SphereGeometry(1, 22, 16), 0.14, 3.2), new T.MeshStandardMaterial({ color: 0xb8241a, emissive: 0xff4a1a, emissiveIntensity: 0.8, roughness: 0.35 }));
+        core.scale.set(1.1, 0.9, 0.95); h.add(core);
+        const vein = new T.MeshStandardMaterial({ color: 0x4a0808, roughness: 0.6 });
+        for (let i = 0; i < 5; i++) { const v = new T.Mesh(new T.TorusGeometry(0.85, 0.07, 5, 14, 2.2), vein); v.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3); h.add(v); }
+        h.add(glowSprite(0xff6a2a, 4.5, 0.7));
+        h.userData.core = core; this.heart = h;
+      }
+      const h = this.heart;
+      if (h.parent !== this.root) this.root.add(h);
+      const u = b.__m3 && b.__m3.userData, hh = u ? u.h * 0.6 : 30;
+      const w = { x: b.x + Math.cos(b.weak.a) * b.r * 1.02, y: b.y + Math.sin(b.weak.a) * b.r * 1.02 }; // nhô ra ngoài thân
+      const grow = Math.min(1, b.weak.age / 0.35) * Math.min(1, b.weak.t / 0.3);
+      const beat = Math.max(0, Math.sin(G.time * 7.5)) ** 6 * 0.22 + (b.weak.hitT > 0 ? 0.25 : 0);
+      h.visible = grow > 0.02;
+      h.position.set(w.x, hh, w.y);
+      h.scale.setScalar(Math.max(0.01, (b.r * 0.34 + 6) * grow * (1 + beat)));
+      h.rotation.y = -b.weak.a + Math.sin(G.time * 2) * 0.2;
+      h.userData.core.material.emissiveIntensity = 0.6 + beat * 3;
+    },
     dropObj(o) {
       const m = o.__m3; if (!m) return;
       this.root.remove(m); disposeOwn(m);
@@ -1205,11 +1229,13 @@
         if (u.md) u.md.anim(e, u.g, G);
         m.visible = !e.hidden;
         if (e.alpha != null && e.alpha < 1 !== !!u.faded) { u.faded = e.alpha < 1; for (const mt of u.mats) { mt.transparent = u.faded; mt.opacity = u.faded ? 0.35 : 1; } }
-        const fl = e.flash > 0, st = e.stunT > 0;
-        for (const mt of u.mats) { mt.emissive.setHex(fl ? 0xffffff : st ? 0x2a7cff : 0x000000); mt.emissiveIntensity = fl ? 0.7 : st ? 0.45 : 1; }
+        const fl = e.flash > 0, st = e.stunT > 0, en = e.enrageT > 0;
+        for (const mt of u.mats) { mt.emissive.setHex(fl ? 0xffffff : st ? 0x2a7cff : en ? 0xff2020 : 0x000000); mt.emissiveIntensity = fl ? 0.7 : st ? 0.45 : en ? 0.3 + 0.25 * Math.sin(G.time * 14) : 1; }
         if (u.ring) u.ring.material.opacity = 0.45 + Math.sin(G.time * 6) * 0.25;
       });
 
+      // quả tim virus của boss (điểm yếu)
+      this.updateHeart(G);
       // lựu đạn đang bay
       this.sync('gren', G.grenades, () => {
         const gg = new T.Group(); gg.add(mesh(sph(5, 12), std(0x3e5a36, { rough: 0.5 }), 0, 0, 0));

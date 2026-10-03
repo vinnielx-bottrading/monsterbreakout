@@ -24,69 +24,150 @@
     { id: 'ripper', gate: 11, price: 1400 },
   ];
 
-  /* ===================== BOSS ===================== */
+  /* ===================== BOSS (v6.6) =====================
+     1) Nhịp trận đều hơn: Gate 5+ boss bớt 15% máu, hệ số nhân tối đa ×2,5, sau choáng boss NỔI ĐIÊN 5 giây,
+        20 giây sau mới làm choáng lại được.
+     2) Tự cân bằng âm thầm theo tay chơi: ghi thời gian hạ boss + máu còn lại → xếp cấp 0 (thường) / 1 (khó) / 2 (tinh nhuệ).
+        Cấp càng cao: boss trâu hơn, "quả tim" lộ ngắn hơn, khó choáng hơn, thùng đạn thưa hơn, siêu chiêu yếu hơn.
+     3) Cấp khó trở lên: boss xoay người che quả tim, đổi lối đánh ở 66% / 33% máu (gọi quái, bắn vòng đạn); thưởng thêm xu.
+     Điểm yếu là một "quả tim virus" mọc ra trên thân boss — không có chữ, người chơi tự phát hiện. */
+  const TIER = [
+    { hp: 1, weakT: 6, weakCd: 5, weakK: 2, stag: 0.13, stagGrow: 1.2, stagT: 4, heavy: 22, sup: 1, guard: 0, coin: 1 },
+    { hp: 1.2, weakT: 4.2, weakCd: 7, weakK: 1.7, stag: 0.18, stagGrow: 1.3, stagT: 3, heavy: 32, sup: 0.75, guard: 0.6, coin: 1.25 },
+    { hp: 1.4, weakT: 3.5, weakCd: 8, weakK: 1.6, stag: 0.22, stagGrow: 1.35, stagT: 2.5, heavy: 40, sup: 0.6, guard: 0.95, coin: 1.5 },
+  ];
   const Boss = MB.Boss = {
-    ELEM, ELEM_VI, ELEM_GUNS, WEAK, GUNS,
+    ELEM, ELEM_VI, ELEM_GUNS, WEAK, GUNS, TIER,
     gunForGate(id) { const g = GUNS.find((x) => x.gate === id); return g ? g.id : null; },
+    rating() { return MB.Save.data.bossRating || 0; },
+    tierNow() {
+      if (/[?&]bosstier=([0-2])/.test(location.search)) return +RegExp.$1;
+      const r = this.rating();
+      return r > 0.75 ? 2 : r > 0.45 ? 1 : 0;
+    },
     init(G, e) {
-      e.stag = 0; e.stagMax = e.maxHp * 0.13; e.stagT = 0;
-      e.weak = null; e.weakCd = 4; e.weakTxtT = 0;
-      G.heavyT = 12; G.superOfferT = 0.8;
+      const tier = G.bossTier = this.tierNow(), T = TIER[tier];
+      let k = T.hp * ((G.def.id >= 5) ? 0.85 : 1);
+      e.hp *= k; e.maxHp *= k;
+      e.stag = 0; e.stagMax = e.maxHp * T.stag; e.stagT = 0; e.stagLock = 0; e.enrageT = 0;
+      e.weak = null; e.weakCd = 4; e.weakTxtT = 0; e.gphase = 1;
+      G.heavyT = 12; G.superOfferT = 0.8; G.bossT0 = G.time;
     },
     update(G, e, dt) {
-      if (e.stagT > 0) e.stagT = Math.max(0, e.stagT - dt);
+      const T = TIER[G.bossTier || 0];
+      if (e.stagT > 0) { e.stagT = Math.max(0, e.stagT - dt); if (e.stagT === 0) this.enrage(G, e); }
+      if (e.stagLock > 0) e.stagLock -= dt;
+      if (e.enrageT > 0) e.enrageT -= dt;
       e.weakTxtT -= dt;
-      if (e.weak) { e.weak.t -= dt; if (e.weak.t <= 0) { e.weak = null; e.weakCd = 5; } }
-      else if (e.spawnT <= 0 && !e.hidden) {
+      const p = G.player;
+      if (e.weak) {
+        e.weak.t -= dt; e.weak.age += dt; if (e.weak.hitT > 0) e.weak.hitT -= dt;
+        // cấp khó: boss xoay người che quả tim khỏi Hunter → phải chạy vòng
+        if (T.guard && e.stagT <= 0) {
+          const away = Math.atan2(p.y - e.y, p.x - e.x) + Math.PI;
+          e.weak.a += U.clamp(U.angDiff(e.weak.a, away), -T.guard * dt, T.guard * dt);
+        }
+        if (e.weak.t <= 0) { e.weak = null; e.weakCd = T.weakCd; }
+      } else if (e.spawnT <= 0 && !e.hidden) {
         e.weakCd -= dt;
         if (e.weakCd <= 0) {
-          // lộ ra hơi lệch khỏi hướng người chơi: chỉ cần bước sang ngang một chút là bắn trúng
-          const p = G.player, a = Math.atan2(p.y - e.y, p.x - e.x) + (Math.random() < 0.5 ? -1 : 1) * U.rnd(0.5, 1.2);
-          e.weak = { a, t: 6 };
-          if (!G.weakTold) { G.weakTold = true; MB.HUD.toast('Boss lộ <b style="color:#ff6a3c">ĐIỂM YẾU</b> (vòng đỏ) · bắn trúng gây ×2 sát thương', '#ff9a5c'); }
+          const a = Math.atan2(p.y - e.y, p.x - e.x) + (Math.random() < 0.5 ? -1 : 1) * U.rnd(0.5, 1.2);
+          e.weak = { a, t: T.weakT, age: 0 };
+          MB.Audio.play('heartbeat');
+          const sv = MB.Save.data;
+          if (!sv.heartTold) { sv.heartTold = true; MB.Save.save(); MB.Story.say('HUNTER', 'Có thứ gì đang đập phập phồng trên thân nó… Nhắm vào đó!', 4); }
+        }
+      }
+      // cấp khó: đổi lối đánh ở 66% và 33% máu
+      if (G.bossTier >= 1 && !e.hidden) {
+        const f = e.hp / e.maxHp, ph = f < 0.33 ? 3 : f < 0.66 ? 2 : 1;
+        if (ph > e.gphase) { e.gphase = ph; this.phaseShift(G, e, ph); }
+        if (e.gphase >= 2 + (G.bossTier >= 2 ? 0 : 1) && e.spawnT <= 0) {
+          e.ringT = (e.ringT == null ? 3 : e.ringT) - dt * (e.enrageT > 0 ? 1.6 : 1);
+          if (e.ringT <= 0) { e.ringT = G.bossTier >= 2 ? 5 : 6.5; this.ring(G, e); }
         }
       }
     },
     weakPos(e) { return { x: e.x + Math.cos(e.weak.a) * e.r * 0.8, y: e.y + Math.sin(e.weak.a) * e.r * 0.8 }; },
-    // nhân hệ số sát thương lên boss + tích thanh gục choáng
     hit(G, e, dmg, src) {
       src = src || {};
+      const T = TIER[G.bossTier || 0];
       let k = 1;
       const el = src.wid && ELEM[src.wid];
       if (el && WEAK[e.type] === el) {
         k *= 1.5;
-        if (!G.elemTold) { G.elemTold = true; G.text(e.x, e.y - e.r - 26, `KHẮC CHẾ ${ELEM_VI[el]} ×1,5`, '#9dff8a', 15); }
+        if (!G.elemTold) { G.elemTold = true; G.text(e.x, e.y - e.r - 26, `KHẮC CHẾ ${ELEM_VI[el]}`, '#9dff8a', 15); }
       }
       if (e.weak && src.fx != null && !src.sup) {
         const d = Math.hypot(src.fx - e.x, src.fy - e.y) || 1;
         const ix = e.x + (src.fx - e.x) / d * e.r, iy = e.y + (src.fy - e.y) / d * e.r;
         const w = this.weakPos(e);
-        if (U.dist(ix, iy, w.x, w.y) < e.r * 0.65 + 10) {
-          k *= 2;
-          if (e.weakTxtT <= 0) { e.weakTxtT = 0.35; G.text(w.x, w.y - 16, 'ĐIỂM YẾU ×2', '#ff7a3c', 14); }
+        if (U.dist(ix, iy, w.x, w.y) < e.r * 0.6 + 8) {
+          k *= T.weakK;
+          // trúng tim: máu cam toé ra, nhịp đập giật mạnh — không hiện chữ
+          if (e.weakTxtT <= 0) { e.weakTxtT = 0.12; G.burst(w.x, w.y, '#ff7a2c', 6, 160); e.weak.hitT = 0.15; }
           MB.Audio.play('weakhit');
         }
       }
       if (e.stagT > 0) k *= 1.5;
       if (G.player.apT > 0 && !src.sup) k *= 1.4;
-      dmg *= Math.min(k, 4);
-      if (e.stagT <= 0 && !e.hidden && !e.airborne) {
+      dmg *= Math.min(k, 2.5);
+      if (e.stagT <= 0 && e.stagLock <= 0 && !e.hidden && !e.airborne) {
         e.stag += dmg;
         if (e.stag >= e.stagMax) this.stagger(G, e);
       }
       return dmg;
     },
     stagger(G, e) {
-      e.stag = 0; e.stagMax *= 1.2; e.stagT = 4; e.stunT = Math.max(e.stunT || 0, 4);
+      const T = TIER[G.bossTier || 0];
+      e.stag = 0; e.stagMax *= T.stagGrow; e.stagT = T.stagT; e.stunT = Math.max(e.stunT || 0, T.stagT);
       G.hitstop = Math.max(G.hitstop, 0.12); G.shake(12); MB.haptic([30, 20, 50]);
-      G.banner('BOSS GỤC CHOÁNG!', 'Dồn hoả lực · +50% sát thương trong 4 giây', 1.8);
+      G.banner('BOSS GỤC CHOÁNG!', `Dồn hoả lực · +50% sát thương trong ${T.stagT} giây`, 1.6);
       MB.Audio.play('stagger');
       G.burst(e.x, e.y, '#ffd56a', 30, 260);
     },
+    // hết choáng → nổi điên 5 giây: đánh nhanh hơn, chạy nhanh hơn; 20 giây sau mới choáng lại được
+    enrage(G, e) {
+      e.enrageT = 5; e.stagLock = 20;
+      G.banner('BOSS NỔI ĐIÊN', 'Né ngay!', 1.2);
+      MB.Audio.play('roar'); G.shake(10);
+      G.burst(e.x, e.y, '#ff3b3b', 26, 240);
+    },
+    phaseShift(G, e, ph) {
+      MB.Audio.play('roar'); G.shake(12); G.hitstop = Math.max(G.hitstop, 0.1);
+      G.banner(ph === 2 ? 'BOSS ĐỔI LỐI ĐÁNH' : 'BOSS LIỀU MẠNG', ph === 2 ? 'Quái tiếp viện xuất hiện' : 'Vòng đạn dày đặc', 1.6);
+      // gọi quái tiếp viện từ đội hình của Gate
+      const waves = G.def.waves || [], mix = (waves[waves.length - 1] || {}).mix || { zombie: 1 };
+      const n = ph === 2 ? 3 + G.bossTier : 4 + G.bossTier;
+      for (let i = 0; i < n; i++) {
+        const a = i / n * U.TAU, x = e.x + Math.cos(a) * (e.r + 90), y = e.y + Math.sin(a) * (e.r + 90);
+        const type = U.weighted(mix);
+        if (MB.Enemies.types[type] && !MB.Enemies.types[type].boss) G.spawnEnemyAt(type, U.clamp(x, 40, G.world.w - 40), U.clamp(y, 40, G.world.h - 40), { extra: true });
+      }
+      this.ring(G, e);
+    },
+    ring(G, e) {
+      const n = G.bossTier >= 2 ? 18 : 14, off = Math.random() * U.TAU;
+      for (let i = 0; i < n; i++) G.enemyShot({ x: e.x, y: e.y, a: off + i / n * U.TAU, speed: 230, r: 8, dmg: Math.round(e.dmg * 0.6), life: 3, kind: 'orb', color: '#ff5a6a', owner: e });
+      MB.Audio.play('spit');
+    },
+    // ghi kết quả trận boss → xếp cấp cho các trận sau (trung bình trượt)
+    record(G, won) {
+      const sv = MB.Save.data, p = G.player;
+      if (G.mode !== 'campaign' || G.bossT0 == null) return;
+      let r;
+      if (won) {
+        const t = G.time - G.bossT0, hpK = p.maxHp ? p.hp / p.maxHp : 0;
+        r = U.clamp((62 - t) / 30, -1, 1) * 0.6 + (hpK - 0.5) * 0.8 - (G.bossRetryUsed ? 0.6 : 0);
+      } else r = -0.8;
+      sv.bossRating = U.clamp((sv.bossRating || 0) * 0.6 + r * 0.4, -1, 1);
+      MB.Save.save();
+    },
     tip(e) {
       const w = WEAK[e.type];
-      const s = e.stagT > 0 ? 'ĐANG GỤC CHOÁNG · +50%' : w ? `KHẮC CHẾ: SÚNG ${ELEM_VI[w]}` : '';
-      return s;
+      if (e.stagT > 0) return 'ĐANG GỤC CHOÁNG · +50%';
+      if (e.enrageT > 0) return 'NỔI ĐIÊN!';
+      return w ? `KHẮC CHẾ: SÚNG ${ELEM_VI[w]}` : '';
     },
   };
 
@@ -130,7 +211,7 @@
         G.growlT = 3 + Math.random() * 4;
         if (G.enemies.some((e) => !e.dead && !e.boss && !e.hidden && U.dist(e.x, e.y, p.x, p.y) < 520)) MB.Audio.play('growl');
       }
-      if (boss && G.state === 'boss' && !G.over) { G.heavyT -= dt; if (G.heavyT <= 0) { G.heavyT = 22; this.dropHeavy(G); } }
+      if (boss && G.state === 'boss' && !G.over) { G.heavyT -= dt; if (G.heavyT <= 0) { G.heavyT = TIER[G.bossTier || 0].heavy; this.dropHeavy(G); } }
       if (G.superOfferT > 0 && !G.over && !p.dead) { G.superOfferT -= dt; if (G.superOfferT <= 0) { MB.App.offerSuper(); return; } }
       const s = G.sup; if (!s) return;
       s.t += dt;
@@ -146,7 +227,7 @@
           for (const e of G.enemies) {
             if (e.dead || e.hidden || e.spawnT > 0) continue;
             if (MB.Col.segCircle(s.x1, s.y1, s.x2, s.y2, e.x, e.y, e.r + 18)) {
-              G.damageEnemy(e, e.boss ? e.maxHp * 0.002 : 30, a, e.boss ? 0 : 60, false, { sup: true, noText: true });
+              G.damageEnemy(e, e.boss ? e.maxHp * 0.002 * TIER[G.bossTier || 0].sup : 30, a, e.boss ? 0 : 60, false, { sup: true, noText: true });
               if (Math.random() < 0.3) G.sparks(e.x, e.y, a + Math.PI, '#ffd0d0', 2);
             }
           }
@@ -162,7 +243,7 @@
           if (tg) {
             s.cd = 0.12;
             const a = Math.atan2(tg.y - s.y, tg.x - s.x) + U.rnd(-0.03, 0.03), sp = 1050;
-            G.bullets.push({ x: s.x, y: s.y, px: s.x, py: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.7, dmg: tg.boss ? tg.maxHp * 0.0015 : 34,
+            G.bullets.push({ x: s.x, y: s.y, px: s.x, py: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.7, dmg: tg.boss ? tg.maxHp * 0.0015 * TIER[G.bossTier || 0].sup : 34,
               pierce: 0, hits: [], r: 3, color: '#7ef3ff', knock: 20, max0: 0.7, wid: 'drone', sup: true });
             if ((s.sh = (s.sh || 0) + 1) % 2) MB.Audio.play('shot_smg');
           } else s.cd = 0.2;
@@ -186,7 +267,7 @@
       G.telegraphCircle(x, y, 120, 0.5, (GG) => {
         if (tg && !tg.dead && tg.boss) { x = tg.x; y = tg.y; }
         GG.sfx.push({ kind: 'column', x, y, t: 0, life: 0.5 });
-        GG.explosion(x, y, 130, 280, { knock: 300, bossPct: 0.03, src: { sup: true }, shake: 14, color: '#ffe6a0', ring: '255,230,160' });
+        GG.explosion(x, y, 130, 280, { knock: 300, bossPct: 0.03 * TIER[GG.bossTier || 0].sup, src: { sup: true }, shake: 14, color: '#ffe6a0', ring: '255,230,160' });
       }, 'rgba(255,220,120,.12)');
     },
 
@@ -319,17 +400,33 @@
       // boss: điểm yếu + sao choáng
       const b = G.boss;
       if (b && !b.dead && !b.hidden && b.spawnT <= 0) {
-        if (b.weak) {
-          const w = Boss.weakPos(b), c = P(w.x, mh(b) * 0.55, w.y), R = (b.r * 0.42 + 6) * k * (1 + Math.sin(t * 9) * 0.12);
-          const fade = Math.min(1, b.weak.t * 2);
-          ctx.globalAlpha = fade;
-          ctx.fillStyle = 'rgba(255,80,40,.28)'; U.circle(ctx, c.x, c.y, R); ctx.fill();
-          ctx.strokeStyle = '#ff6a3c'; ctx.lineWidth = 3; U.circle(ctx, c.x, c.y, R); ctx.stroke();
-          ctx.lineWidth = 2; ctx.beginPath();
-          for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + t; ctx.moveTo(c.x + Math.cos(a) * R * 0.45, c.y + Math.sin(a) * R * 0.45); ctx.lineTo(c.x + Math.cos(a) * R * 1.35, c.y + Math.sin(a) * R * 1.35); }
-          ctx.stroke();
-          ctx.fillStyle = '#ffd56a'; U.circle(ctx, c.x, c.y, 3); ctx.fill();
-          ctx.globalAlpha = 1;
+        // quả tim virus (2D): khối thịt đỏ cam phập phồng theo nhịp tim, có gân — 3D dựng mô hình riêng trong render3d
+        if (b.weak && !r3) {
+          const w = Boss.weakPos(b), c = P(w.x, 0, w.y);
+          const grow = Math.min(1, b.weak.age / 0.35) * Math.min(1, b.weak.t / 0.3);
+          const beat = Math.max(0, Math.sin(t * 7.5)) ** 6 * 0.22 + (b.weak.hitT > 0 ? 0.25 : 0);
+          const R = (b.r * 0.26 + 4) * grow * (1 + beat);
+          if (R > 0.5) {
+            ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(b.weak.a);
+            ctx.shadowColor = '#ff5a2a'; ctx.shadowBlur = 14 + beat * 30;
+            const gr = ctx.createRadialGradient(-R * 0.25, -R * 0.3, R * 0.1, 0, 0, R);
+            gr.addColorStop(0, '#ffd08a'); gr.addColorStop(0.35, '#ff6a3c'); gr.addColorStop(1, '#8a1410');
+            ctx.fillStyle = gr;
+            ctx.beginPath();
+            for (let i = 0; i <= 14; i++) { const aa = i / 14 * U.TAU, rr = R * (1 + Math.sin(aa * 3 + t * 2) * 0.08); ctx.lineTo(Math.cos(aa) * rr * 1.1, Math.sin(aa) * rr * 0.9); }
+            ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(90,10,10,.8)'; ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            for (let i = 0; i < 4; i++) { const aa = i * 1.7 + 0.4; ctx.moveTo(Math.cos(aa) * R * 0.2, Math.sin(aa) * R * 0.2); ctx.quadraticCurveTo(Math.cos(aa + 0.5) * R * 0.7, Math.sin(aa + 0.5) * R * 0.6, Math.cos(aa + 0.2) * R * 1.25, Math.sin(aa + 0.2) * R * 1.05); }
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+        // boss nổi điên: hào quang đỏ
+        if (b.enrageT > 0) {
+          const c = P(b.x, 0, b.y), R = b.r * k * (1.25 + Math.sin(t * 14) * 0.08);
+          ctx.strokeStyle = `rgba(255,50,50,${0.35 + 0.3 * Math.sin(t * 14)})`; ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.ellipse(c.x, c.y, R, R * (r3 ? 0.6 : 1), 0, 0, U.TAU); ctx.stroke();
         }
         if (b.stagT > 0) {
           const c = P(b.x, r3 ? mh(b) * 1.15 : 0, b.y - (r3 ? 0 : b.r + 16));

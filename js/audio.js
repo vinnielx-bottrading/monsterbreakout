@@ -12,11 +12,11 @@
     // số biến thể của mỗi hiệu ứng (tên_1.mp3, tên_2.mp3 …)
     SAMPLES: { boom: 3, boss: 1, break: 2, challenge: 1, dash: 2, drone: 1, empty: 1, growl: 4, heal: 1, hit: 4, hurt: 2, kill: 3, lash: 1, lose: 1, mod: 1, nova: 1, pickup: 1,
       reload: 1, reload_done: 1, roar: 2, shot_beam: 1, shot_bolt: 1, shot_cryo: 2, shot_disc: 1, shot_flame: 2, shot_gl: 1, shot_missile: 1, shot_plasma: 2, shot_rifle: 3,
-      shot_shotgun: 2, shot_smg: 3, shot_sniper: 2, slam: 1, spit: 1, stagger: 1, super_laser: 1, super_orbital: 1, swap: 1, throw: 1, ui: 1, wave: 1, weakhit: 1, weapon: 1, win: 1 },
+      shot_shotgun: 2, shot_smg: 3, shot_sniper: 2, slam: 1, spit: 1, stagger: 1, super_laser: 1, super_orbital: 1, swap: 1, throw: 1, ui: 1, wave: 1, weakhit: 2, heartbeat: 1, weapon: 1, win: 1 },
     // âm lượng từng hiệu ứng (cân bằng với nhau)
     VOL: { hit: 0.32, kill: 0.5, shot_rifle: 0.5, shot_smg: 0.42, shot_shotgun: 0.62, shot_sniper: 0.62, shot_flame: 0.36, shot_gl: 0.55, shot_plasma: 0.45, shot_beam: 0.32,
       shot_cryo: 0.34, shot_bolt: 0.55, shot_missile: 0.5, shot_disc: 0.45, boom: 0.75, growl: 0.32, roar: 0.75, boss: 0.85, ui: 0.35, pickup: 0.5, empty: 0.4, reload: 0.5,
-      reload_done: 0.5, swap: 0.45, dash: 0.45, hurt: 0.6, stagger: 0.8, weakhit: 0.38, wave: 0.7, win: 0.75, lose: 0.75, super_orbital: 0.8, super_laser: 0.8 },
+      reload_done: 0.5, swap: 0.45, dash: 0.45, hurt: 0.6, stagger: 0.8, weakhit: 0.5, heartbeat: 0.75, wave: 0.7, win: 0.75, lose: 0.75, super_orbital: 0.8, super_laser: 0.8 },
     MAXV: { hit: 4, shot_rifle: 5, shot_smg: 5, shot_flame: 3, shot_cryo: 3, shot_beam: 2, kill: 4, boom: 4, growl: 2 },
     LOOPS: { battle: [0.1, 48.1], boss: [0.1, 41.2428], menu: [0.1, 48.1] },
     MUSVOL: 0.42,
@@ -300,7 +300,7 @@
 
   // âm dự phòng cho hiệu ứng mới khi chưa tải file
   const FALLBACK = { shot_beam: 'shot_plasma', shot_cryo: 'shot_flame', shot_bolt: 'shot_sniper', shot_missile: 'shot_gl', shot_disc: 'shot_rifle', growl: 'roar',
-    stagger: 'slam', weakhit: 'hit', super_orbital: 'boom', super_laser: 'nova', drone: 'mod' };
+    stagger: 'slam', weakhit: 'hit', heartbeat: 'slam', super_orbital: 'boom', super_laser: 'nova', drone: 'mod' };
   const arp = (a, notes, type, step, dur, vol) => notes.forEach((f, i) => a.tone(type, f, f, dur, vol, i * step));
   const SFX = {
     shot_rifle: (a) => { a.noise(0.07, 0.32, 'highpass', 1800, 600); a.tone('square', 180, 60, 0.07, 0.14); },

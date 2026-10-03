@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.5.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v6.6** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-03 (rev 24) |
+| README cập nhật | 2026-10-03 (rev 25) |
 
 ---
 
@@ -268,7 +268,25 @@ Sát thương nổ (Boomer, Bolt, Hornet) giờ cũng được nhân theo linh k
 
 Với Rifle, nếu nhặt tối đa D5 + F5, DPS lên khoảng 510 (gấp 2,8 lần). Muốn đạt mức đó phải tích cực phá thùng và làm thử thách. Gate 08–10 thưởng linh kiện hiếm thay vì súng.
 
-## 6c. Trận boss: điểm yếu, gục choáng, khắc hệ, siêu chiêu (v6.4)
+## 6c. Trận boss: điểm yếu, gục choáng, khắc hệ, siêu chiêu (v6.4 → v6.6)
+
+**v6.6 — cân lại nhịp boss & tự cân bằng theo tay chơi** (`MB.Boss` trong `js/arsenal.js`, ghi đè các số v6.4 bên dưới):
+- **Quả tim virus thay cho vòng đỏ + chữ "ĐIỂM YẾU":** một khối thịt đỏ cam có gân mọc ra trên thân boss, phập phồng theo nhịp tim (âm `heartbeat`), trúng thì máu cam toé ra + tiếng "phụt" (`weakhit`), không hiện chữ. Lần đầu gặp, Hunter nói qua bộ đàm: "Có thứ gì đang đập phập phồng trên thân nó… Nhắm vào đó!" (chỉ 1 lần, `sv.heartTold`). 3D có mô hình riêng (`R3.updateHeart`).
+- **Nhịp trận đều hơn (mọi người):** boss Gate 5+ bớt 15% máu; tổng hệ số nhân tối đa **×2,5** (trước ×4); hết choáng → **BOSS NỔI ĐIÊN 5 giây** (AI chạy nhanh ×1,5, di chuyển ×1,3, hào quang đỏ); sau đó **20 giây** mới tích thanh choáng lại (thanh xám).
+- **Tự cân bằng âm thầm:** mỗi trận boss ở Chiến dịch chấm điểm theo thời gian hạ boss (mục tiêu ~62 giây) và máu còn lại, trừ nếu phải đấu lại; thua boss = −0,8. Lưu trung bình trượt `sv.bossRating` (−1…1). Cấp: **0 thường** (≤0,45) · **1 khó** (>0,45) · **2 tinh nhuệ** (>0,75). Thử nhanh: `?bosstier=0|1|2`.
+
+| | Thường | Khó | Tinh nhuệ |
+|---|---|---|---|
+| Máu boss | ×1 | ×1,2 | ×1,4 |
+| Quả tim lộ / nghỉ | 6 s / 5 s | 4,2 s / 7 s | 3,5 s / 8 s |
+| Sát thương vào tim | ×2 | ×1,7 | ×1,6 |
+| Thanh choáng (máu boss) · tăng mỗi lần · thời gian choáng | 13% · ×1,2 · 4 s | 18% · ×1,3 · 3 s | 22% · ×1,35 · 2,5 s |
+| Thùng đạn hạng nặng | 22 s | 32 s | 40 s |
+| Sức siêu chiêu lên boss | 100% | 75% | 60% |
+| Boss xoay người che tim | — | 0,6 rad/s | 0,95 rad/s |
+| Đổi lối đánh ở 66% / 33% máu | — | gọi 4–5 quái + vòng 14 đạn; từ 33% bắn vòng đạn 6,5 s/lần | gọi 5–6 quái + vòng 18 đạn; từ 66% bắn vòng 5 s/lần |
+| Xu khi thắng | ×1 | ×1,25 | ×1,5 |
+
 
 Mục tiêu: trận boss còn khoảng 45–75 giây thay vì 2–3 phút "bắn tạch tạch".
 
@@ -567,6 +585,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v6.6** · README rev 25 | Boss: "quả tim virus" thay vòng đỏ + chữ điểm yếu; Gate 5+ bớt 15% máu, hệ số tối đa ×2,5, nổi điên 5 giây sau choáng + khoá choáng 20 giây; tự cân bằng âm thầm 3 cấp theo thời gian hạ boss & máu còn lại; cấp khó: boss che tim, đổi lối đánh ở 66%/33% (gọi quái, vòng đạn), thưởng thêm xu |
 | 2026-10-03 | **v6.5.1** · README rev 24 | Mô hình 3D thật giữ đúng tạo hình đã vẽ: Hunter thay đầu mũ giáp bằng đầu tóc nâu + mũ trùm, thêm áo giáp ô liu, ba lô, phù hiệu; xác sống thêm đầu u nần mắt phát sáng, áo rách, túi độc, da xanh xám; thêm Cài đặt "Nhân vật 3D" (mô hình mới / dựng sẵn) |
 | 2026-10-03 | **v6.5** · README rev 23 | Âm thanh mới dạng file (67 hiệu ứng, 3 bản nhạc lặp: menu / trận / boss) dựng từ mẫu CC0 + tổng hợp offline; mô hình 3D thật có khung xương cho Hunter và xác sống thường (Mixamo qua three.js examples); tiếng quái gầm gừ; âm riêng cho 5 súng mới, siêu chiêu, gục choáng, điểm yếu |
 | 2026-10-02 | **v6.4** · README rev 22 | Trận boss mới: điểm yếu ×2, gục choáng (+50%), khắc hệ ×1,5, tiếp tế đạn hạng nặng; thanh nộ + 3 siêu chiêu chọn khi boss xuất hiện; 5 súng mới (Cryo, Bolt X, Hornet, Lumen Beam, Ripper) nhận khi hạ boss Gate 3/5/7/9/11 hoặc mua bằng xu; sát thương nổ nhân theo linh kiện |
