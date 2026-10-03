@@ -4,13 +4,13 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v6.6.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v7.1** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-03 (rev 26) |
+| README cập nhật | 2026-10-03 (rev 31) |
 
 ---
 
@@ -40,7 +40,7 @@ Mở `http://localhost:3000` (hoặc cổng 8080). Thêm `?unlock=all` vào URL 
 
 ## 2b. Đăng nhập Google, lưu tiến trình & bảng xếp hạng (Supabase)
 
-Không bắt buộc: khách vẫn chơi bình thường, tiến trình lưu trên máy. Đăng nhập Google thì tiến trình (gate đã mở, sao, kỷ lục, súng, xu, nâng cấp) được lưu lên Supabase và có tên trên bảng xếp hạng.
+Khách chơi được Gate 1–7 (tiến trình lưu trên máy); **từ Gate 8 bắt buộc đăng nhập** (xem mục 2c). Đăng nhập Google thì tiến trình (gate đã mở, sao, kỷ lục, súng, xu, nâng cấp) được lưu lên Supabase và có tên trên bảng xếp hạng.
 
 - Dự án Supabase: `https://oapfplwvvspkvklldtpf.supabase.co`, khoá công khai (publishable) đặt trong `js/cloud.js`. Khoá này được phép để ở trình duyệt; quyền truy cập do RLS trong cơ sở dữ liệu quyết định.
 - Thư viện `js/vendor/supabase.min.js` (supabase-js 2.117, ~55 KB nén) **chỉ tải khi cần**: người đã đăng nhập, bấm Đăng nhập, hoặc mở Bảng xếp hạng.
@@ -68,6 +68,40 @@ Không bắt buộc: khách vẫn chơi bình thường, tiến trình lưu trê
 **Đồng bộ:** khi đăng nhập: tải bản trên mạng → gộp với bản trên máy (gate/sao/kỷ lục/súng/nâng cấp lấy phần tốt hơn; xu lấy theo bản mới hơn; cài đặt giữ của từng máy) → đẩy bản đã gộp lên. Sau mỗi trận và mỗi lần mua nâng cấp: đẩy lên (gom trong 1,5 giây). Máy đang giữ tiến trình của tài khoản khác thì dùng bản của tài khoản vừa đăng nhập, không gộp chéo. Đăng xuất không xoá tiến trình trên máy.
 
 **Bảng xếp hạng:** *Chọn cửa ải → BẢNG XẾP HẠNG*. Chiến dịch: điểm cao nhất khi **thắng** Gate (kèm thời gian). Sinh tồn: wave cao nhất, rồi đến điểm. Top 50, dòng của mình được tô sáng.
+
+## 2c. Đăng nhập bắt buộc, thu phí (bật/tắt), donate, trang quản trị (v7.1)
+
+**Hiện tại (thu phí TẮT):** khách chơi Gate 1–7; từ Gate 8 phải đăng nhập Google (miễn phí) rồi chơi hết, không giới hạn. Nút **☕ ỦNG HỘ GAME** ở menu, menu Tạm dừng (trong trận), màn kết quả và mục Tài khoản → hiện mã VietQR ngân hàng của chủ game (chọn nhanh 20k / 50k / 100k / 200k hoặc tuỳ ý, nút sao chép số tài khoản / nội dung).
+
+**Trang quản trị `admin.html`** (đăng nhập Google bằng tài khoản có trong `mb_admins`; người chơi là admin thấy nút ⚙ QUẢN TRỊ trong Tài khoản):
+1. **Thu phí:** công tắc bật/tắt + "bắt buộc đăng nhập từ Gate" (mặc định 8) + "thu phí từ Gate" (mặc định 11). Lưu là áp dụng cho người chơi ở lần mở game kế tiếp.
+2. **Nhận donate:** mã ngân hàng (VCB, MB, TCB…), số tài khoản, tên chủ tài khoản, lời nhắn; hoặc dán link ảnh QR riêng (ví dụ QR MoMo). Có nút xem thử QR.
+3. **Bảng giá gói** (sửa tên, giá, giá màn tiếp theo, số ngày, mô tả).
+4. **Đơn hàng:** xem đơn, bấm DUYỆT khi đã nhận tiền mà đơn chưa tự mở.
+5. **Cấp quyền thủ công** theo email.
+
+**Khi BẬT thu phí** (từ Gate 11):
+
+| Gói | Giá | Thời hạn | Mở | Sinh tồn + BXH | Màn tiếp theo | Chu kỳ+ |
+|---|---|---|---|---|---|---|
+| `act15` Gói 15 ngày | 29.000đ | 15 ngày | 1 màn (chiến dịch) | ✗ | 29.000đ | ✗ |
+| `act30` Gói 30 ngày | 49.000đ | 30 ngày | 1 màn | ✓ | 25.000đ | ✗ |
+| `year` Gói 1 năm | 525.000đ | 365 ngày | Mọi màn | ✓ | — | ✓ |
+| `gate` Ủng hộ mở 1 cửa | 5.000đ | 15 ngày | 1 cửa (chiến dịch) | ✗ | — | ✗ |
+
+Mua màn tiếp theo tính thời hạn mới từ lúc mua. Giá do **máy chủ** tính (`mb_create_order`), người chơi không sửa được.
+
+**Luồng thanh toán (QR ngân hàng tự mở khoá):** chọn gói → `mb_create_order` tạo mã đơn `MBxxxxxx` → game hiện VietQR có sẵn số tiền + mã đơn → người chơi chuyển khoản → **SePay** đọc biến động số dư, gọi Edge Function `mb-sepay` → tìm mã đơn trong nội dung, đủ tiền thì `mb_apply_order` cấp quyền → game tự kiểm tra mỗi 5 giây và mở khoá (hoặc bấm *ĐÃ CHUYỂN KHOẢN? KIỂM TRA*).
+
+**Cài đặt (làm 1 lần, theo thứ tự):**
+1. SQL Editor → chạy lại toàn bộ `supabase/schema.sql`.
+2. Tự đặt mình làm admin: `insert into public.mb_admins (user_id) select id from auth.users where email = 'email-cua-ban@gmail.com';` (đăng nhập game bằng email đó ít nhất 1 lần trước).
+3. Mở `https://<tên-miền>/admin.html` → nhập thông tin ngân hàng nhận donate → LƯU.
+4. (Khi muốn thu phí tự động) Đăng ký SePay, liên kết tài khoản ngân hàng → triển khai `supabase functions deploy mb-sepay --no-verify-jwt` → *Edge Functions → Secrets*: `SEPAY_API_KEY` = khoá tự đặt → trong SePay tạo webhook tới `https://oapfplwvvspkvklldtpf.supabase.co/functions/v1/mb-sepay`, chứng thực "API Key" với cùng khoá → bật công tắc thu phí trong admin.
+
+**Dữ liệu:** `mb_config` (paywall / donate / plans — ai cũng đọc, chỉ admin sửa) · `mb_admins` · `mb_orders` (chủ đơn + admin xem, chỉ tạo qua `mb_create_order`) · `mb_entitlements` (thêm `gates`, `perks`; chỉ admin / máy chủ ghi) · trigger `mb_guard_score` chỉ chặn điểm Gate 11+ khi đang bật thu phí và gói không có quyền bảng xếp hạng.
+
+**Giới hạn:** kiểm tra quyền nằm ở trình duyệt, file Gate là file tĩnh — người rành kỹ thuật vẫn sửa code vào được (không lên bảng xếp hạng). Chặn hẳn: chuyển file Gate trả phí vào Storage riêng tư + signed URL. `?unlock=all` chỉ chạy trên localhost. ⚠ Thu phí game trực tuyến tại Việt Nam cần tư cách pháp lý phù hợp (Nghị định 147/2024) — chỉ bật khi đã đủ điều kiện.
 
 ## 3. Cấu trúc dự án
 
@@ -441,14 +475,20 @@ Boss xuất hiện theo hướng đấu trường, cách người chơi tối đ
 | 10 Apocalypse | ✅ | Virus **lan rộng** theo thời gian, sét đỏ đánh xuống, **4 wave** quái của mọi Gate | Tất cả | The Origin | Phá 4 khe nứt → Bộ Chia Tia · Thiết bị phong ấn 18 s → Lõi Xuyên Phá · 25 hạ gục → Nòng Tăng Lực |
 | **11 Hà Nội** · Hồ Gươm lúc hoàng hôn | ✅ v6.0 | **Hồ Gươm** nước xanh lục (đạn bay qua, người không lội được), **Tháp Rùa** giữa hồ, **cầu Thê Húc** đỏ là lối duy nhất vào **Đền Ngọc Sơn**, **Tháp Bút**, **Tháp Hoà Phong**, liễu rủ + lộc vừng ven hồ, phố cổ nhà ống (mái ngói / sân thượng bồn nước inox, biển hiệu PHỞ BÒ, BÚN CHẢ…, dây điện chằng chịt), **hàng xe máy bắn nổ được** | + Drone GoatEvil (bay, bắn 3 tia), Xe Ôm Zombie (lấy đà rồi lao thẳng) | **Sát Thủ Bóng Đêm** (tàng hình khi rình, chém lướt, phi tiêu, phân thân, bom khói) | Phá 4 ăng-ten GoatEvil → Nòng Tăng Lực · Giữ Đền Ngọc Sơn 15 s → Bộ Chia Tia · 18 hạ gục → Cò Siêu Tốc |
 | **12 Hội An** · Phố cổ đêm đèn lồng | ✅ v6.0 | **Ban đêm**: chỉ thấy rõ quanh đèn lồng / Hunter; **Chùa Cầu** (cầu có mái bắc qua rạch), nhà cổ tường vàng mái ngói âm dương phủ rêu, **dây đèn lồng** giăng phố, **cổng Hội quán Phúc Kiến**, sông Hoài với **thuyền gỗ & hoa đăng** trôi, hoa giấy | + Ma Đèn Lồng (bay, tự nổ lửa tím), Thuỷ Xà (lặn rồi trồi lên đớp) | **Mãng Xà Đèn Lồng** (thân là chuỗi đèn lồng gây bỏng, phun cầu lửa, chui xuống lòng phố rồi phóng lên, xả vòng lửa) | Phá 4 đèn ma → Lõi Xuyên Phá · Giữ Chùa Cầu 15 s → Băng Đạn · 20 hạ gục → Bộ Chia Tia |
-| 13–21 | 🔒 Sắp ra mắt | Theo dấu manh mối (gợi ý: Hạ Long…) · Gate 21: trận cuối | | | |
+| **13 Hạ Long** · Vịnh di sản lúc hoàng hôn | ✅ v6.8 | Biển **chặn đi bộ, đạn bay qua**; đi trên **cầu ván, bè làng chài nổi, đảo, bãi cát**; **đảo đá vôi** (che khuất, mờ khi Hunter đứng sau), **Hòn Trống Mái** trên đảo có đài ngắm, làng chài Cửa Vạn (nhà bè nhiều màu), **thuyền buồm nâu & thuyền thúng** trôi, vách đá có **hang Sửng Sốt** | + Sứa Điện (bay, bắn 3 cầu điện), Cua Đột Biến (mai cứng phía trước, lấy đà rồi lao) | **Thuỷ Long Vịnh Hạ** (bơi dọc bờ, phun nước quét, đập đuôi tạo sóng xung kích, lặn rồi trồi lên, dâng **tường sóng có khe hở**, gọi sứa từ giai đoạn 2; khi lặn thì miễn sát thương) | Phá 4 thùng lạnh GoatEvil → Nòng Tăng Lực · Giữ đài Trống Mái 15 s → Cò Siêu Tốc · 20 hạ gục → Bộ Chia Tia |
+| **14 Sa Pa · Fansipan** · Ruộng bậc thang trong sương | ✅ v6.9 | **Bờ ruộng bậc thang** chặn đi bộ (đạn bay qua) — tìm lối lên xuống; bản H'Mông (nhà gỗ mái pơ mu, giàn ngô, sạp thổ cẩm), **ga cáp treo** + cabin chạy giữa mây, rừng pơ mu – đỗ quyên, suối Thác Bạc (đi chậm), **cầu treo qua vực mây**, chóp Fansipan 3.143 m. **Sương mù** tràn xuống theo đợt (12 s, chỉ thấy quanh Hunter và Dian). **Đồng đội Dian** xuất hiện ở wave 1 | + Dê Núi Đột Biến (lấy đà húc, đâm vào vật cản thì choáng), Bóng Sương (gần như vô hình, vồ từ trong sương) | **Dê Chúa Hoàng Liên** (húc lao 1–3 lần liên tiếp — **dụ nó đâm vào đá tảng thì gục choáng**, nhảy dậm, phun băng làm chậm, hú gọi sương + Bóng Sương, giai đoạn 3 lở đá theo làn) | Phá 4 đèn sương đầu dê → Lõi Xuyên Phá · Giữ ga cáp treo 16 s → Băng Đạn · 22 hạ gục → Cò Siêu Tốc |
+| **15 Huế** · Kinh thành trong đêm mưa | ✅ v6.9 | **Đêm mưa**: chỉ sáng quanh đèn lồng cung đình; **sấm** theo đợt — chớp sáng cả kinh thành rồi sét đánh 2 điểm gần Hunter (vòng báo trước). Sông Hương + thuyền rồng, **cầu Trường Tiền** (vòm thép), tháp Phước Duyên (Thiên Mụ), **Kỳ Đài**, hào thành phủ sen, tường thành, **Ngọ Môn** lầu Ngũ Phụng, hồ Thái Dịch + cầu Trung Đạo, sân Đại Triều Nghi, **điện Thái Hòa**, Hiển Lâm Các + **Cửu Đỉnh**, Duyệt Thị Đường. Dian hỗ trợ qua bộ đàm | + Thị Vệ Xác Sống (giáo quét hình quạt), Kẻ Gọi Sét (gọi sét xuống chỗ Hunter) | **Nghê Đá Hoàng Cung** (vồ, phun đá vụn hình quạt, gầm sóng chấn; giai đoạn 2 gọi **3 ngọc giáp** xoay quanh — còn ngọc thì chỉ nhận 15% sát thương, vỡ hết ngọc thì choáng 3 s; giai đoạn 3 sét đánh liên tục) | Phá 4 ấn bùa đầu dê → Bộ Chia Tia · Giữ Kỳ Đài 16 s → Nòng Tăng Lực · 24 hạ gục → Lõi Xuyên Phá |
+| 16–21 | 🔒 Sắp ra mắt | 16 Đà Nẵng (Cầu Rồng, Cầu Vàng) · 17 Đà Lạt · 18 Sài Gòn · 19 Miền Tây · 20 Thất Sơn (An Giang) · 21 Căn cứ Alpha (trận cuối chu kỳ) | | | |
 
 ### Màn 2 · Nguồn Gốc — cốt truyện (v6.0)
 
 - **Cảnh chuyển sau Gate 10** (khoảng 1 phút, chạm để sang câu, có nút BỎ QUA, xem lại được ở tab MÀN 2): The Origin gục ngã → **GoatEvil** (AI hiện hình đầu dê ba chiều, giọng méo, cười man rợ rồi vỡ vụn) → căn cứ bị phá, **Giáo sư Ted** nằm bất động, tay nắm mẩu giấy → cận cảnh mẩu giấy cháy dở ghi *Hồ Gươm · Tháp Rùa* + toạ độ + ký hiệu đầu dê → Hunter lên đường, hiện chữ **MÀN 2 · NGUỒN GỐC**. Vẽ hoàn toàn bằng code (canvas), âm thanh tổng hợp (tiếng cười, nhiễu sóng, báo động, nhịp tim).
 - **Bộ đàm trong trận**: GoatEvil khiêu khích lúc vào trận, ở wave 2, khi Hunter yếu máu, khi boss xuất hiện / đổi giai đoạn; Hunter tự nói khi thắng. Khung nhỏ phía trên, không dừng game. (`comms` trong định nghĩa Gate.)
-- **Manh mối của Giáo sư Ted**: mỗi Gate Màn 2 giấu 1 mẩu giấy phát sáng (Gate 11: trong sân Đền Ngọc Sơn; Gate 12: kho số 7 bến sông). Nhặt được → hiện trang ghi chép, lưu vào `Save.data.clues` (đồng bộ lên mạng nếu đăng nhập). Gom đủ 10 mảnh (Gate 11–20) để mở **kết thúc thật** ở Gate 21.
+- **Manh mối của Giáo sư Ted**: mỗi Gate Màn 2 giấu 1 mẩu giấy phát sáng (Gate 11: trong sân Đền Ngọc Sơn; Gate 12: kho số 7 bến sông; Gate 13: cửa hang Sửng Sốt — phòng lạnh của Ted, nhắc tới *học trò giỏi nhất bỏ đi 12 năm trước sau khi thấy tình nguyện viên V-0*, chỉ đường lên Sa Pa; Gate 14: cạnh ga cáp treo — *có người đang theo dấu, tôi đã dạy cậu ấy cách đó*, chỉ đường về Huế; Gate 15: dưới Cửu Đỉnh — *Hạnh là người duy nhất ngoài tôi biết công thức gốc*, chỉ đường Đà Nẵng). Nhặt được → hiện trang ghi chép, lưu vào `Save.data.clues` (đồng bộ lên mạng nếu đăng nhập). Gom đủ 10 mảnh (Gate 11–20) để mở **kết thúc thật** ở Gate 21.
 - ⚠️ **Tiết lộ cốt truyện — Sự thật (chưa lộ trong game)**: chính Ted là trùm cuối — vì lòng tham bá quyền, ông dựng vở kịch "bị sát hại", tạo GoatEvil làm bình phong và gieo virus khắp thế giới. Các ghi chép cài sẵn dấu hiệu: chủng V-0 có từ 12 năm trước, hoá đơn ký tên "T.K." mà "tôi đã thấy mỗi ngày suốt mười hai năm".
+- **Đồng đội DIAN (v6.9)** — Dũng, mật danh Dian, đặc công, học trò cũ của GS Ted. 12 năm trước anh bỏ phòng thí nghiệm sau khi thấy "tình nguyện viên V-0" (đã gài ở manh mối số 3), từ đó âm thầm lần theo dấu Ted. Xuất hiện ở Gate 14 (bắn tỉa giải vây trong sương), Gate 15 hỗ trợ qua bộ đàm (đi tìm cô Hạnh — trợ lý cũ của Ted). Dự kiến đánh cùng ở Gate 16, 18, 20, 21; Gate 18 lộ chuyện anh giấu việc Ted còn sống → Gate 19 vắng mặt; Gate 21 Ted mời anh về phe, anh từ chối.
+- **Hệ thống đồng đội** (`js/ally.js`, `MB.Ally`): Gate bật bằng `ally: { enter: 'start' }` hoặc `{ enter: { wave, delay, x?, y?, overwatch } }` (xuất hiện giữa trận, đứng bắn yểm trợ vài giây rồi nhập nhóm). Dian bám sau-bên Hunter, tự tìm đường, tụt xa thì đổi chỗ tới gần; súng bắn tỉa (150 sát thương quái, 95 boss, 1,1 s/phát, tia ngắm laser xanh trước khi bắn) ưu tiên quái đang áp sát Hunter → tinh nhuệ → **quả tim boss**; ném bộc phá vào đám đông (không trúng Hunter); máu 340 (nhận 55% sát thương); gục thì Hunter đứng gần 2,4 s để kéo dậy (hoặc tự băng bó sau 35 s); đấu lại boss thì hồi đầy. Không tích nộ, không tính vào độ chính xác. Có thoại ngẫu nhiên, thẻ tên + thanh máu trên đầu, chấm xanh trên bản đồ nhỏ, mũi tên chỉ hướng khi gục. Trong sương (Gate 14) ống ngắm nhiệt đánh dấu đỏ quái quanh anh (`e.markT`). Bộ đàm có người nói mới `DIAN`, sự kiện `on: 'ally'`. Thẻ cửa ải hiện nhãn **+ DIAN**. 3D: dựng từ mô hình lính có khung xương + mũ tai bèo, khăn rằn, súng bắn tỉa.
+- **Hunter là người Việt**: tên thật **Nguyễn Hào Tình**, sinh ở làng chài Hạ Long (hiện trong HỒ SƠ HUNTER và bộ đàm Màn 2).
 - Màn hình Chọn cửa ải có tab **MÀN 1 / MÀN 2**; Màn 2 mở khi thắng Gate 10.
 
 ### Đồ hoạ có chiều sâu (Màn 2)
@@ -585,6 +625,11 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | — | v1, v2 | Không có ghi chép |
 | — | Gate 01 v3 | 1 file HTML: movement có gia tốc, Rifle Mk I–IV tự nâng theo wave, Zombie/Spider/Licker, Spider Queen, hồ virus |
 | 2026-10-01 | README rev 2 | Đánh giá README, thêm bảng lỗi và roadmap |
+| 2026-10-03 | **v7.1** · README rev 31 | Thu phí **bật/tắt từ trang quản trị** (mặc định TẮT: đăng nhập là chơi hết); nút **☕ Ủng hộ** (menu, tạm dừng, kết quả, tài khoản) hiện VietQR ngân hàng; **admin.html** (công tắc thu phí, thông tin ngân hàng, bảng giá, đơn hàng, cấp quyền); 4 gói mới (15 ngày 29k, 30 ngày 49k + màn sau 25k, 1 năm 525k + Chu kỳ+, ủng hộ 5k mở 1 cửa 15 ngày); đơn hàng + webhook SePay `supabase/functions/mb-sepay` |
+| 2026-10-03 | **v7.0** · README rev 30 | **Mở khoá theo tài khoản:** khách chơi Gate 1–7, Gate 8+ bắt buộc đăng nhập; Gate 11+ (Màn 2) cần gói. `js/access.js` (3 gói: 49k Màn 2, 99k Hunter Pass, 29k/30 ngày), màn chặn đăng nhập / mua gói, gói đang dùng trong Tài khoản, bảng `mb_entitlements` + trigger chặn điểm; khung thanh toán chờ chọn cổng; `?unlock=all` chỉ chạy trên localhost |
+| 2026-10-03 | **v6.9** · README rev 29 | **Gate 14 Sa Pa · Fansipan** và **Gate 15 Huế** (2D + 3D), mỗi Gate 2 quái mới + 1 boss mới; **hệ thống đồng đội** (`js/ally.js`) với **Dian**; sương mù có ống ngắm nhiệt; sấm sét Huế; thẻ cửa ải nhãn + DIAN; khắc hệ cho boss mới (Thuỷ Long: điện, Dê Chúa: lửa, Nghê Đá: nổ); manh mối 4–5/10 |
+| 2026-10-03 | **v6.8** · README rev 28 | **Gate 13 Hạ Long** (2D + 3D): bản đồ biển–cầu ván–làng chài nổi–đảo đá vôi–bãi cát–hang Sửng Sốt; quái Sứa Điện, Cua Đột Biến; boss Thuỷ Long Vịnh Hạ; manh mối 3/10. Hồ sơ Hunter thêm tên thật Nguyễn Hào Tình |
+| 2026-10-03 | **v6.7** · README rev 27 | Màn chọn cửa hiện cả 3 Màn trên một trang (đầu mục từng Màn, tiến độ, Màn 2 gắn nhãn MỚI, Màn 3 "Bóng tối lan rộng" với thẻ Gate 22–24 sắp ra mắt); nút MÀN 1/2/3 cuộn tới đúng màn; menu ghi "2 màn, 21 cửa ải · Màn 3 sắp ra mắt". Danh sách Màn ở `MB.Gates.acts` (gates/index.js) |
 | 2026-10-03 | **v6.6.1** · README rev 26 | Icon mới (phương án C: tấm thép bị cào rách, mắt quái đỏ lộ ra sau vệt virus xanh); bộ icon riêng cho Android (maskable, không bị cắt mất khi máy bo tròn/vuông/giọt nước), iPhone (apple-touch-icon 180), favicon; manifest tách purpose any/maskable |
 | 2026-10-03 | **v6.6** · README rev 25 | Boss: "quả tim virus" thay vòng đỏ + chữ điểm yếu; Gate 5+ bớt 15% máu, hệ số tối đa ×2,5, nổi điên 5 giây sau choáng + khoá choáng 20 giây; tự cân bằng âm thầm 3 cấp theo thời gian hạ boss & máu còn lại; cấp khó: boss che tim, đổi lối đánh ở 66%/33% (gọi quái, vòng đạn), thưởng thêm xu |
 | 2026-10-03 | **v6.5.1** · README rev 24 | Mô hình 3D thật giữ đúng tạo hình đã vẽ: Hunter thay đầu mũ giáp bằng đầu tóc nâu + mũ trùm, thêm áo giáp ô liu, ba lô, phù hiệu; xác sống thêm đầu u nần mắt phát sáng, áo rách, túi độc, da xanh xám; thêm Cài đặt "Nhân vật 3D" (mô hình mới / dựng sẵn) |

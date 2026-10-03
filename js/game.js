@@ -78,6 +78,7 @@
       this.spawned = 0; this.spawnT = 0;
       this.gs = {};
       if (def.setup) def.setup(this);
+      MB.Ally.init(this);
       MB.Story.startGate(this);
 
       this.snapCamera();
@@ -300,7 +301,7 @@
       }
       if (!e.boss && knock) { const k = knock * (e.def.knockMul == null ? 1 : e.def.knockMul); e.kx += Math.cos(ang) * k; e.ky += Math.sin(ang) * k; }
       if (!silent) MB.Audio.play('hit');
-      if (e.hp <= 0) this.killEnemy(e);
+      if (e.hp <= 0) { this.killEnemy(e); if (src && src.ally && !e.boss && Math.random() < 0.3) MB.Ally.say(this, 'kill'); }
     },
     killEnemy(e) {
       e.dead = true;
@@ -441,7 +442,7 @@
     // đấu lại boss: hồi sinh tại chỗ, đầy máu/giáp/đạn/kỹ năng, dọn trận đấu, boss xuất hiện lại sau 3 giây
     retryBoss() {
       const p = this.player;
-      this.bossRetryUsed = true; this.retryOffer = false;
+      this.bossRetryUsed = true; this.retryOffer = false; this.retryRevive = true;
       this.over = false; this.win = false; this.reported = false; this.overT = 0;
       p.dead = false; p.deadT = 0; p.dash = null; p.hp = p.maxHp; if (p.maxArmor) p.armor = p.maxArmor;
       p.burnT = 0; p.slow = 0; p.vx = 0; p.vy = 0; p.iframes = 3; p.reviveT = 3;
@@ -686,6 +687,7 @@
       this.updateNav(dt);
       if (!this.over) { this.updateWaves(dt); MB.Story.update(this, dt); }
       this.updateEnemies(dt);
+      MB.Ally.update(this, dt);
       this.updateObstacles(dt);
       this.updateBullets(dt);
       this.updateEnemyBullets(dt);
@@ -873,9 +875,9 @@
           if (e.dead || e.hidden || b.hits.includes(e)) continue;
           if (Col.segCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r + b.r)) {
             b.hits.push(e);
-            this.stats.bhits++;
+            if (!b.ally) this.stats.bhits++;
             if (b.explode) { this.explosion(b.x, b.y, b.explode.r, b.explode.dmg, { knock: b.explode.knock, small: true, wid: b.wid }); list.splice(i, 1); removed = true; break; }
-            this.damageEnemy(e, b.dmg, ang, b.knock, b.flame, { wid: b.wid, fx: b.px, fy: b.py, sup: b.sup });
+            this.damageEnemy(e, b.dmg, ang, b.knock, b.flame, { wid: b.wid, fx: b.px, fy: b.py, sup: b.sup, ally: b.ally });
             if (b.burn) e.burnT = 2.2;
             if (b.chill && !e.dead) MB.Super.chill(this, e);
             if (b.stick) MB.Super.stick(this, b, e, b.x, b.y);
@@ -1078,6 +1080,7 @@
       for (const e of this.enemies) if (!e.dead && this.inView(e.x, e.y, e.r + 80)) this.drawEnemy(ctx, e);
 
       if (MB.Input.mode !== 'kb') MB.Hero.drawAimLine(ctx, this.player, this);
+      MB.Ally.draw(ctx, this);
       MB.Hero.draw(ctx, this.player, this);
       MB.Super.draw(ctx, this, (x, h, y) => ({ x, y }), 1);
 
@@ -1111,6 +1114,7 @@
       // ---- màn hình (screen-space)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (this.def.drawScreen) this.def.drawScreen(this, ctx);
+      MB.Ally.drawHud(ctx, this, (x, h, y) => ({ x: (x - this.cam.x) * this.zoom + this.sx, y: (y - this.cam.y - h * 0.4) * this.zoom + this.sy }));
       this.drawIndicators(ctx);
       this.drawMinimap(ctx);
       if (MB.Input.mode === 'kb' && !this.paused) this.drawCrosshair(ctx);
@@ -1229,6 +1233,7 @@
       const p = this.player, z = this.zoom;
       const marks = MB.Challenges.markers(this);
       if (this.boss && !this.boss.dead) marks.push({ x: this.boss.x, y: this.boss.y, color: '#ff5b6e', boss: true });
+      if (this.ally && this.ally.down) marks.push({ x: this.ally.x, y: this.ally.y, color: '#9dff8a' });
       marks.sort((a, b) => U.dist(a.x, a.y, p.x, p.y) - U.dist(b.x, b.y, p.x, p.y));
       let n = 0;
       const pad = 34, cx = this.W / 2, cy = this.H / 2;
@@ -1286,6 +1291,7 @@
       ctx.fillStyle = '#ff6d68';
       for (const e of this.enemies) if (!e.dead) { const r = e.boss ? 3.5 : 1.6; ctx.fillRect(x0 + e.x * k - r, y0 + e.y * k - r, r * 2, r * 2); }
       for (const it of this.pickups) if (it.kind === 'weapon' || it.kind === 'mod') { ctx.fillStyle = '#ffd56a'; ctx.fillRect(x0 + it.x * k - 1.5, y0 + it.y * k - 1.5, 3, 3); }
+      if (this.ally) { ctx.fillStyle = this.ally.down ? '#ff6d68' : '#9dff8a'; ctx.beginPath(); ctx.arc(x0 + this.ally.x * k, y0 + this.ally.y * k, 2.6, 0, U.TAU); ctx.fill(); }
       const p = this.player;
       ctx.fillStyle = '#7ef3ff'; ctx.beginPath(); ctx.arc(x0 + p.x * k, y0 + p.y * k, 3, 0, U.TAU); ctx.fill();
       ctx.restore();

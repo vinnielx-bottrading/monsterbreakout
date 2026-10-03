@@ -3,8 +3,8 @@
 (function (MB) {
   const $ = (id) => document.getElementById(id);
   const G = MB.G;
-  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'dossier', 'loading'];
-  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'dossier', 'result'];
+  const SCREENS = ['menu', 'gates', 'help', 'settings', 'pause', 'result', 'retry', 'perks', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'loading'];
+  const MENU_SCREENS = ['menu', 'gates', 'help', 'settings', 'shop', 'account', 'board', 'dossier', 'wall', 'donate', 'result'];
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeImg = (u) => (/^https:\/\//.test(u || '') ? esc(u) : '');
   const loaded = {};
@@ -18,7 +18,7 @@
       MB.Save.load();
       const st = MB.Save.data.settings;
       MB.Audio.set('sfx', st.sfx); MB.Audio.set('music', st.music); MB.Audio.setMute(st.mute);
-      if (new URLSearchParams(location.search).get('unlock') === 'all') { MB.Save.data.unlocked = 99; }
+      if (MB.Access.dev) { MB.Save.data.unlocked = 99; } // chỉ khi thử trên máy (localhost)
       G.init($('game'));
       MB.HUD.init();
       MB.Input.init($('input'));
@@ -32,7 +32,17 @@
       this.show('menu');
       this.loop();
       this.pwa();
-      MB.Cloud.init();
+      MB.Access.loadConfig().then(() => { if (this.current === 'gates') this.openGates(); });
+      MB.Cloud.init().then(() => this.afterPay());
+    },
+    // quay về từ trang thanh toán (?paid=1): làm mới quyền đã mua
+    async afterPay() {
+      if (!/[?&]paid=1/.test(location.search)) return;
+      history.replaceState(null, '', location.pathname);
+      await MB.Access.refresh();
+      const ok = !MB.Access.need(MB.Access.PAID_FROM);
+      MB.HUD.toast(ok ? '<b>ĐÃ MỞ KHOÁ</b> · cảm ơn bạn đã ủng hộ game!' : 'Đang chờ xác nhận thanh toán… thử lại sau ít phút trong mục Tài khoản.', ok ? '#9dff8a' : '#ffd56a');
+      if (this.current === 'gates' || ok) this.openGates();
     },
 
     bind() {
@@ -56,7 +66,10 @@
       document.querySelectorAll('#boardMode [data-bmode]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.openBoard(this.boardGate, b.dataset.bmode); }));
       on('btnResShop', () => { G.running = false; this.openShop(); });
       document.querySelectorAll('#actToggle [data-actn]').forEach((b) => b.addEventListener('click', () => {
-        MB.Audio.play('ui'); this.act = +b.dataset.actn; this.openGates();
+        MB.Audio.play('ui'); this.act = +b.dataset.actn;
+        if (this.mode === 'survival') { this.openGates(); return; }
+        document.querySelectorAll('#actToggle [data-actn]').forEach((x) => x.classList.toggle('on', x === b));
+        const sec = document.getElementById('act' + this.act); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
       on('btnReplay', () => MB.Story.play('act2', () => this.openGates()));
       document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.addEventListener('click', () => {
@@ -73,6 +86,9 @@
       this.updateAimBtn();
       on('btnGiveUp', () => this.giveUp());
       on('btnQuit', () => this.quit());
+      on('btnDonate', () => this.openDonate('menu'));
+      on('btnDonateP', () => this.openDonate('pause'));
+      on('btnDonateR', () => this.openDonate('result'));
       on('btnAgain', () => (this.endlessRun || (this.mode === 'survival' && this.lastEndless) ? this.startEndless() : this.playGate(this.lastGate)));
       on('btnNext', () => this.playGate(this.lastGate + 1));
       on('btnMenu', () => this.quit());
@@ -99,12 +115,11 @@
       if (this.pendingUpdate) { G.running = false; this.applyUpdate(this.pendingUpdate); return; }
       const sv = MB.Save.data, surv = this.mode === 'survival';
       if (!this.act) this.act = sv.unlocked >= 11 && sv.unlocked < 99 ? 2 : 1;
+      $('gateGrid').classList.remove('acts');
       document.querySelectorAll('#actToggle [data-actn]').forEach((b) => b.classList.toggle('on', +b.dataset.actn === this.act));
       const nClue = Object.keys(sv.clues || {}).length;
-      $('actNote').innerHTML = this.act === 2
-        ? `<b>MÀN 2 · NGUỒN GỐC</b> — lần theo manh mối của Giáo sư Ted khắp Việt Nam. Manh mối đã tìm: <b>${nClue}/10</b>`
-        : '<b>MÀN 1 · BÙNG PHÁT</b> — 10 cửa ải bị virus chiếm đóng.';
-      $('btnReplay').classList.toggle('hidden', !(this.act === 2 && MB.Story.seen('act2')));
+      $('actNote').innerHTML = `<b>CHIẾN DỊCH</b> — Màn 1 · <b>Màn 2 đã mở</b> · Màn 3 sắp ra mắt. Manh mối của GS. Ted: <b>${nClue}/10</b>`;
+      $('btnReplay').classList.toggle('hidden', !MB.Story.seen('act2'));
       document.querySelectorAll('#modeToggle [data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === (surv ? 'survival' : 'campaign')));
       $('coinText').textContent = (sv.coins || 0).toLocaleString('vi-VN');
       $('actToggle').classList.toggle('hidden', surv);
@@ -125,25 +140,43 @@
         this.show('gates');
         return;
       }
-      $('gateGrid').innerHTML = MB.Gates.meta.filter((m) => (m.act || 1) === this.act).map((m) => {
+      // Chiến dịch: hiện cả 3 màn trên một trang (Màn 2 nổi bật, Màn 3 "sắp ra mắt") để người chơi thấy game còn dài
+      const ACTS = MB.Gates.acts || [];
+      const card = (m) => {
         const g = sv.gates[m.id] || { best: 0, done: [], cleared: false };
         const ready = !!m.file;
         const unlocked = ready && (surv ? !!g.cleared : m.id <= sv.unlocked);
         const stars = [0, 1, 2].map((i) => `<i class="${i < (g.done || []).length ? 'on' : ''}">★</i>`).join('');
         let status = !ready ? (m.act === 2 ? 'Sắp ra mắt · Màn 2' : 'Sắp ra mắt') : !unlocked ? (surv ? 'Qua Gate này ở Chiến dịch để mở' : `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở`) : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
         if (surv && unlocked) status = g.surv ? `Kỷ lục: Wave ${g.surv.wave} · ${g.surv.score.toLocaleString('vi-VN')}` : 'Chưa có kỷ lục';
-        return `<button class="gate${unlocked ? '' : ' locked'}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
-          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}
+        const need = unlocked ? MB.Access.need(m.id, surv ? 'survival' : 'campaign') : null;
+        if (need === 'login') status = '🔑 Đăng nhập để chơi tiếp';
+        else if (need === 'pay') status = '💎 Cần gói để chơi';
+        return `<button class="gate${unlocked ? '' : ' locked'}${need ? ' gated' : ''}${g.cleared ? ' cleared' : ''}" data-gate="${m.id}" style="--gc:${m.color}" ${unlocked ? '' : 'disabled'}>
+          <span class="gnum">GATE ${String(m.id).padStart(2, '0')}</span>${m.has3d ? '<span class="b3d">3D</span>' : ''}${m.ally && unlocked ? '<span class="bally">+ DIAN</span>' : ''}
           <b>${m.name}</b><small>${m.vi}</small>
           <span class="stars">${unlocked ? stars : '🔒'}</span>
           <em>${status}</em>
           <span class="gboss">Boss: ${unlocked ? m.boss : '???'}</span>
         </button>`;
+      };
+      $('gateGrid').classList.add('acts');
+      $('gateGrid').innerHTML = ACTS.map((a) => {
+        const list = MB.Gates.meta.filter((m) => (m.act || 1) === a.n);
+        const done = list.filter((m) => (sv.gates[m.id] || {}).cleared).length, total = a.total || list.length;
+        const head = `<div class="acthead" id="act${a.n}" style="--ac:${a.color}"><span class="anum">${a.n}</span>
+          <div><b>MÀN ${a.n} · ${a.name}</b>${a.tag ? `<em class="atag">${a.tag}</em>` : ''}<span>${a.desc}</span></div>
+          <i>${a.soon && !list.length ? 'Sắp ra mắt' : `${done}/${total} cửa`}${a.n === 2 ? ` · Manh mối ${nClue}/10` : ''}</i></div>`;
+        const body = list.length ? `<div class="grid">${list.map(card).join('')}</div>`
+          : `<div class="grid">${(a.teasers || []).map((t) => `<div class="gate locked soon" style="--gc:${a.color}"><span class="gnum">${t.n}</span><b>${t.name}</b><small>${t.vi}</small><span class="stars">🔒</span><em>Sắp ra mắt</em><span class="gboss">Boss: ???</span></div>`).join('')}</div>`;
+        return `<section class="actsec">${head}${body}</section>`;
       }).join('');
       $('gateGrid').querySelectorAll('[data-gate]').forEach((b) => b.addEventListener('click', () => { MB.Audio.play('ui'); this.playGate(+b.dataset.gate); }));
       this.renderViewToggle();
       $('armoryText').textContent = 'Kho vũ khí: ' + sv.armory.map((id) => MB.Weapons.DEFS[id].name).join(' · ');
       this.show('gates');
+      // cuộn tới màn đang chơi
+      const cur = document.getElementById('act' + this.act); if (cur && this.act > 1) setTimeout(() => cur.scrollIntoView({ block: 'start' }), 30);
     },
 
     renderViewToggle() {
@@ -181,7 +214,7 @@
     /* ---------- Sinh tồn Bất tận: 1 chuỗi qua mọi khu vực đã giải phóng ---------- */
     endlessChain() {
       const gs = MB.Save.data.gates;
-      return MB.Gates.meta.filter((m) => m.file && gs[m.id] && gs[m.id].cleared).map((m) => m.id);
+      return MB.Gates.meta.filter((m) => m.file && gs[m.id] && gs[m.id].cleared && !MB.Access.need(m.id, 'survival')).map((m) => m.id);
     },
     startEndless() {
       const chain = this.endlessChain(); if (!chain.length) return;
@@ -212,6 +245,11 @@
       if (!meta || !meta.file) { this.openGates(); return; }
       MB.Audio.unlock();
       this.show('loading');
+      if (id >= MB.Access.LOGIN_FROM) {
+        $('loadingText').textContent = 'Đang kiểm tra tài khoản…';
+        const need = await MB.Access.check(id, this.mode);
+        if (need) { G.running = false; this.openWall(need, id); return; }
+      }
       try {
         $('loadingText').textContent = 'Đang tải cửa ải…';
         for (const rid of meta.requires || []) { const rm = MB.Gates.meta.find((m) => m.id === rid); if (rm && rm.file) await this.loadScript(rm.file); }
@@ -389,7 +427,7 @@
       const t = C.lastSync ? new Date(C.lastSync).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
       if (!u) {
         chip.innerHTML = C.status === 'loading' ? 'ĐANG KẾT NỐI…' : '<b class="g">G</b> ĐĂNG NHẬP LƯU TIẾN TRÌNH';
-        hint.textContent = 'Không cần đăng nhập vẫn chơi được. Đăng nhập Google để giữ tiến trình trên mọi máy và có tên trên bảng xếp hạng.';
+        hint.textContent = `Gate 1–${MB.Access.LOGIN_FROM - 1} chơi ngay không cần đăng nhập. Đăng nhập Google (miễn phí) để lưu tiến trình, chơi tiếp các cửa sau và có tên trên bảng xếp hạng.`;
       } else {
         const av = safeImg(C.avatar());
         chip.innerHTML = (av ? `<img src="${av}" alt="" referrerpolicy="no-referrer">` : '👤 ') + esc(C.name().split(' ').slice(-1)[0]);
@@ -406,9 +444,10 @@
         <div class="who">${safeImg(C.avatar()) ? `<img src="${safeImg(C.avatar())}" alt="" referrerpolicy="no-referrer">` : '<i>👤</i>'}<div><b>${esc(C.name())}</b><span>${esc(u.email || '')}</span></div></div>
         <p class="hint">${C.status === 'syncing' ? 'Đang đồng bộ…' : C.status === 'error' ? 'Lỗi đồng bộ: ' + esc(C.error) : 'Đồng bộ gần nhất: ' + t}</p>
         <ul class="perks-list"><li>Tiến trình, xu và nâng cấp được lưu trên mạng — đổi máy vẫn chơi tiếp.</li><li>Thành tích tự gửi lên bảng xếp hạng sau mỗi trận.</li></ul>
-        <div class="btns"><button id="btnSync" class="primary">ĐỒNG BỘ NGAY</button><button id="btnLogout">ĐĂNG XUẤT</button></div>`
+        ${MB.Access.paywall || MB.Access.active().length ? `<p class="plan-line">${MB.Access.active().length ? '💎 Gói đang dùng: <b>' + esc(MB.Access.active().join(' · ')) + '</b>' : 'Chưa mua gói · Màn 1 (Gate 1–10) miễn phí'}</p>` : ''}
+        <div class="btns"><button id="btnSync" class="primary">ĐỒNG BỘ NGAY</button>${MB.Access.paywall ? '<button id="btnPlans">CÁC GÓI</button>' : ''}<button id="btnDonate2">☕ ỦNG HỘ</button>${MB.Access.admin ? '<button id="btnAdmin">⚙ QUẢN TRỊ</button>' : ''}<button id="btnLogout">ĐĂNG XUẤT</button></div>`
         : `
-        <p>Game chơi được ngay, <b>không bắt buộc đăng nhập</b>. Tiến trình hiện lưu trên máy này.</p>
+        <p>Chơi ngay <b>Gate 1–${MB.Access.LOGIN_FROM - 1} không cần đăng nhập</b>. Từ Gate ${MB.Access.LOGIN_FROM} cần đăng nhập Google (miễn phí) để lưu tiến trình và chơi tiếp.</p>
         <ul class="perks-list"><li><b>Lưu tiến trình trên mạng:</b> đổi điện thoại, xoá dữ liệu trình duyệt vẫn không mất gate, xu, nâng cấp.</li>
         <li><b>Chơi tiếp trên máy khác</b> chỉ cần đăng nhập cùng tài khoản.</li><li><b>Có tên trên bảng xếp hạng</b> từng Gate và chế độ Sinh tồn.</li></ul>
         <p class="hint">Tiến trình đang có trên máy này sẽ được gộp vào tài khoản ngay khi đăng nhập.</p>
@@ -416,7 +455,10 @@
         ${C.status === 'loading' ? '<p class="hint">Đang chuyển sang trang Google…</p>' : ''}${C.error && !u ? `<p class="hint err">${esc(C.error)}</p>` : ''}`;
       const b = (id, f) => { const el = $(id); if (el) el.addEventListener('click', f); };
       b('btnGoogle', () => { MB.Audio.play('ui'); C.signIn(); });
-      b('btnSync', () => { MB.Audio.play('ui'); C.sync(); });
+      b('btnSync', () => { MB.Audio.play('ui'); C.sync(); MB.Access.refresh().then(() => this.renderAccount()); });
+      b('btnPlans', () => { MB.Audio.play('ui'); this.openWall('pay', MB.Access.PAID_FROM, 'account'); });
+      b('btnDonate2', () => { MB.Audio.play('ui'); this.openDonate('account'); });
+      b('btnAdmin', () => { location.href = 'admin.html'; });
       b('btnLogout', () => { MB.Audio.play('ui'); C.signOut(); });
       if (!keep) this.show('account');
     },
@@ -467,6 +509,78 @@
       this.onGateEnd(G.summary());
     },
 
+    /* ---------- chặn cửa: đăng nhập / mua gói ---------- */
+    openWall(kind, id, back) {
+      const A = MB.Access, C = MB.Cloud, n = String(id).padStart(2, '0');
+      this.wallBack = back || 'gates'; this.wallStop();
+      let html;
+      if (kind === 'login') {
+        html = `<div class="wall-ico">🔑</div><h2>ĐĂNG NHẬP ĐỂ CHƠI TIẾP</h2>
+          <p>Bạn đã chơi hết <b>${A.LOGIN_FROM - 1} cửa dành cho khách</b>. Đăng nhập Google — <b>miễn phí</b> — để lưu tiến trình và chơi tiếp từ Gate ${n}.</p>
+          <ul class="perks-list"><li>Toàn bộ tiến trình, xu, súng, nâng cấp trên máy này được giữ nguyên và gộp vào tài khoản.</li>
+          <li>Đổi máy, xoá trình duyệt vẫn chơi tiếp được.</li><li>Có tên trên bảng xếp hạng.</li></ul>
+          <div class="btns"><button id="wGoogle" class="google"><b class="g">G</b> ĐĂNG NHẬP BẰNG GOOGLE</button><button id="wBack" class="ghost">ĐỂ SAU</button></div>
+          ${C.status === 'loading' ? '<p class="hint">Đang chuyển sang trang Google…</p>' : ''}`;
+      } else {
+        const act = A.actOf(id), P = A.cfg.plans;
+        const list = ['act15', 'act30', 'year', 'gate'].filter((k) => P[k]).map((k) => {
+          const p = P[k], pr = A.priceFor(k, act), disc = pr < p.price;
+          const what = p.scope === 'gate' ? `Gate ${n}` : p.scope === 'all' ? 'Mọi màn' : `Màn ${act}`;
+          return `<button class="plan${k === 'act30' ? ' hot' : ''}" data-plan="${k}">${k === 'act30' ? '<em>ĐƯỢC CHỌN NHIỀU</em>' : k === 'year' ? '<em>CHU KỲ+</em>' : ''}
+            <b>${esc(p.name)}</b><small class="what">${what}${p.days ? ' · ' + p.days + ' ngày' : ''}</small>
+            <strong>${A.price(pr)}${disc ? ` <s>${A.price(p.price)}</s>` : ''}</strong><span>${esc(p.desc)}</span></button>`;
+        }).join('');
+        html = `<div class="wall-ico">💎</div><h2>MỞ KHOÁ GATE ${n}</h2>
+          <p>Bạn đã hoàn thành phần miễn phí. Chọn một gói để tiếp tục — tiến trình của bạn được giữ nguyên.</p>
+          <div class="plans">${list}</div>
+          <div id="wPay"></div><p id="wMsg" class="hint"></p>
+          <div class="btns"><button id="wCheck">ĐÃ CHUYỂN KHOẢN? KIỂM TRA</button><button id="wBack" class="ghost">ĐỂ SAU</button></div>`;
+      }
+      $('wallBody').innerHTML = html;
+      const b = (k, f) => { const el = $(k); if (el) el.addEventListener('click', () => { MB.Audio.play('ui'); f(); }); };
+      const goBack = () => { this.wallStop(); this.wallBack === 'account' ? this.openAccount() : this.openGates(); };
+      const ok = () => { this.wallStop(); MB.HUD.toast('<b>ĐÃ MỞ KHOÁ</b> · cảm ơn bạn đã ủng hộ game!', '#9dff8a'); MB.Audio.play('weapon'); this.openGates(); };
+      b('wGoogle', () => C.signIn());
+      b('wBack', goBack);
+      b('wCheck', async () => { $('wMsg').textContent = 'Đang kiểm tra…'; await A.refresh(); if (!A.need(id, this.mode)) ok(); else $('wMsg').textContent = 'Chưa nhận được chuyển khoản. Thường mất 10–60 giây, thử lại sau ít phút.'; });
+      $('wallBody').querySelectorAll('[data-plan]').forEach((el) => el.addEventListener('click', async () => {
+        MB.Audio.play('ui');
+        $('wallBody').querySelectorAll('[data-plan]').forEach((x) => x.classList.toggle('sel', x === el));
+        $('wMsg').textContent = 'Đang tạo đơn…'; $('wPay').innerHTML = '';
+        try {
+          const o = await A.order(el.dataset.plan, A.actOf(id), id);
+          $('wMsg').textContent = '';
+          $('wPay').innerHTML = A.qrBox(o.amount, o.code, 'Quét bằng app ngân hàng hoặc MoMo. <b>Giữ nguyên nội dung chuyển khoản</b> để hệ thống tự mở khoá trong vài giây.');
+          A.bindCopy($('wPay'));
+          // tự kiểm tra mỗi 5 giây trong 15 phút
+          this.wallStop(); let n2 = 0;
+          this.wallPoll = setInterval(async () => { if (++n2 > 180 || this.current !== 'wall') { this.wallStop(); return; } await A.refresh(); if (!A.need(id, this.mode)) ok(); }, 5000);
+        } catch (e) { $('wMsg').textContent = /paywall off/.test(e.message || '') ? 'Hiện chưa mở bán gói — bạn cứ chơi miễn phí.' : 'Không tạo được đơn: ' + (e.message || e); }
+      }));
+      this.show('wall');
+    },
+    wallStop() { clearInterval(this.wallPoll); this.wallPoll = null; },
+
+    /* ---------- donate ---------- */
+    openDonate(back) {
+      const A = MB.Access, C = MB.Cloud, d = A.cfg.donate;
+      this.donateBack = back || this.current || 'menu';
+      const who = C.user ? (C.name().split(' ').slice(-1)[0] || '') : '';
+      const info = ('MB UNG HO ' + who.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').replace(/[^A-Za-z0-9 ]/g, '')).trim().slice(0, 25);
+      const draw = (amt) => {
+        $('donBody').innerHTML = `<div class="wall-ico">☕</div><h2>ỦNG HỘ MONSTER BREAKOUT</h2>
+          <p>${esc(d.note || 'Ủng hộ duy trì server')}. Game được làm bởi một người — mỗi đóng góp giúp server chạy và có thêm màn mới.</p>
+          <div class="amts">${[0, 20000, 50000, 100000, 200000].map((v) => `<button class="sm${v === amt ? ' on' : ''}" data-amt="${v}">${v ? A.price(v) : 'Tuỳ ý'}</button>`).join('')}</div>
+          ${A.qrBox(amt, info, 'Quét mã bằng app ngân hàng hoặc MoMo. Cảm ơn bạn rất nhiều! ❤')}
+          <div class="btns"><button id="donBack" class="ghost">${this.donateBack === 'pause' ? 'QUAY LẠI TRẬN' : 'ĐÓNG'}</button></div>`;
+        A.bindCopy($('donBody'));
+        $('donBody').querySelectorAll('[data-amt]').forEach((el) => el.addEventListener('click', () => { MB.Audio.play('ui'); draw(+el.dataset.amt); }));
+        $('donBack').addEventListener('click', () => { MB.Audio.play('ui'); this.show(this.donateBack); });
+      };
+      draw(0);
+      this.show('donate');
+    },
+
     /* ---------- kết thúc ---------- */
     onGateEnd(sum, afterStory) {
       MB.Story.clearSay();
@@ -511,7 +625,7 @@
         <div><span>Chính xác</span><b>${sum.accuracy}%</b></div>
         <div><span>Thử thách</span><b>${sum.done.length}/${sum.totalChallenges}</b></div>
         <div><span>Sức mạnh súng</span><b>PWR ${sum.mods}</b></div>`;
-      $('resCloud').innerHTML = MB.Cloud.user ? '' : 'Bạn đang chơi khách · <button id="btnResLogin" class="sm google"><b class="g">G</b> Đăng nhập để lưu tiến trình & lên bảng xếp hạng</button>';
+      $('resCloud').innerHTML = MB.Cloud.user ? '' : (sum.gateId >= MB.Access.LOGIN_FROM - 2 ? 'Gate ' + MB.Access.LOGIN_FROM + ' trở đi cần đăng nhập · ' : 'Bạn đang chơi khách · ') + '<button id="btnResLogin" class="sm google"><b class="g">G</b> Đăng nhập để lưu tiến trình & lên bảng xếp hạng</button>';
       const rl = $('btnResLogin'); if (rl) rl.addEventListener('click', () => { G.running = false; this.openAccount(); });
       const next = MB.Gates.meta.find((m) => m.id === sum.gateId + 1);
       $('btnNext').classList.toggle('hidden', !(sum.win && !surv && next && next.file));

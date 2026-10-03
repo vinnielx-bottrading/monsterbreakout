@@ -426,9 +426,9 @@
       const m = this.q.shift();
       this.cur = m || null;
       if (!m) { el.classList.remove('show'); return; }
-      const evil = m.who === 'GOATEVIL';
-      el.className = 'comm show' + (evil ? ' evil' : '');
-      el.innerHTML = `<i class="av${m.who === 'HUNTER' ? ' img' : ''}">${evil ? GOAT_ICON : m.who === 'TED' ? 'T' : m.who === 'HUNTER' ? '<img src="assets/hunter/portrait.webp" alt="">' : 'H'}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
+      const evil = m.who === 'GOATEVIL', ally = m.who === 'DIAN';
+      el.className = 'comm show' + (evil ? ' evil' : ally ? ' ally' : '');
+      el.innerHTML = `<i class="av${m.who === 'HUNTER' ? ' img' : ''}">${evil ? GOAT_ICON : ally ? DIAN_ICON : m.who === 'TED' ? 'T' : m.who === 'HUNTER' ? '<img src="assets/hunter/portrait.webp" alt="">' : 'H'}</i><div><b>${esc(m.who === 'TED' ? 'GS. TED (ghi chép)' : m.who)}</b><span>${esc(m.text)}</span></div>`;
       if (evil && SND.ok()) SND.glitch();
       clearTimeout(this.ct); this.ct = setTimeout(() => this.nextSay(), m.dur * 1000);
     },
@@ -458,6 +458,7 @@
         else if (c.on === 'phase') go = G.boss && !G.boss.dead && G.boss.phase === c.phase;
         else if (c.on === 'low') go = G.player.hp < G.player.maxHp * 0.3 && !G.player.dead;
         else if (c.on === 'won') go = G.state === 'won';
+        else if (c.on === 'ally') go = !!G.ally && G.ally.arrivedT >= (c.t || 0);
         if (go) { G.storyFired[key] = true; for (const [who, text] of c.lines) this.say(who, text); }
       }
       // nhặt manh mối
@@ -503,5 +504,6 @@
     },
   };
   const GOAT_ICON = '<svg viewBox="0 0 40 40"><path d="M12 10 C6 2 1 6 4 12 M28 10 C34 2 39 6 36 12 M12 10 L28 10 L30 20 L24 34 L20 37 L16 34 L10 20 Z" fill="none" stroke="#ff5a6a" stroke-width="2.4" stroke-linejoin="round"/><rect x="13" y="17" width="5" height="2.4" fill="#ffd0d6"/><rect x="22" y="17" width="5" height="2.4" fill="#ffd0d6"/></svg>';
+  const DIAN_ICON = '<svg viewBox="0 0 40 40"><ellipse cx="20" cy="17" rx="17" ry="5" fill="#46532f"/><path d="M11 17 Q12 6 20 6 Q28 6 29 17 Z" fill="#5a6a3c"/><circle cx="20" cy="24" r="7" fill="#b98a68"/><path d="M11 31 h18 v5 h-18z" fill="#e8e2d0"/><path d="M13 31v5M17 31v5M21 31v5M25 31v5M11 33.5h18" stroke="#1a1a1a" stroke-width="1.4"/></svg>';
   MB.Props.registerActor('clue', (ctx, a, G) => Story.drawClue(ctx, a, G));
 })(window.MB);

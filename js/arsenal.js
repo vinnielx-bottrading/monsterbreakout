@@ -13,7 +13,7 @@
   const ELEM_GUNS = { fire: 'Pyro', ice: 'Cryo', shock: 'Arc Plasma / Lumen Beam', blast: 'Boomer / Bolt X / Hornet' };
   const WEAK = {
     spiderQueen: 'fire', behemoth: 'blast', toadKing: 'fire', cryoWyrm: 'fire', magmaTitan: 'ice', kraken: 'shock',
-    assembler: 'shock', abomination: 'fire', omega: 'ice', origin: 'shock', nightBlade: 'blast', lanternSerpent: 'ice',
+    assembler: 'shock', abomination: 'fire', omega: 'ice', origin: 'shock', nightBlade: 'blast', lanternSerpent: 'ice', bayDragon: 'shock', goatKing: 'fire', nghe: 'blast',
   };
   // súng mới: nhận khi hạ boss ở Gate tương ứng, hoặc mua bằng xu (mở bán khi đã tới Gate trước đó 2 cửa)
   const GUNS = [
@@ -180,7 +180,7 @@
   const Super = MB.Super = {
     TYPES,
     gain(G, n) { const p = G.player; if (!p || p.dead) return; p.rage = Math.min(100, (p.rage || 0) + n); },
-    onDamage(G, e, dmg, src) { if (src && src.sup) return; this.gain(G, Math.min(6, dmg * 0.018) * (e.boss ? 1.2 : 1)); },
+    onDamage(G, e, dmg, src) { if (src && (src.sup || src.ally)) return; this.gain(G, Math.min(6, dmg * 0.018) * (e.boss ? 1.2 : 1)); },
     onKill(G, e) { if (!e.boss) this.gain(G, e.elite ? 6 : 1.5); },
     ready(G) { const p = G.player; return !!p.superType && (p.rage || 0) >= 100 && !G.sup; },
 

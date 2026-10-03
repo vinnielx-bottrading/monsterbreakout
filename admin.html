@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Quản trị · Monster Breakout</title>
+<link rel="icon" href="assets/icons/favicon-32.png">
+<style>
+  :root { --bg: #0b1210; --card: #121c19; --line: rgba(255,255,255,.1); --text: #e8f2ee; --muted: #8fa39c; --acc: #7ef3ff; --ok: #9dff8a; --warn: #ffd56a; --bad: #ff6d68; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .08em; flex: 1; }
+  header a { color: var(--acc); text-decoration: none; font-size: 13px; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  h2 { margin: 0 0 10px; font-size: 14px; letter-spacing: .1em; color: var(--acc); }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0a110f; color: var(--text); font: inherit; }
+  button { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #1a2824; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+  button.primary { background: var(--acc); color: #062024; border-color: var(--acc); }
+  button.sm { padding: 4px 10px; font-size: 12px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .hint { color: var(--muted); font-size: 12.5px; }
+  .switch { display: flex; align-items: center; gap: 12px; font-weight: 700; }
+  .switch input { width: 46px; height: 26px; accent-color: var(--ok); }
+  .state { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+  .state.on { background: rgba(157,255,138,.15); color: var(--ok); } .state.off { background: rgba(255,109,104,.12); color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; letter-spacing: .06em; }
+  .pending { color: var(--warn); } .paid { color: var(--ok); }
+  .qr { width: 160px; background: #fff; border-radius: 8px; padding: 4px; }
+  .center { text-align: center; padding: 60px 16px; }
+  .msg { min-height: 18px; font-size: 13px; margin-top: 8px; }
+  .msg.ok { color: var(--ok); } .msg.err { color: var(--bad); }
+  .scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<header><h1>⚙ QUẢN TRỊ · MONSTER BREAKOUT</h1><span id="who" class="hint"></span><a href="./">← Về game</a></header>
+<main id="app"><div class="center">Đang tải…</div></main>
+<script src="js/vendor/supabase.min.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

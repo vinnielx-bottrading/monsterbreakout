@@ -33,6 +33,7 @@
   }
 
   const C = MB.Cloud = {
+    URL: SUPABASE_URL, KEY: SUPABASE_KEY,
     sb: null, user: null, status: 'guest', lastSync: 0, error: '',
     merge,
 
@@ -69,6 +70,7 @@
     setUser(u) {
       const prev = this.user && this.user.id;
       this.user = u || null;
+      if ((u && u.id) !== prev && MB.Access) MB.Access.onUser(this.user);
       if (!u) { this.status = 'guest'; this.render(); return; }
       if (u.id !== prev) this.sync();
       else this.render();
