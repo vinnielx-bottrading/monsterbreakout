@@ -718,14 +718,14 @@
   /* ---------- HUNTER v8.4: mô hình Mixamo (Swat Guy) + 6 hoạt ảnh cầm súng thật ----------
      idle / walk / run / shoot / hit / die; súng gắn theo 2 bàn tay (tay phải cầm báng, tay trái đỡ ốp). */
   function buildHeroSwat() {
-    const S = skinClone(SK.hero, 38, 0);
+    const S = skinClone(SK.hero, 47, 0);   // v8.4.2: to hơn ~25% cho dễ nhìn
     for (const k of ['hit', 'die']) if (S.act[k]) { S.act[k].setLoop(T.LoopOnce, 1); S.act[k].clampWhenFinished = true; }
     const g = new T.Group(); g.add(S.inner);
     const gunHolder = new T.Group(); g.add(gunHolder);
     const muzzle = glowSprite(0xffd27a, 34, 1); muzzle.visible = false; g.add(muzzle);
     const ring = new T.Mesh(G3('ring', () => new T.RingGeometry(23, 26.5, 48)), new T.MeshBasicMaterial({ color: 0x7ef3ff, transparent: true, opacity: 0.55, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.9; g.add(ring);
-    g.userData = { skin: S, gunHolder, muzzle, ring, bodyMats: S.mats, gunId: null, skinned: true, swat: true, h: 70, fireT: 0, hitT: 0, lastHurt: 0, wasDead: false,
+    g.userData = { skin: S, gunHolder, muzzle, ring, bodyMats: S.mats, gunId: null, skinned: true, swat: true, h: 86, fireT: 0, hitT: 0, lastHurt: 0, wasDead: false,
       v: [new T.Vector3(), new T.Vector3(), new T.Vector3()], q: new T.Quaternion() };
     const outer = new T.Group(); outer.add(g); outer.userData = g.userData; return outer;
   }
@@ -750,8 +750,8 @@
     if (R) { g.updateMatrixWorld(true); const a = R.getWorldPosition(d.v[0]); g.worldToLocal(a); d.gunHolder.position.copy(a); }
     d.gunHolder.quaternion.setFromUnitVectors(_X || (_X = new T.Vector3(1, 0, 0)), dir);
     const wpn = MB.Weapons.current(p);
-    if (d.gunId !== wpn.id) { d.gunHolder.clear(); const gun = buildGun(wpn.id); gun.scale.setScalar(0.62); gun.position.set(-5, 0, 0); d.gunHolder.add(gun); d.gunId = wpn.id; }
-    const tip = d.gunHolder.children[0] ? d.gunHolder.children[0].userData.tip * 0.62 - 5 : 24;
+    if (d.gunId !== wpn.id) { d.gunHolder.clear(); const gun = buildGun(wpn.id); gun.scale.setScalar(0.76); gun.position.set(-6, 0, 0); d.gunHolder.add(gun); d.gunId = wpn.id; }
+    const tip = d.gunHolder.children[0] ? d.gunHolder.children[0].userData.tip * 0.76 - 6 : 30;
     d.muzzle.visible = p.muzzle > 0 && !p.dead;
     if (d.muzzle.visible) { d.muzzle.position.copy(d.v[2]).multiplyScalar(tip).add(d.gunHolder.position); const k = 12 + Math.random() * 9; d.muzzle.scale.set(k, k, 1); }
     d.gunHolder.position.addScaledVector(d.v[2], -p.recoil * 0.8);
