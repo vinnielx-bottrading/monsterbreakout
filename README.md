@@ -4,15 +4,30 @@ Game bắn súng sinh tồn góc nhìn từ trên xuống. Người chơi điề
 
 | Hạng mục | Giá trị |
 |---|---|
-| Phiên bản | **v8.4.3** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
+| Phiên bản | **v8.5.0** (bản dựng lại từ `monster_breakout_gate01_v3.html`) |
 | Gate chơi được | **Màn 1: Gate 01–10** · **Màn 2 "Nguồn Gốc": Gate 11–12** (13–21 sắp ra mắt). Tất cả chơi được ở 2D và 3D |
 | Nền tảng | Máy tính (Chrome, Edge, Firefox, Safari), điện thoại (cảm ứng), tay cầm |
 | Triển khai | GitHub + Vercel (trang tĩnh) |
 | Lưu tiến trình | `localStorage`, khoá `monster_breakout_save_v1`; đăng nhập Google thì đồng bộ lên Supabase (mục 2b) |
 | Đồ hoạ | 2D Canvas; 3D bằng Three.js r170 (tự chứa trong repo, không cần CDN) |
-| README cập nhật | 2026-10-03 (rev 39) |
+| Chế độ hiện tại | **CHƠI TỰ DO** — mở cả 21 cửa, không cần đăng nhập, không dùng Supabase (mục 0) |
+| README cập nhật | 2026-10-19 (rev 40) |
 
 ---
+
+## 0. Chế độ CHƠI TỰ DO (v8.5.0 — đang bật)
+
+Tạm thời chưa có máy chủ Supabase, nên game chạy hoàn toàn trên máy người chơi:
+
+- **Mọi cửa (Gate 01–21) mở sẵn**, không cần qua cửa trước, không cần đăng nhập, không thu phí, không có "cửa ác mộng". Chu kỳ+ vẫn mở sau khi qua Gate 21; Sinh tồn chơi ngay, không giới hạn giờ (gục là hết, không hồi sinh tại chỗ).
+- Ẩn nút **Đăng nhập Google** và **Bảng xếp hạng**; không tải thư viện Supabase, không gọi máy chủ. Tiến trình lưu `localStorage` như cũ.
+- **Thông tin ủng hộ cố định** (không đọc từ trang quản trị): Vietcombank · `0111000182684` · NGUYEN HOANG VINH · PGD Nam Cần Thơ. Ảnh QR: `assets/donate/vcb-qr.png` (cắt từ mã VietQR gốc, đã kiểm tra quét đúng). Đổi thông tin ở hằng `DONATE` đầu `js/access.js`.
+- **Nơi hiện lời mời ủng hộ:**
+  - Máy tính (màn hình ≥ 1100×620): thẻ QR nằm cố định trong khoảng tối giữa menu và hình Hunter.
+  - Điện thoại / màn hình nhỏ: hộp QR hiện **1 lần** sau khi vào game (~1,4 giây, mỗi phiên trình duyệt 1 lần — `sessionStorage` `mb_don_entry`). Xoay ngang thì QR bên trái, thông tin bên phải.
+  - Mọi thiết bị: **sau mỗi cửa thắng** (Chiến dịch / Chu kỳ+) hộp QR hiện lại trên màn kết quả, nút "CHIẾN TIẾP →" để đóng. Không bao giờ hiện trong lúc đang đánh. Trạm tiếp tế cũ (sau Gate 10) được thay bằng hộp này.
+  - Nút ☕ TIẾP TẾ CHO GAME ở menu / Tạm dừng / kết quả vẫn mở màn ủng hộ đầy đủ (chọn nhanh số tiền → QR VietQR có sẵn số tiền).
+- **Bật lại máy chủ:** đổi `const FREE = true` → `false` trong `js/access.js`. Mọi luồng đăng nhập, thu phí, admin `cancuhunterx.html` (mục 2b, 2c) trở lại như v8.4.3.
 
 ## 1. Chạy thử trên máy
 
@@ -716,6 +731,7 @@ Các loại thử thách có sẵn: `destroy` (phá mục tiêu, có thể kèm 
 | 2026-10-02 | **v4.2** · README rev 5 | Ngắm mượt (giới hạn tốc độ xoay, cài đặt Chậm/Vừa/Nhanh, vùng chết quanh nhân vật); chế độ ngắm Tự động/Hỗ trợ/Thủ công cho điện thoại; **lựu đạn** và **xung kích** giải vây; quái bị choáng; **thùng y tế thả dù** khi máu thấp; rơi máu nhiều hơn khi yếu; lựu đạn rơi từ thùng và quái tinh nhuệ; dựng lại model 3D hữu cơ (chi nhiều khớp, đầu, hàm, móng, bề mặt sần) cho Hunter, Zombie, Spider, Licker, Spider Queen; nút LỰU/XUNG trên điện thoại; tay cầm: RB lựu đạn, B xung kích |
 | 2026-10-02 | **v4.1** · README rev 4 | Chế độ **3D thử nghiệm** cho Gate 01 bằng Three.js (camera phối cảnh, bóng đổ, model low-poly cho Hunter, 3 loại quái, Spider Queen và môi trường); nút chọn 2D/3D; tự giảm chất lượng khi máy chậm; tách vạch cảnh báo của quái ra hàm `tele()` dùng chung cho 2D và 3D; minimap cắt đúng khung |
 | 2026-10-01 | **v4.0** · README rev 3 | Viết lại thành dự án nhiều file. Nhân vật Hunter mới; hệ thống thiết bị và thử thách thay cho nâng cấp tự động; 3 súng; 5 linh kiện; Gate 02 Mountain (Bat, Brute, Stone Behemoth, đá lăn, vực); boss nhiều phase; điều khiển cảm ứng, tay cầm, PWA; menu, lưu tiến trình; sửa 15 lỗi của v3 |
+| 2026-10-19 | **v8.5.0** · README rev 40 | **Chơi tự do (tạm thời, chưa có Supabase)**: cờ `FREE` trong `js/access.js` mở mọi cửa 01–21, bỏ đăng nhập / thu phí / cửa ác mộng / giới hạn giờ Sinh tồn, ẩn Đăng nhập + Bảng xếp hạng, không gọi máy chủ. **Ủng hộ cố định** Vietcombank 0111000182684 (QR `assets/donate/vcb-qr.png`): thẻ QR trong khoảng tối giữa menu và Hunter trên máy tính; hộp QR 1 lần khi vào game trên điện thoại; nhắc lại sau mỗi cửa thắng (mọi thiết bị). Thêm QR vào cache offline (`sw.js`). |
 
 ---
 

@@ -33,7 +33,12 @@
       this.loop();
       this.pwa();
       MB.Access.loadConfig().then(() => { if (this.current === 'gates') this.openGates(); });
-      MB.Cloud.init().then(() => this.afterPay());
+      if (MB.Access.free) {
+        // chơi tự do: không dùng máy chủ (ẩn đăng nhập / bảng xếp hạng), hiện thông tin ủng hộ
+        document.body.classList.add('free-play');
+        this.renderDonPanel();
+        this.entryDonate();
+      } else MB.Cloud.init().then(() => this.afterPay());
     },
     // quay về từ trang thanh toán (?paid=1): làm mới quyền đã mua
     async afterPay() {
@@ -138,6 +143,7 @@
     show(name) {
       this.current = name;
       if (name === 'menu') this.renderMenuOp();
+      if (name === null || name === 'loading') { const dp = $('donPop'); if (dp) dp.classList.add('hidden'); }
       // nhạc chủ đề hồi hộp ở các màn menu; vào trận thì nhường cho nhạc trận
       MB.Audio.menuTheme(MENU_SCREENS.includes(name));
       for (const s of SCREENS) $(s).classList.toggle('hidden', s !== name);
@@ -176,7 +182,7 @@
       const card = (m) => {
         const g = sv.gates[m.id] || { best: 0, done: [], cleared: false };
         const ready = !!m.file;
-        const adm = MB.Access.admin || MB.Access.dev, closed = ready && MB.Access.isClosed(m.id);
+        const adm = MB.Access.admin || MB.Access.dev || MB.Access.free, closed = ready && MB.Access.isClosed(m.id);
         const unlocked = ready && (ngp ? !!g.cleared && (adm || !closed) : (adm || (!closed && (surv ? !!g.cleared : m.id <= sv.unlocked))));
         const stars = [0, 1, 2].map((i) => `<i class="${i < (g.done || []).length ? 'on' : ''}">★</i>`).join('');
         let status = !ready ? (m.act === 2 ? 'Sắp ra mắt · Màn 2' : 'Sắp ra mắt') : !unlocked ? (surv ? 'Qua Gate này ở Chiến dịch để mở' : `Hoàn thành Gate ${String(m.id - 1).padStart(2, '0')} để mở`) : g.cleared ? `Đã qua · Best ${g.best.toLocaleString('vi-VN')}` : 'Sẵn sàng';
@@ -260,7 +266,7 @@
     },
     async startEndless(resume) {
       const C = MB.Cloud, A = MB.Access, sv = MB.Save.data;
-      if (!C.user && !A.dev) { this.mode = 'survival'; this.openGates(); return; }
+      if (!C.user && !A.dev && !A.free) { this.mode = 'survival'; this.openGates(); return; }
       this.show('loading'); $('loadingText').textContent = 'Đang mở cửa đấu trường…';
       await A.survStatus();
       if (A.survLeft() <= 0) { this.mode = 'survival'; this.openGates(); return; }
@@ -628,7 +634,7 @@
     openArena() {
       const sv = MB.Save.data, A = MB.Access, C = MB.Cloud, chain = this.endlessChain(), rec = sv.endless, run = sv.survRun;
       const lim = A.survLimits(), st = A.surv;
-      const logged = !!C.user || A.dev, left = st ? A.survLeft() : lim.limit, out = logged && st && left <= 0;
+      const logged = !!C.user || A.dev || A.free, left = st ? A.survLeft() : lim.limit, out = logged && st && left <= 0;
       $('actNote').innerHTML = ''; $('btnReplay').classList.add('hidden'); $('btnReplayEnd').classList.add('hidden');
       const unlim = (st ? st.limit : lim.limit) >= 86400;
       const capT = this.fmtClock(st ? st.limit : lim.limit), sup = st ? st.supporter : lim.supporter;
@@ -728,7 +734,7 @@
           <p>${sup ? 'Bạn đã tiếp sức cho chiến dịch — server vẫn chạy nhờ bạn. Muốn tiếp tế thêm thì quét mã bên dưới.' : esc(d.note || 'Ủng hộ duy trì server') + '. Game do một người làm — miễn phí, không quảng cáo. Mỗi đóng góp giúp server chạy và có thêm màn mới.'}</p>
           <div id="donBar"></div>
           <div class="amts">${[0, 20000, 50000, 100000, 200000].map((v) => `<button class="sm${v === amt ? ' on' : ''}" data-amt="${v}">${v ? A.price(v) : 'Tuỳ ý'}</button>`).join('')}</div>
-          ${A.qrBox(amt, info, C.user ? '<b>Giữ nguyên nội dung chuyển khoản</b> để nhận huy hiệu ☕ Người tiếp tế. Cảm ơn bạn rất nhiều! ❤' : 'Đăng nhập trước khi chuyển để nhận huy hiệu ☕ Người tiếp tế. Cảm ơn bạn rất nhiều! ❤')}
+          ${A.qrBox(amt, info, A.free ? 'Quét bằng app ngân hàng / ví điện tử · số tiền tuỳ tâm. Cảm ơn bạn rất nhiều! ❤' : C.user ? '<b>Giữ nguyên nội dung chuyển khoản</b> để nhận huy hiệu ☕ Người tiếp tế. Cảm ơn bạn rất nhiều! ❤' : 'Đăng nhập trước khi chuyển để nhận huy hiệu ☕ Người tiếp tế. Cảm ơn bạn rất nhiều! ❤')}
           <div class="btns"><button id="donBack" class="ghost">${this.donateBack === 'pause' ? 'QUAY LẠI TRẬN' : 'ĐÓNG'}</button></div>`;
         A.bindCopy($('donBody'));
         this.serverBar($('donBar'));
@@ -802,7 +808,7 @@
         <div><span>Chính xác</span><b>${sum.accuracy}%</b></div>
         <div><span>Thử thách</span><b>${sum.done.length}/${sum.totalChallenges}</b></div>
         <div><span>Sức mạnh súng</span><b>PWR ${sum.mods}</b></div>`;
-      $('resCloud').innerHTML = MB.Cloud.user ? '' : (sum.gateId >= MB.Access.LOGIN_FROM - 2 ? 'Gate ' + MB.Access.LOGIN_FROM + ' trở đi cần đăng nhập · ' : 'Bạn đang chơi khách · ') + '<button id="btnResLogin" class="sm google"><b class="g">G</b> Đăng nhập để lưu tiến trình & lên bảng xếp hạng</button>';
+      $('resCloud').innerHTML = MB.Cloud.user || MB.Access.free ? '' : (sum.gateId >= MB.Access.LOGIN_FROM - 2 ? 'Gate ' + MB.Access.LOGIN_FROM + ' trở đi cần đăng nhập · ' : 'Bạn đang chơi khách · ') + '<button id="btnResLogin" class="sm google"><b class="g">G</b> Đăng nhập để lưu tiến trình & lên bảng xếp hạng</button>';
       const rl = $('btnResLogin'); if (rl) rl.addEventListener('click', () => { G.running = false; this.openAccount(); });
       const next = MB.Gates.meta.find((m) => m.id === sum.gateId + 1);
       $('btnNext').classList.toggle('hidden', !(sum.win && !surv && next && next.file));
@@ -814,7 +820,9 @@
       }
       this.show('result');
       // Trạm tiếp tế: 1 lần sau khi thắng Gate 10; cửa ác mộng: lần thua đầu + thỉnh thoảng (≤ 1 lần / phiên)
-      if (!MB.Access.supporter && !surv) {
+      // chơi tự do: nhắc ủng hộ sau mỗi cửa thắng (thay cho Trạm tiếp tế)
+      if (MB.Access.free) { if (sum.win && !surv) setTimeout(() => { if (this.current === 'result' && !G.running) this.donPop('win', sum); }, 900); }
+      else if (!MB.Access.supporter && !surv) {
         const fl = sv.flags || (sv.flags = {});
         if (sum.gateId === 10 && sum.win && !fl.relay10) { fl.relay10 = true; MB.Save.save(); this.openRelay('act1', sum); }
         else if (sum.starve && !sum.win && !this.relayThisSession && (!fl.relayStarve || Math.random() < 0.3)) { fl.relayStarve = true; MB.Save.save(); this.relayThisSession = true; this.openRelay('starve', sum); }
@@ -845,6 +853,47 @@
       $('rDonate').onclick = () => { MB.Audio.play('ui'); this.openDonate('result'); };
       $('rGo').onclick = () => { MB.Audio.play('ui'); if (kind === 'act1' || kind === 'starve') this.playGate(kind === 'act1' ? 11 : sum.gateId); };
       this.show('relay');
+    },
+    /* ---------- v8.5: thông tin ủng hộ cố định (chơi tự do) ---------- */
+    // thẻ ủng hộ dùng chung: khung trống ở menu máy tính + hộp nhắc trên điện thoại / sau mỗi cửa thắng
+    donCard(kind, sum) {
+      const D = MB.Access.DONATE;
+      const n = sum ? String(sum.gateId).padStart(2, '0') : '';
+      const head = kind === 'win'
+        ? `<small>GATE ${n} · ĐÃ VƯỢT QUA</small><h3>Tiếp tế cho Hunter?</h3><p>Bạn vừa hạ thêm một cửa. Nếu thấy game đáng chơi, một ly cà phê ủng hộ giúp server chạy tiếp và có thêm màn mới.</p>`
+        : `<small>☕ TIẾP TẾ CHO HUNTER</small><h3>Ủng hộ Monster Breakout</h3><p>Game do một người làm — miễn phí, không quảng cáo, <b>mở tự do cả 21 cửa</b>. Mỗi đóng góp giúp server chạy và có thêm màn mới.</p>`;
+      return `${head}
+        <div class="dc-qr"><img src="${D.qr}" alt="Mã VietQR chuyển khoản ủng hộ: ${D.bankName} ${D.account}" width="480" height="480"><span>VIETQR · NAPAS 247</span></div>
+        <dl class="dc-info"><div><dt>Ngân hàng</dt><dd>${D.bankName}</dd></div><div><dt>Chủ tài khoản</dt><dd>${D.name}</dd></div>
+          <div><dt>Số tài khoản</dt><dd class="acc">${D.account} <button class="sm copy" data-copy="${D.account}">Sao chép</button></dd></div></dl>
+        <p class="dc-foot">Quét bằng app ngân hàng / ví điện tử · số tiền tuỳ tâm. Cảm ơn bạn! ❤</p>`;
+    },
+    renderDonPanel() {
+      const el = $('mnDonate'); if (!el) return;
+      el.innerHTML = this.donCard('menu');
+      MB.Access.bindCopy(el);
+    },
+    // khung trống giữa menu và hình Hunter đang hiện thẻ ủng hộ? (màn hình máy tính đủ rộng)
+    donPanelShown() { return matchMedia('(min-width: 1100px) and (min-height: 620px)').matches; },
+    // vào game lần đầu trong phiên: máy không có khung ủng hộ ở menu (điện thoại) → hiện hộp nhắc 1 lần
+    entryDonate() {
+      let seen = false; try { seen = sessionStorage.getItem('mb_don_entry') === '1'; } catch (e) { /* bỏ qua */ }
+      if (seen || this.donPanelShown()) return;
+      setTimeout(() => {
+        if (this.current !== 'menu' || G.running || this.donPanelShown()) return;
+        try { sessionStorage.setItem('mb_don_entry', '1'); } catch (e) { /* bỏ qua */ }
+        this.donPop('entry');
+      }, 1400);
+    },
+    donPop(kind, sum) {
+      const box = $('donPop'), body = $('donPopBody');
+      body.innerHTML = `<button class="dp-x" aria-label="Đóng">✕</button>${this.donCard(kind, sum)}
+        <div class="btns"><button class="dp-ok primary">${kind === 'win' ? 'CHIẾN TIẾP →' : 'VÀO GAME'}</button></div>`;
+      MB.Access.bindCopy(body);
+      const close = () => { MB.Audio.play('ui'); box.classList.add('hidden'); };
+      body.querySelector('.dp-x').onclick = close; body.querySelector('.dp-ok').onclick = close;
+      box.onclick = (e) => { if (e.target === box) close(); };
+      box.classList.remove('hidden');
     },
     // thanh "chi phí server tháng này" (admin đặt mục tiêu)
     async serverBar(el) {

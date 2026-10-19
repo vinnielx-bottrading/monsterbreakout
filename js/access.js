@@ -8,9 +8,15 @@
 'use strict';
 (function (MB) {
   const DEV = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]unlock=all/.test(location.search);
+  /* v8.5 — CHƠI TỰ DO (tạm thời, chưa có máy chủ Supabase):
+     mọi cửa mở sẵn, không cần đăng nhập, không thu phí, không "cửa ác mộng", Sinh tồn không giới hạn giờ.
+     Thông tin ủng hộ lấy cứng từ DONATE bên dưới (không đọc cấu hình từ máy chủ).
+     Khi có lại Supabase: đổi FREE = false là trở về luồng đăng nhập / quản trị như cũ. */
+  const FREE = true;
+  const DONATE = { bank: 'VCB', bankName: 'Vietcombank', account: '0111000182684', name: 'NGUYEN HOANG VINH', branch: 'PGD Nam Cần Thơ', note: 'Ủng hộ duy trì server Monster Breakout', qr: 'assets/donate/vcb-qr.png' };
   const DEF = {
     paywall: { enabled: false, loginFrom: 8, paidFrom: 11 },
-    donate: { bank: '', account: '', name: '', note: 'Ủng hộ duy trì server Monster Breakout', qr: '' },
+    donate: FREE ? Object.assign({}, DONATE) : { bank: '', account: '', name: '', note: 'Ủng hộ duy trì server Monster Breakout', qr: '' },
     starve: { enabled: true, gates: [11] },
     survival: { enabled: true, freeMin: 45, freeRev: 0, supMin: 120, supRev: 2 },
     server: { goal: 0, label: 'Chi phí server tháng này', extra: 0 },
@@ -25,11 +31,21 @@
 
   const A = MB.Access = {
     dev: DEV,
+    free: FREE,
+    DONATE,
     cfg: JSON.parse(JSON.stringify(DEF)),
     ent: [], uid: null, loadedAt: 0, loading: null,
 
     /* ---------- cấu hình từ xa ---------- */
     async loadConfig() {
+      if (FREE) {   // không đọc máy chủ: tắt thu phí, cửa ác mộng, giới hạn Sinh tồn; mở mọi cửa
+        this.cfg.paywall.enabled = false; this.cfg.gates = null;
+        this.cfg.starve = { enabled: false, gates: [] };
+        this.cfg.survival = { enabled: false, freeMin: 0, freeRev: 0, supMin: 0, supRev: 0 };
+        this.cfg.server = { goal: 0, label: '', extra: 0 };
+        this.cfg.donate = Object.assign({}, DONATE);
+        return;
+      }
       try { const c = JSON.parse(localStorage.getItem('mb_cfg') || 'null'); if (c) this.applyCfg(c); } catch (e) { /* bỏ qua */ }
       try {
         const C = MB.Cloud;
@@ -80,7 +96,7 @@
     ngplus() { return DEV || this.live().some((r) => r.perks && r.perks.ngplus); },
     // lý do chưa được chơi: null | 'login' | 'pay'
     need(id, mode) {
-      if (DEV || this.admin) return null;
+      if (FREE || DEV || this.admin) return null;
       if (this.isClosed(id)) return 'closed';
       if (mode === 'survival' && !(MB.Cloud && MB.Cloud.user)) return 'login';
       if (id >= this.LOGIN_FROM && !(MB.Cloud && MB.Cloud.user)) return 'login';
@@ -89,7 +105,7 @@
       return null;
     },
     async check(id, mode) {
-      if (DEV) return null;
+      if (FREE || DEV) return null;
       const C = MB.Cloud;
       if (!C.user && C.needsInit()) { try { await C.load(); } catch (e) { /* bỏ qua */ } }
       if (C.user && this.uid !== C.user.id) await this.refresh();   // biết có phải admin không
@@ -146,6 +162,7 @@
     survDay() { return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); },
     survLimits() {
       const s = this.cfg.survival, sup = !!this.supporter;
+      if (FREE) return { limit: 86400, revLimit: 0, supporter: sup };   // chơi tự do: không giới hạn giờ, gục là hết
       if (DEV || this.admin || !s.enabled) return { limit: 86400, revLimit: 99, supporter: sup };
       return { limit: (sup ? s.supMin : s.freeMin) * 60, revLimit: sup ? s.supRev : s.freeRev, supporter: sup };
     },
@@ -189,8 +206,9 @@
     // mã chuyển khoản riêng: MBTT + 6 ký tự đầu user id → máy chủ nhận ra ai đã ủng hộ
     donateCode() { const u = MB.Cloud && MB.Cloud.user; return u ? 'MBTT' + u.id.replace(/-/g, '').slice(0, 6).toUpperCase() : 'MB UNG HO'; },
     // cửa "ác mộng" khi chưa tiếp tế (admin chọn trong trang quản trị)
-    starveFor(id) { const s = this.cfg.starve; return !DEV && !this.supporter && !!(s && s.enabled && (s.gates || []).map(Number).includes(id)); },
+    starveFor(id) { const s = this.cfg.starve; return !FREE && !DEV && !this.supporter && !!(s && s.enabled && (s.gates || []).map(Number).includes(id)); },
     async monthSupport() {
+      if (FREE) return null;
       try {
         const C = MB.Cloud;
         const r = await fetch(`${C.URL}/rest/v1/rpc/mb_month_support`, { method: 'POST', headers: { apikey: C.KEY, Authorization: 'Bearer ' + C.KEY, 'Content-Type': 'application/json' }, body: '{}' });
@@ -225,10 +243,10 @@
     },
     // khung QR dùng chung cho donate và thanh toán
     qrBox(amount, info, foot) {
-      const d = this.cfg.donate, url = (amount || info || !d.qr) ? this.qrUrl(amount, info) : d.qr;
+      const d = this.cfg.donate, url = FREE ? (amount ? this.qrUrl(amount, info) : d.qr) : (amount || info || !d.qr) ? this.qrUrl(amount, info) : d.qr;
       if (!url) return '<p class="hint">Chủ game chưa cài đặt tài khoản nhận. Vui lòng quay lại sau.</p>';
       return `<div class="qrbox"><img src="${esc(url)}" alt="Mã QR chuyển khoản" referrerpolicy="no-referrer">
-        <div class="qrinfo">${d.bank ? `<div><span>Ngân hàng</span><b>${esc(d.bank.toUpperCase())}</b></div>` : ''}
+        <div class="qrinfo">${d.bank ? `<div><span>Ngân hàng</span><b>${esc(d.bankName || d.bank.toUpperCase())}</b></div>` : ''}
         ${d.account ? `<div><span>Số tài khoản</span><b>${esc(d.account)}</b> <button class="sm copy" data-copy="${esc(d.account)}">Sao chép</button></div>` : ''}
         ${d.name ? `<div><span>Chủ tài khoản</span><b>${esc(d.name)}</b></div>` : ''}
         ${amount ? `<div><span>Số tiền</span><b class="amt">${this.price(amount)}</b></div>` : ''}
