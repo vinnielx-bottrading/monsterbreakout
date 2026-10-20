@@ -1,6 +1,6 @@
 {
-  "name": "TÊN GAME · Vinh Làm Game",
-  "short_name": "TÊN NGẮN",
+  "name": "Monster Breakout · Vinh Làm Game",
+  "short_name": "MBreakout",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
